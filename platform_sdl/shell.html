@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>phoenixomatic · modularcore</title>
+<style>
+  :root{
+    --bg:#0A0B0D; --panel:#14161A; --rule:#23272E;
+    --text:#C8CDD4; --dim:#6B7280; --ember:#FF6A1A; --cool:#37D6C3;
+    --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{
+    background:var(--bg); color:var(--text); font-family:var(--mono);
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:20px; padding:24px;
+  }
+  .brand{font-size:11px; letter-spacing:.42em; text-transform:uppercase; color:var(--dim)}
+  .brand b{color:var(--ember); font-weight:400}
+  h1{
+    margin:0; font-size:clamp(22px,5vw,40px); letter-spacing:-.03em;
+    font-weight:700; color:#F2F4F7;
+  }
+  h1 span{color:var(--ember)}
+  .bezel{
+    background:#050607; border:1px solid var(--rule); padding:12px;
+    box-shadow:0 0 0 1px #000 inset, 0 24px 60px -34px #000;
+  }
+  canvas{
+    display:block; width:960px; max-width:100%; height:auto;
+    aspect-ratio:240/135; image-rendering:pixelated; background:var(--bg);
+    outline:none;
+  }
+  .keys{
+    display:flex; flex-wrap:wrap; gap:6px 14px; justify-content:center;
+    font-size:11px; color:var(--dim); max-width:960px;
+  }
+  .keys b{color:var(--cool); font-weight:400}
+  #status{font-size:11px; color:var(--dim); letter-spacing:.2em; text-transform:uppercase}
+</style>
+</head>
+<body>
+  <div class="brand"><b>modularcore</b></div>
+  <h1>PHOENIX<span>OMATIC</span></h1>
+
+  <div class="bezel">
+    <canvas id="canvas" tabindex="0" oncontextmenu="event.preventDefault()"></canvas>
+  </div>
+
+  <div class="keys">
+    <span><b>SPACE</b> play</span>
+    <span><b>[ ]</b> page</span>
+    <span><b>CTRL+↑↓</b> sub-page</span>
+    <span><b>ARROWS</b> move / sweep</span>
+    <span><b>T</b> mod type</span>
+    <span><b>0</b> recentre</span>
+    <span><b>TAB</b> selector</span>
+    <span><b>F</b> freeze chaos</span>
+    <span><b>R</b> scramble</span>
+    <span><b>K L</b> tempo</span>
+  </div>
+
+  <div id="status">loading</div>
+
+<script>
+  var statusEl = document.getElementById('status');
+  var canvas = document.getElementById('canvas');
+  // Keep the keyboard on the canvas rather than the page, so arrows don't scroll.
+  canvas.addEventListener('click', function(){ canvas.focus(); });
+  window.addEventListener('keydown', function(e){
+    if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' ','Tab'].indexOf(e.key) >= 0) {
+      e.preventDefault();
+    }
+  }, false);
+
+  var Module = {
+    canvas: canvas,
+    print: function(t){ console.log(t); },
+    printErr: function(t){ console.error(t); },
+    setStatus: function(t){ statusEl.textContent = t || 'running'; },
+    onRuntimeInitialized: function(){ statusEl.textContent = 'running'; canvas.focus(); }
+  };
+</script>
+{{{ SCRIPT }}}
+</body>
+</html>

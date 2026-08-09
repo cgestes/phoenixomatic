@@ -67,3 +67,15 @@ vcpkg_installed/
 # test output & cache
 Testing/
 .cache/
+
+# --- phoenixomatic ---
+# The SDL build is plain make, not CMake; keep its Makefile tracked.
+!platform_sdl/Makefile
+platform_sdl/phoenixomatic
+
+# emscripten output — rebuild with `make wasm`
+web/phoenixomatic.html
+web/phoenixomatic.js
+web/phoenixomatic.wasm
+
+.DS_Store
