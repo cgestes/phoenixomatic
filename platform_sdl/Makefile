@@ -3,6 +3,7 @@
 #   make          desktop binary
 #   make run      build and launch it
 #   make wasm     web build via the emscripten docker image
+#                 (EMCC_NATIVE=1 to use an em++ already on PATH)
 #   make bundle   macOS .app
 #
 # Needs SDL2 (brew install sdl2). SDL2_gfx is deliberately not used.
@@ -74,11 +75,23 @@ $(TARGET): $(SOURCES) $(PLATFORM_SOURCES) $(HEADERS)
 run: $(TARGET)
 	./$(TARGET)
 
+# EMCC_NATIVE=1 uses an em++ already on PATH instead of the docker image —
+# that is how CI builds it, where the toolchain is already installed and
+# nesting docker inside the runner buys nothing. Same sources, same flags,
+# one place to change them.
+ifeq ($(EMCC_NATIVE),1)
+  EM_RUN :=
+  EM_SHELL := shell.html
+  EM_OUT := $(ROOT)/web/phoenixomatic.html
+else
+  EM_RUN := $(DOCKER) run --rm -v $(ROOT):/src -w /src/platform_sdl $(EMCC_IMAGE)
+  EM_SHELL := /src/platform_sdl/shell.html
+  EM_OUT := /src/web/phoenixomatic.html
+endif
+
 wasm: $(SOURCES)
 	mkdir -p $(ROOT)/web
-	$(DOCKER) run --rm -v $(ROOT):/src -w /src/platform_sdl $(EMCC_IMAGE) \
-	  em++ $(SOURCES) $(WASM_FLAGS) --shell-file /src/platform_sdl/shell.html \
-	  -o /src/web/phoenixomatic.html
+	$(EM_RUN) em++ $(SOURCES) $(WASM_FLAGS) --shell-file $(EM_SHELL) -o $(EM_OUT)
 
 serve: wasm
 	cd $(ROOT)/web && python3 -m http.server 8080

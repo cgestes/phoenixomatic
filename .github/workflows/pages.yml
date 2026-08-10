@@ -1,0 +1,56 @@
+# Builds the wasm target and publishes web/ to GitHub Pages.
+#
+# The build goes through `make wasm EMCC_NATIVE=1`, so the source list and
+# compiler flags live only in platform_sdl/Makefile. EMCC_NATIVE skips the
+# docker image the local build uses, since the runner already has the
+# toolchain.
+name: Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Pages needs these; the default token is read-only.
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Let a running deploy finish rather than cancelling it half-published.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: mymindstorm/setup-emsdk@v14
+        with:
+          version: 3.1.64
+          actions-cache-folder: emsdk-cache
+
+      # Through the Makefile, so the sources and flags have exactly one
+      # definition and CI cannot drift from the local build.
+      - name: Build wasm
+        run: make -C platform_sdl wasm EMCC_NATIVE=1
+
+      - name: Land on index.html
+        run: cp web/phoenixomatic.html web/index.html
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: web
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
