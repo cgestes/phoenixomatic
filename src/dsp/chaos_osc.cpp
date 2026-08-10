@@ -62,10 +62,15 @@ bool ChaosOsc::tickRungler(bool clock_high, bool data_high) {
   if (rung_div_ > 1 && (++rung_div_count_ % rung_div_) != 0) return false;
 
   const int n = rung_steps_;
-  // All thirty-two bits always shift, whatever STEPS says. STEPS decides only
-  // where the loop closes and where the taps read; masking the register down
-  // to the length would throw the older bits away, so going from 8 to 32 would
-  // hand you twenty-four zeros instead of the history that was already there.
+  // The register is thirty-two bits and STEPS is a *window* onto it: the loop
+  // rotates the low n bits and leaves everything above them untouched.
+  //
+  // Shifting the whole thirty-two was wrong in a way that only showed on the
+  // way back. A locked 8 does not just fail to use bits 8..31 — it marches its
+  // own eight-bit figure up through them, so 16 -> 8 -> 16 came back as the
+  // eight pattern written twice instead of the sixteen you left. Held instead,
+  // the bits outside the window are still there when the window grows again.
+  const uint32_t mask = n >= 32 ? 0xFFFFFFFFu : ((1u << n) - 1u);
   const uint32_t out_bit = (rung_shift_ >> (n - 1)) & 1u;
 
   // The extremes never draw a random number, so a locked loop is genuinely
@@ -78,7 +83,7 @@ bool ChaosOsc::tickRungler(bool clock_high, bool data_high) {
   else take_new = (runglerRand() >> 8) * (1.0f / 16777216.0f) < rung_chance_;
 
   uint32_t bit = take_new ? (data_high ? 1u : 0u) : out_bit;
-  rung_shift_ = (rung_shift_ << 1) | bit;
+  rung_shift_ = (rung_shift_ & ~mask) | (((rung_shift_ << 1) | bit) & mask);
 
   // Three reads of the one register, all measured from the exit so they mean
   // the same thing at every length.

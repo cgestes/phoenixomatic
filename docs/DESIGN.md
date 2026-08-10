@@ -585,19 +585,41 @@ The three reads of that one register:
 Every tap is measured **from the exit**, so it means the same thing at 8 steps as at 32. That is
 also where the recycled bit is taken from, so the taps sit on the loop rather than outside it.
 
-**All thirty-two bits always shift, whatever `STEPS` says.** `STEPS` decides only where the loop
-closes and where the taps read; it does not narrow the register. Masking it to the length would
-throw the older bits away, so going from 8 to 32 would hand you twenty-four zeros instead of the
-history already sitting there — the loop would come back with a quarter of a pattern and three
-quarters of silence. Kept whole, lengthening the register widens the window onto bits that were
-already running:
+**The register is thirty-two bits and `STEPS` is a window onto it.** The loop rotates the low
+`STEPS` bits and leaves everything above them untouched, so changing length is not destructive in
+either direction.
+
+That took two goes, and the first two models both failed on the way *back*:
+
+| Model | 8 → 32 | 16 → 8 → 16 |
+|---|---|---|
+| mask the register to `STEPS` | twenty-four zeros | the 8 pattern, doubled |
+| shift all thirty-two | history, correctly | the 8 pattern, doubled |
+| **rotate the window, hold the rest** | **history, correctly** | **the 16 you left** |
+
+Shifting all thirty-two looks right until you notice that a locked 8 does not merely fail to use
+bits 8…31 — it marches its own eight-bit figure up through them, overwriting the very bits the
+longer window is about to read. Held instead, they are still there when the window grows:
 
 ```
-STEPS 8    #.#....##.##..#.##..#...[.###..#.
-STEPS 32  [#.#....##.##..#.##..#....###..#.]
+locked at 16               ................[##..#.##.####.#.]
+after 8 clocks at STEPS 8  ................##..#.##[.####.#.]
+back at 16                 ................[##..#.##.####.#.]
 ```
 
-Same bits; the bracket moved. Locking still repeats with period exactly `STEPS` at every length.
+Measured: `cb7a` before, `cb7a` after.
+
+One honest limit. The short loop rotates its own bits, so *where* it has got to when you switch
+back depends on how long you spent there. At a whole multiple of 8 the sixteen-bit word is
+restored exactly; off a multiple, the low byte comes back rotated against the high byte, which is
+intact either way. You always get the sixteen-step material back — sometimes phase-shifted within
+itself, never replaced by the eight.
+
+| clocks at `STEPS 8` | back at 16 | high byte |
+|---|---|---|
+| 0 | `cb7a` — exact | intact |
+| 3 | `cbd3` — low byte rotated | intact |
+| 8 | `cb7a` — exact | intact |
 
 `x2` sits one press below `/1` at the fast end of the same field: instead of dividing the rising
 edges it clocks the register on **both** edges of the square, which is the one speed no divider
