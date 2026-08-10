@@ -170,6 +170,8 @@ class OscPage : public IPage {
     for (int i = 0; i < bank_count_; ++i) zeroModRow(o.mod[bank_index_[i]]);
   }
 
+  void randomizeRow() override { nav_.forEachField([this] { randomizeField(); }); }
+
   void randomizePage() override {
     Osc& o = model_.osc[voice_];
     o.wave = static_cast<uint8_t>(model_.random() % WAVE_COUNT);

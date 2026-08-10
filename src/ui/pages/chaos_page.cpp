@@ -242,6 +242,8 @@ class ChaosPage : public IPage {
     c.pick = 0;
   }
 
+  void randomizeRow() override { nav_.forEachField([this] { randomizeField(); }); }
+
   void randomizePage() override {
     Chaos& c = model_.chaos[which_];
     c.mode = static_cast<uint8_t>(model_.random() % CHAOS_MODE_COUNT);

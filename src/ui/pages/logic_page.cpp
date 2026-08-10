@@ -113,7 +113,7 @@ class LogicPage : public IPage {
       if (nav_.field() == 0) div_mode_ = DIVMODE_DIVIDE; else toss_mode_ = TOSS_TOSS;
       return;
     }
-    zeroFate(model_.fate[nav_.row()]);
+    zeroFateField(model_.fate[nav_.row()]);
   }
 
   void randomizeField() override {
@@ -130,7 +130,7 @@ class LogicPage : public IPage {
       else toss_mode_ = static_cast<uint8_t>(model_.random() % TOSS_MODE_COUNT);
       return;
     }
-    randomFate(model_.fate[nav_.row()]);
+    randomFateField(model_.fate[nav_.row()]);
   }
 
   void zeroPage() override {
@@ -145,6 +145,8 @@ class LogicPage : public IPage {
       toss_mode_ = TOSS_TOSS;
     }
   }
+
+  void randomizeRow() override { nav_.forEachField([this] { randomizeField(); }); }
 
   void randomizePage() override {
     if (sub_ == 0) {
@@ -371,6 +373,33 @@ class LogicPage : public IPage {
     f.prob = 0.0f;
     f.mod_src = -1;
     f.mod_amt = 0.0f;
+  }
+
+  // O and R act on one field. Doing the whole channel from a cursor parked on
+  // one of its six values would make the cursor position a lie.
+  void zeroFateField(FateChannel& f) {
+    switch (nav_.field()) {
+      case 0: f.src = GATE_CMP_GT; break;
+      case 1: f.ratio = 1; f.phase = 0; break;
+      case 2: f.phase = 0; break;
+      case 3: f.prob = 0.0f; break;
+      case 4: f.mod_src = -1; break;
+      default: f.mod_amt = 0.0f; break;
+    }
+  }
+
+  void randomFateField(FateChannel& f) {
+    switch (nav_.field()) {
+      case 0: f.src = static_cast<uint8_t>(model_.random() % GATE_COUNT); break;
+      case 1:
+        f.ratio = 1 + static_cast<int>(model_.random() % 16u);
+        if (f.phase >= f.ratio) f.phase = f.ratio - 1;
+        break;
+      case 2: f.phase = static_cast<int>(model_.random() % static_cast<uint32_t>(f.ratio)); break;
+      case 3: f.prob = model_.randomUnit(); break;
+      case 4: f.mod_src = static_cast<int>(model_.random() % (SRC_COUNT + 1)) - 1; break;
+      default: f.mod_amt = model_.randomUnit() * 2.0f - 1.0f; break;
+    }
   }
 
   void randomFate(FateChannel& f) {

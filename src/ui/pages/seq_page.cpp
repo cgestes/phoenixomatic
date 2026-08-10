@@ -114,7 +114,7 @@ class SeqPage : public IPage {
       case kStepRow:
         s.editNotes()[nav_.field()] = -1;   // a step's zero is a rest
         break;
-      case kGateRow: zeroGate(s); break;
+      case kGateRow: zeroGateField(s); break;
       default: zeroModField(s.mod[nav_.row() - kBankRow0], nav_.field()); break;
     }
   }
@@ -129,7 +129,7 @@ class SeqPage : public IPage {
       case kStepRow:
         s.editNotes()[nav_.field()] = randomNote();
         break;
-      case kGateRow: randomGate(s); break;
+      case kGateRow: randomGateField(s); break;
       default: {
         ModRow& m = s.mod[nav_.row() - kBankRow0];
         if (nav_.field() == MOD_FIELD_MODE) {
@@ -149,6 +149,8 @@ class SeqPage : public IPage {
     zeroGate(s);
     for (int i = 0; i < kSeqModRows; ++i) zeroModRow(s.mod[i]);
   }
+
+  void randomizeRow() override { nav_.forEachField([this] { randomizeField(); }); }
 
   void randomizePage() override {
     Seq& s = model_.seq[which_];
@@ -268,6 +270,29 @@ class SeqPage : public IPage {
     s.dir = DIR_FWD;
     s.range = 1;
     s.chance = 0.0f;
+  }
+
+  // O acts on one field, so it needs the single-field version. Zeroing the
+  // whole row from a cursor sitting on one of its five values would make the
+  // cursor position a lie, the same way it did on the modulation banks.
+  void zeroGateField(Seq& s) {
+    switch (nav_.field()) {
+      case 0: s.clock_src = GATE_CMP_GT; break;
+      case 1: s.div = 1; break;
+      case 2: s.dir = DIR_FWD; break;
+      case 3: s.range = 1; break;
+      default: s.chance = 0.0f; break;
+    }
+  }
+
+  void randomGateField(Seq& s) {
+    switch (nav_.field()) {
+      case 0: s.clock_src = static_cast<uint8_t>(model_.random() % GATE_COUNT); break;
+      case 1: s.div = 1 + static_cast<int>(model_.random() % 8u); break;
+      case 2: s.dir = static_cast<uint8_t>(model_.random() % DIR_COUNT); break;
+      case 3: s.range = 1 + static_cast<int>(model_.random() % 5u); break;
+      default: s.chance = 0.4f + model_.randomUnit() * 0.6f; break;
+    }
   }
 
   void randomGate(Seq& s) {

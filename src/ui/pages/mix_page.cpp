@@ -125,6 +125,8 @@ class MixPage : public IPage {
     model_.crush = 0;
   }
 
+  void randomizeRow() override { nav_.forEachField([this] { randomizeField(); }); }
+
   void randomizePage() override {
     for (int i = 0; i < kStrips; ++i) {
       *constLevelMut(i) = 0.3f + model_.randomUnit() * 0.7f;

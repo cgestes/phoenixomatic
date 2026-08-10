@@ -242,6 +242,10 @@ bool PhoenixDisplay::handleGlobalKey(const UIEvent& ev) {
     if (ev.shift) page->randomizePage(); else page->randomizeField();
     return true;
   }
+  if (ev.key == 't') {
+    page->randomizeRow();
+    return true;
+  }
   // CTRL+UP/DOWN steps sub-pages.
   if (ev.ctrl && (ev.code == KEY_UP || ev.code == KEY_DOWN)) {
     int n = page->subPageCount();

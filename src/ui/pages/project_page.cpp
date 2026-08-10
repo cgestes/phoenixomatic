@@ -83,7 +83,7 @@ class HelpPage : public IPage {
       {"J/M K/,",    "fields 7-8"},
       {"SHIFT+key",  "fine step"},
       {"O  SHIFT+O", "zero field / page"},
-      {"R  SHIFT+R", "random field / page"},
+      {"R  T  SH+R", "random field / row / page"},
       {"SPACE",      "toggle (play on HOME)"},
       {"[  ]",       "previous / next screen"},
       {"CTRL+UP/DN", "sub-page"},

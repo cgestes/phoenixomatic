@@ -132,6 +132,8 @@ class DrumPage : public IPage {
     }
   }
 
+  void randomizeRow() override { nav_.forEachField([this] { randomizeField(); }); }
+
   void randomizePage() override {
     if (sub_ == 0) {
       for (int i = 0; i < kDrumVoices; ++i) {

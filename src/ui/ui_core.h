@@ -64,8 +64,9 @@ class IPage {
   // it does not — a divider goes to 1, a selector to its first entry.
   virtual void zeroField() {}
   virtual void zeroPage() {}
-  // R randomises the focused field, SHIFT+R the whole page.
+  // R randomises the focused field, T the whole row, SHIFT+R the whole page.
   virtual void randomizeField() {}
+  virtual void randomizeRow() {}
   virtual void randomizePage() {}
 
   // Which bus sources are doing something on this screen right now.

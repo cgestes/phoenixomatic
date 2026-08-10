@@ -90,6 +90,20 @@ class RowNav {
   }
 
   bool at(int row, int field) const { return row_ == row && field_ == field; }
+
+  // Runs `fn` once per field of the focused row with the cursor parked on each
+  // in turn, then puts it back. Lets a page build a whole-row action out of
+  // the per-field one it already has, rather than writing it twice.
+  template <typename F>
+  void forEachField(F fn) {
+    int n = fieldCount();
+    int save = field_;
+    for (int i = 0; i < n; ++i) {
+      field_ = i;
+      fn();
+    }
+    field_ = save;
+  }
   bool atRow(int row) const { return row_ == row; }
 
  private:
