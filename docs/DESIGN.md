@@ -110,6 +110,13 @@ Two fields rather than one folded scale: the interesting tunings are the plain r
 reading "3 over 2" off two numbers beats hunting for it in a list of 127 entries. `SHIFT` jumps
 by eight, because a 64-step crawl is no way to find `x16`.
 
+`R` on a ratio term draws from the whole 1…64 range, weighted towards the small end — about 29%
+of draws land on 1 or 2, 20% above 32. Uniform would give an awkward ratio nearly every time, and
+awkward ratios are where the comparator stops locking; capping the draw at 8 to avoid that made
+five sixths of the field unreachable instead. The same weighting serves every ratio term on the
+machine — oscillator `DIV`/`MULT`, the sequencer divider, `FATE` ratios and drum dividers (which
+keep their own maximum of 16).
+
 Semitones would be the obvious choice and the wrong one. With no clock, the comparator's edge
 pattern *is* the rhythm, and what decides whether that pattern repeats is the ratio between the
 two oscillators. At `x1` against `x3` the crossings lock into a steady figure; a few cents of
