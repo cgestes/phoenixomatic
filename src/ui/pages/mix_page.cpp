@@ -13,7 +13,7 @@ constexpr int kOutRow = kStrips + 1;                // 8: DRIVE | CRUSH
 
 // Each strip has a level and a mute; the master is one field; the output row
 // carries drive and crush.
-constexpr uint8_t kFields[] = {2, 2, 2, 2, 2, 2, 2, 1, 2};
+constexpr uint8_t kFields[] = {2, 2, 2, 2, 2, 2, 2, 2, 1, 2};
 constexpr int kRows = static_cast<int>(sizeof(kFields) / sizeof(kFields[0]));
 
 class MixPage : public IPage {
@@ -24,8 +24,8 @@ class MixPage : public IPage {
 
   void draw(TextScreen& scr) override {
     for (int i = 0; i < kStrips; ++i) {
-      // A gap after the three tonal voices separates them from the drums.
-      int row = 1 + i + (i >= 3 ? 1 : 0);
+      // A gap after the tonal voices separates them from the drums.
+      int row = 1 + i + (i >= 4 ? 1 : 0);
       bool rf = nav_.atRow(i);
       uint8_t bg = rowBg(rf);
       if (rf) scr.highlight(1, row, kScreenCols - 2, PEN_PANEL);
@@ -149,24 +149,26 @@ class MixPage : public IPage {
 
   static const char* stripName(int i) {
     static const char* const kNames[kStrips] = {
-      "OSC-1", "OSC-2", "COMP", "KIK", "SNR", "HH", "OH"
+      "OSC-1", "OSC-2", "COMP", "FILT", "KIK", "SNR", "HH", "OH"
     };
     return kNames[i];
   }
   static uint8_t stripPen(int i) {
-    return i < 3 ? PEN_EMBER : kDrumPen[i - 3];
+    return i < 4 ? PEN_EMBER : kDrumPen[i - 4];
   }
 
   float* constLevelMut(int i) {
     if (i < 2) return &model_.osc[i].level;
     if (i == 2) return &model_.comp.level;
-    return &model_.drum[i - 3].level;
+    if (i == 3) return &model_.filter.level;
+    return &model_.drum[i - 4].level;
   }
   const float* constLevel(int i) const { return constLevelOf(model_, i); }
   static const float* constLevelOf(const PhoenixModel& m, int i) {
     if (i < 2) return &m.osc[i].level;
     if (i == 2) return &m.comp.level;
-    return &m.drum[i - 3].level;
+    if (i == 3) return &m.filter.level;
+    return &m.drum[i - 4].level;
   }
 
   PhoenixModel& model_;

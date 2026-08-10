@@ -90,7 +90,7 @@ class HelpPage : public IPage {
       {"SPACE",      "toggle (play on HOME)"},
       {"[  ]",       "previous / next screen"},
       {"CTRL+UP/DN", "sub-page"},
-      {"1 - 7",      "mute an instrument"},
+      {"1 - 8",      "mute an instrument"},
       {"-  =  ESC",  "mute all / none / invert"},
     };
     constexpr int kCount = static_cast<int>(sizeof(kRows) / sizeof(kRows[0]));

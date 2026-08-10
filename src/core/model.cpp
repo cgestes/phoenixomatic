@@ -28,6 +28,10 @@ const char* const kChaosOutLabel[3] = { "TORPOR", "INERTIA", "APATHY" };
 const char* const kWaveLabel[WAVE_COUNT] = { "SIN", "TRI", "SAW", "SQR" };
 
 
+const char* const kFilterInputLabel[FILT_IN_COUNT] = { "PWM", "OSC-1", "OSC-2", "OSC1+2" };
+const char* const kFilterModeLabel[3] = { "LP", "BP", "HP" };
+const char* const kFilterDestLabel[FDEST_COUNT] = { "FREQ", "RES" };
+
 const char* const kSeqDirLabel[DIR_COUNT] = { "FWD", "REV", "PEND", "RAND" };
 const char* const kDivModeLabel[DIVMODE_COUNT] = { "DIVIDE", "EUCLID" };
 const char* const kTossModeLabel[TOSS_MODE_COUNT] = { "TOSS", "LATCH" };
@@ -122,6 +126,22 @@ PhoenixModel::PhoenixModel() {
     }
   }
 
+  // --- filter: the rungler sweeps it and the second oscillator shades it,
+  // which is the Benjolin's own arrangement.
+  const char* filt_names[kFilterModRows] = {
+    "CHAOS-A", "CHAOS-B", "OSC-1", "OSC-2", "SEQ-1", "SEQ-2"
+  };
+  const SourceId filt_srcs[kFilterModRows] = {
+    SRC_CHA, SRC_CHB, SRC_OS1, SRC_OS2, SRC_SQ1, SRC_SQ2
+  };
+  for (int i = 0; i < kFilterModRows; ++i) {
+    filter.mod[i].name = filt_names[i];
+    filter.mod[i].src = filt_srcs[i];
+    filter.mod[i].mode = FDEST_FREQ;
+  }
+  filter.mod[0].amount = 0.55f;   // rungler -> cutoff
+  filter.mod[3].amount = 0.20f;   // OSC-2 sweep
+
   // --- comparator offset bank: both sequencers, both chaos oscillators.
   const char* comp_names[kCompModRows] = { "SEQ-1", "SEQ-2", "CHAOS-A", "CHAOS-B" };
   const SourceId comp_srcs[kCompModRows] = { SRC_SQ1, SRC_SQ2, SRC_CHA, SRC_CHB };
@@ -163,6 +183,7 @@ PhoenixModel::PhoenixModel() {
   // oscillators and the interval between them. Un-mute with 1-7, or = for the
   // lot.
   comp.mute = true;
+  filter.mute = true;
   for (int i = 0; i < kDrumVoices; ++i) drum[i].mute = true;
 
   applyMachineMode();
@@ -202,6 +223,7 @@ bool PhoenixModel::isMuted(int inst) const {
     case INST_OSC1: return osc[0].mute;
     case INST_OSC2: return osc[1].mute;
     case INST_COMP: return comp.mute;
+    case INST_FILTER: return filter.mute;
     case INST_KIK:
     case INST_SNR:
     case INST_HH:
@@ -215,6 +237,7 @@ void PhoenixModel::setMuted(int inst, bool muted) {
     case INST_OSC1: osc[0].mute = muted; break;
     case INST_OSC2: osc[1].mute = muted; break;
     case INST_COMP: comp.mute = muted; break;
+    case INST_FILTER: filter.mute = muted; break;
     case INST_KIK:
     case INST_SNR:
     case INST_HH:
@@ -268,6 +291,7 @@ void PhoenixModel::applyMachineMode() {
   };
   for (int v = 0; v < 2; ++v) apply(osc[v].mod, kOscModRows);
   apply(comp.mod, kCompModRows);
+  apply(filter.mod, kFilterModRows);
 
   if (!benjolin) return;
 

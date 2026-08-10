@@ -22,6 +22,7 @@ PhoenixDisplay::PhoenixDisplay(IGfx& gfx, PhoenixModel& model)
   pages_.push_back(makeOscPage(model));
   pages_.push_back(makeSeqPage(model));
   pages_.push_back(makeLogicPage(model));
+  pages_.push_back(makeFilterPage(model));
   pages_.push_back(makeDrumPage(model));
   pages_.push_back(makeMixPage(model));
   pages_.push_back(makeConfigPage(model));
@@ -309,7 +310,7 @@ bool PhoenixDisplay::handleGlobalKey(const UIEvent& ev) {
   // The letter keys are all spoken for by the column pairs that edit fields,
   // so nothing else global may live on one. Rate lives on HOME and freeze on
   // CHAOS, as fields, which is where they were reachable anyway.
-  if (ev.key >= '1' && ev.key <= '7') {
+  if (ev.key >= '1' && ev.key <= '8') {
     model_.toggleMute(ev.key - '1');
     return true;
   }

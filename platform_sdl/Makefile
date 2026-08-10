@@ -34,6 +34,7 @@ SOURCES := \
   ../src/dsp/chaos_osc.cpp \
   ../src/dsp/osc.cpp \
   ../src/dsp/drum_voices.cpp \
+  ../src/dsp/filter.cpp \
   ../src/dsp/phoenix_engine.cpp \
   ../src/ui/text_screen.cpp \
   ../src/ui/phoenix_display.cpp \
@@ -44,6 +45,7 @@ SOURCES := \
   ../src/ui/pages/osc_page.cpp \
   ../src/ui/pages/seq_page.cpp \
   ../src/ui/pages/logic_page.cpp \
+  ../src/ui/pages/filter_page.cpp \
   ../src/ui/pages/drum_page.cpp \
   ../src/ui/pages/mix_page.cpp \
   ../src/ui/pages/config_page.cpp \

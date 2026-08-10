@@ -8,6 +8,9 @@ namespace {
 
 inline float clamp1(float v) { return v < -1.0f ? -1.0f : (v > 1.0f ? 1.0f : v); }
 
+// How far the filter's bank can drag the cutoff at full travel.
+constexpr float kFilterModOctaves = 5.0f;
+
 // Everything on the patch bus is -1..1, sequencer CV included. Two octaves
 // either side of middle maps to full travel, so a mod row's attenuverter is
 // the only thing deciding how far a note actually moves anything.
@@ -27,6 +30,7 @@ PhoenixEngine::PhoenixEngine(PhoenixModel& model, float sample_rate)
     drum_[i].init(sample_rate_, static_cast<uint8_t>(i),
                   0xBEEFu + static_cast<uint32_t>(i) * 2654435761u);
   }
+  filter_.init(sample_rate_);
   // ~70ms, so a single-sample pulse is still visible on a 25fps panel.
   led_hold_samples_ = static_cast<int>(sample_rate_ * 0.07f);
 }
@@ -65,6 +69,7 @@ void PhoenixEngine::applyParams() {
     const Drum& d = model_.drum[i];
     drum_[i].setParams(d.tune, d.decay, d.p3, d.p4, d.p5);
   }
+  filter_.setMode(model_.filter.mode);
 }
 
 void PhoenixEngine::publishBus() {
@@ -294,6 +299,37 @@ void PhoenixEngine::render(int16_t* out, size_t frames) {
     tickDrums();
 
     if (!model_.comp.mute) voice += comp_out_ * model_.comp.level * 0.22f;
+
+    // --- filter ------------------------------------------------------------
+    // The Benjolin runs its PWM through a resonant filter swept by the
+    // rungler, and that is where its voice comes from. Cutoff and resonance
+    // are both CV destinations, so the bank decides which each row drives.
+    {
+      const FilterState& f = model_.filter;
+      float octaves = 0.0f;
+      float res_mod = 0.0f;
+      for (int i = 0; i < kFilterModRows; ++i) {
+        const ModRow& m = f.mod[i];
+        if (!m.active()) continue;
+        if (m.mode == FDEST_RES) res_mod += m.amount * bus_[m.src];
+        else octaves += m.amount * bus_[m.src] * kFilterModOctaves;
+      }
+      // 20 Hz to about 8 kHz across the knob, then the modulation on top.
+      float base = 20.0f * std::exp2(f.freq * 8.6f);
+      filter_.setCutoff(base * std::exp2(octaves));
+      float res = f.res + res_mod;
+      filter_.setResonance(res < 0.0f ? 0.0f : (res > 1.0f ? 1.0f : res));
+
+      float in = 0.0f;
+      switch (f.input) {
+        case FILT_IN_OSC1: in = osc_[0].value(); break;
+        case FILT_IN_OSC2: in = osc_[1].value(); break;
+        case FILT_IN_BOTH: in = (osc_[0].value() + osc_[1].value()) * 0.5f; break;
+        default:           in = comp_out_; break;
+      }
+      float out_f = filter_.process(in);
+      if (!f.mute) voice += out_f * f.level * 0.5f;
+    }
 
     // --- drums --------------------------------------------------------------
     for (int i = 0; i < kDrumVoices; ++i) {

@@ -203,7 +203,7 @@ class DrumPage : public IPage {
                              : phx_glyphs::kLedOff;
       scr.put(8 + i * 5, 11, glyph, d.live ? kDrumPen[i] : PEN_FAINT);
     }
-    scr.text(2, 13, "4-7 mute these voices", PEN_FAINT);
+    scr.text(2, 13, "5-8 mute these voices", PEN_FAINT);
   }
 
   void drawVoices(TextScreen& scr) {

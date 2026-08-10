@@ -246,6 +246,32 @@ struct FateChannel {
   int count = 0;
 };
 
+// The Benjolin's filter: the comparator's pulse train through a resonant
+// multimode filter, swept by the rungler. Cutoff and resonance are both CV
+// destinations, so they get an attenuverter bank like everything else.
+inline constexpr int kFilterModRows = 6;
+
+enum FilterInput : uint8_t {
+  FILT_IN_COMP = 0, FILT_IN_OSC1, FILT_IN_OSC2, FILT_IN_BOTH, FILT_IN_COUNT
+};
+extern const char* const kFilterInputLabel[FILT_IN_COUNT];
+extern const char* const kFilterModeLabel[3];
+
+// Where a filter mod row lands.
+enum FilterModDest : uint8_t { FDEST_FREQ = 0, FDEST_RES, FDEST_COUNT };
+extern const char* const kFilterDestLabel[FDEST_COUNT];
+
+struct FilterState {
+  uint8_t mode = 0;              // FilterMode: LP / BP / HP
+  uint8_t input = FILT_IN_COMP;  // the PWM, as the original has it
+  float freq = 0.35f;            // 0..1, mapped exponentially
+  float res = 0.55f;
+  float level = 0.6f;
+  bool mute = false;
+  ModRow mod[kFilterModRows];
+  int focus = 0;
+};
+
 inline constexpr int kDrumVoices = 4;
 
 struct Drum {
@@ -296,7 +322,8 @@ class PhoenixModel {
   // The seven things that can be silenced, in the order the number keys and
   // the MIX page list them.
   enum Instrument : uint8_t {
-    INST_OSC1 = 0, INST_OSC2, INST_COMP, INST_KIK, INST_SNR, INST_HH, INST_OH,
+    INST_OSC1 = 0, INST_OSC2, INST_COMP, INST_FILTER,
+    INST_KIK, INST_SNR, INST_HH, INST_OH,
     INST_COUNT
   };
   bool isMuted(int inst) const;
@@ -326,6 +353,7 @@ class PhoenixModel {
   Osc osc[2];
   Seq seq[2];
   Comparator comp;
+  FilterState filter;
   FateChannel fate[kFateChannels];
   Drum drum[kDrumVoices];
 

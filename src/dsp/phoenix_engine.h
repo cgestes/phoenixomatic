@@ -22,6 +22,7 @@
 #include "../core/model.h"
 #include "chaos_osc.h"
 #include "drum_voices.h"
+#include "filter.h"
 #include "osc.h"
 
 class PhoenixEngine {
@@ -50,6 +51,7 @@ class PhoenixEngine {
   ChaosOsc chaos_[2];
   OscVoice osc_[2];
   DrumVoice drum_[kDrumVoices];
+  Filter filter_;
 
   // The patch bus: one live value per source, exactly the eight the footer
   // shows. Mod banks read from here and nowhere else.

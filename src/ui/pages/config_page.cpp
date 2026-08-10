@@ -23,6 +23,7 @@ const ModuleLine kModules[] = {
   {"OSC-1 / OSC-2",   true},
   {"CHAOS-A rungler", true},
   {"COMPARATOR",      true},
+  {"FILTER",          true},
   {"MIX",             true},
   {"CHAOS-B",         false},
   {"SEQ-1 / SEQ-2",   false},
