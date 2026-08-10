@@ -172,9 +172,9 @@ PhoenixModel::PhoenixModel() {
   // rest across all eight levels.
   osc[1].mod[0].amount = -0.35f;
 
-  // A little feedback: enough to stop the register settling into a short loop,
-  // not so much that the data bit stops mattering.
-  chaos[0].skew = 0.10f;
+  // XOR: the Benjolin's own feedback path, so RUNGLER mode is the authentic
+  // article out of the box. 93 register states against 15 with none.
+  chaos[0].skew = runglerSkewForFeedback(kFeedbackXor);
 
   chaos[1].rate = 0.07f;
   chaos[1].depth = 0.55f;

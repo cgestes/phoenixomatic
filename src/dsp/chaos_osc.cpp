@@ -38,6 +38,7 @@ void ChaosOsc::reset() {
   rung_shift_ = 0x2Du;   // any non-zero seed; all-zeros with pure data is fine
   rung_prev_clock_ = false;
   rung_div_count_ = 0;
+  rung_fb_accum_ = 0;
 }
 
 // The benjolin article: one oscillator clocks the register, the other supplies
@@ -46,9 +47,10 @@ void ChaosOsc::reset() {
 // in stays tuned in.
 //
 //   RATE  divides the incoming clock, 1..16
-//   SKEW  blends the data bit with feedback from the register's top tap, so
-//         the pattern can be steered from short and repeating to long and
-//         restless
+//   SKEW  is FEEDBACK: XOR is the authentic path — the incoming bit is the
+//         data XORed with the one falling off the end, every clock. 0..100
+//         mixes that XOR in against a threshold on the register instead, for
+//         patterns that sit somewhere between the data and the feedback
 //   DEPTH scales the output
 void ChaosOsc::tickRungler(bool clock_high, bool data_high) {
   bool rising = clock_high && !rung_prev_clock_;
@@ -58,12 +60,21 @@ void ChaosOsc::tickRungler(bool clock_high, bool data_high) {
   if ((++rung_div_count_ % runglerClockDiv(rate_)) != 0) return;
 
   uint8_t bit = data_high ? 1u : 0u;
-  // Positive skew mixes in the register's own top bit, which lengthens the
-  // pattern; negative skew leaves the pure data bit, the classic behaviour.
-  if (skew_ > 0.0f) {
-    uint8_t fb = static_cast<uint8_t>((rung_shift_ >> 7) & 1u);
-    // Deterministic threshold on the register itself rather than a coin toss.
-    if ((rung_shift_ & 0x0Fu) < static_cast<uint8_t>(skew_ * 15.0f)) bit ^= fb;
+  uint8_t out_bit = static_cast<uint8_t>((rung_shift_ >> 7) & 1u);
+  int fb = runglerFeedback(skew_);
+  if (fb == kFeedbackXor) {
+    // The Benjolin's own path: data XOR the bit leaving the register, always.
+    bit ^= out_bit;
+  } else if (fb > 0) {
+    // Softer: apply that XOR on fb% of clocks, spread evenly. Deliberately not
+    // a threshold on the register — that is self-reinforcing, because a
+    // register stuck at one end then fails the test that would have unstuck
+    // it, and the dial does nothing for most of its travel.
+    rung_fb_accum_ += fb;
+    if (rung_fb_accum_ >= 100) {
+      rung_fb_accum_ -= 100;
+      bit ^= out_bit;
+    }
   }
   rung_shift_ = static_cast<uint8_t>((rung_shift_ << 1) | bit);
 

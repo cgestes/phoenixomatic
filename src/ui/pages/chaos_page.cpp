@@ -71,8 +71,9 @@ class ChaosPage : public IPage {
         case 1: snprintf(buf, sizeof(buf), "%d", static_cast<int>(c.depth * 100.0f)); break;
         default:
           if (rung) {
-            snprintf(buf, sizeof(buf), "%d", c.skew > 0.0f
-                         ? static_cast<int>(c.skew * 100.0f) : 0);
+            int fb = runglerFeedback(c.skew);
+            if (fb == kFeedbackXor) snprintf(buf, sizeof(buf), "XOR");
+            else snprintf(buf, sizeof(buf), "%d%%", fb);
           } else {
             snprintf(buf, sizeof(buf), "%+d", static_cast<int>(c.skew * 100.0f));
           }
@@ -203,7 +204,7 @@ class ChaosPage : public IPage {
           c.rate = c.mode == CHAOS_RUNGLER ? runglerRateForDiv(1) : 0.005f;
         }
         else if (nav_.field() == 1) c.depth = 0.0f;
-        else c.skew = 0.0f;
+        else c.skew = c.mode == CHAOS_RUNGLER ? runglerSkewForFeedback(0) : 0.0f;
         break;
       default: c.pick = 0; break;
     }
@@ -223,7 +224,12 @@ class ChaosPage : public IPage {
                        : 0.01f + model_.randomUnit() * 0.4f;
         }
         else if (nav_.field() == 1) c.depth = 0.3f + model_.randomUnit() * 0.7f;
-        else c.skew = model_.randomUnit() * 2.0f - 1.0f;
+        else if (c.mode == CHAOS_RUNGLER) {
+          c.skew = runglerSkewForFeedback(
+              static_cast<int>(model_.random() % 102u) - 1);
+        } else {
+          c.skew = model_.randomUnit() * 2.0f - 1.0f;
+        }
         break;
       default: c.pick = static_cast<int>(model_.random() % 3u); break;
     }
@@ -325,6 +331,22 @@ class ChaosPage : public IPage {
         if (c.depth > 1.0f) c.depth = 1.0f;
         break;
       default:
+        if (c.mode == CHAOS_RUNGLER) {
+          // The field reads XOR, 0, 5 … 100, so it steps through those and not
+          // through the float underneath. XOR sits one press below 0%, and
+          // stepping up out of it lands on 0% rather than on the step size.
+          int cur = runglerFeedback(c.skew);
+          int fb;
+          if (cur == kFeedbackXor) {
+            fb = dir > 0 ? 0 : kFeedbackXor;
+          } else {
+            fb = cur + dir * (fine ? 1 : 5);
+            if (fb < 0) fb = kFeedbackXor;
+            if (fb > 100) fb = 100;
+          }
+          c.skew = runglerSkewForFeedback(fb);
+          break;
+        }
         c.skew += d * 0.02f;
         if (c.skew < -1.0f) c.skew = -1.0f;
         if (c.skew > 1.0f) c.skew = 1.0f;

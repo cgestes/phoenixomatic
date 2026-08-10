@@ -57,4 +57,5 @@ class ChaosOsc {
   uint8_t rung_shift_ = 0;
   bool rung_prev_clock_ = false;
   int rung_div_count_ = 0;
+  int rung_fb_accum_ = 0;
 };

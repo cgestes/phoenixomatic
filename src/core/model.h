@@ -97,6 +97,25 @@ extern const char* const kChaosOutLabel[3];         // TORPOR / INERTIA / APATHY
 // engine and the page, so the number on screen is the number in use.
 inline constexpr int kRunglerMaxDiv = 16;
 
+// FEEDBACK reads XOR, then 0..100. XOR is the Benjolin article: the bit
+// shifted in is the data bit XORed with the one falling off the end, every
+// clock, no exceptions — that feedback *is* the mechanism, not a garnish on
+// it. 0..100 is the softer version, mixing that XOR in against a threshold on
+// the register itself.
+inline constexpr int kFeedbackXor = -1;
+
+inline int runglerFeedback(float skew) {
+  if (skew < -0.5f) return kFeedbackXor;
+  int fb = static_cast<int>(skew * 100.0f + 0.5f);
+  return fb < 0 ? 0 : (fb > 100 ? 100 : fb);
+}
+
+inline float runglerSkewForFeedback(int fb) {
+  if (fb <= kFeedbackXor) return -1.0f;
+  if (fb > 100) fb = 100;
+  return static_cast<float>(fb) / 100.0f;
+}
+
 inline int runglerClockDiv(float rate) {
   int div = 1 + static_cast<int>(rate * 8.0f);
   return div < 1 ? 1 : (div > kRunglerMaxDiv ? kRunglerMaxDiv : div);
