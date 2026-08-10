@@ -373,9 +373,23 @@ In this mode the knobs change meaning, and the panel relabels them rather than l
 | `DEPTH` | Scales the output. | `LEVEL` |
 | `SKEW` | Blends the data bit with feedback from the register's top tap. Zero is the classic rungler; up from there lengthens and roughens the pattern. | `FEEDBACK` |
 
-The page also draws the register itself, MSB first, coloured by which output reads which bits —
-`A` for APATHY (bit 7 raw), `I` for INERTIA (bits 3–5), `T` for TORPOR (bits 0–2). Watching the
-bits march explains a rungler faster than any amount of prose about it.
+The page draws the register itself, MSB first, with the tap each bit belongs to written directly
+underneath:
+
+```
+REG  # . . # . # . #
+     A - I I I T T T
+```
+
+`A` is APATHY (bit 7, read raw as a square), `I` is INERTIA (bits 3–5), `T` is TORPOR (bits 0–2),
+and bit 6 is not tapped. Watching the bits march explains a rungler faster than prose does.
+
+Beside the output meters is a **21-second history** of whichever tap is picked, drawn stepped
+because the value really does jump, with `EXT` reporting the share of that window spent at the
+outer levels. A meter only ever shows the present, and "it sits at the extremes" is a claim about
+time — so the panel measures it rather than leaving it to be eyeballed. At the shipped defaults
+it reads 22%. The history samples on a fixed 0.25 s interval, not per frame, so the window is the
+same whether the panel runs at 25fps on the Cardputer or 60 in a browser.
 
 **Why the two rungler depths differ.** The rungler feeds both oscillators, and the depths must
 not be equal. Modulating both by the same amount shifts them together and leaves their *ratio*
