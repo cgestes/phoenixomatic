@@ -13,7 +13,8 @@ class ChaosOsc {
   void init(float sample_rate, uint32_t seed);
   void setMode(uint8_t mode);      // ChaosMode
   void setRate(float hz);
-  void setSkew(float skew);        // -1..1
+  void setSkew(float skew);        // -1..1, flow modes
+  void setFeedback(float fb);      // -1 XOR, else 0..1, RUNGLER only
 
   // Advance by `dt_samples` samples. Cheap: called every kChaosStride samples.
   void process(int dt_samples);
@@ -48,6 +49,7 @@ class ChaosOsc {
   float sample_rate_ = 22050.0f;
   float rate_ = 0.04f;
   float skew_ = 0.0f;
+  float feedback_ = -1.0f;
   uint8_t mode_ = 0;
   uint32_t rng_ = 1;
 

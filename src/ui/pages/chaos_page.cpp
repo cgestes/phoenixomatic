@@ -66,7 +66,7 @@ class ChaosPage : public IPage {
         if (rung) snprintf(buf, sizeof(buf), "/%d", runglerClockDiv(c.rate));
         else snprintf(buf, sizeof(buf), "%.2fHz", static_cast<double>(c.rate));
       } else if (rung) {
-        int fb = runglerFeedback(c.skew);
+        int fb = runglerFeedback(c.feedback);
         if (fb == kFeedbackXor) snprintf(buf, sizeof(buf), "XOR");
         else snprintf(buf, sizeof(buf), "%d%%", fb);
       } else {
@@ -75,20 +75,22 @@ class ChaosPage : public IPage {
       drawField(scr, col, 4, buf, PEN_COOL, nav_.at(kShapeRow, i), sbg);
     }
 
-    if (rung) {
-      drawRegister(scr, c);
-      // A history of the picked tap, because "it sits at the extremes" is a
-      // claim about time and a bar only ever shows the present.
-      scr.reserve(kPlotCol, kPlotRow, kPlotCols, kPlotRows);
-      pushHistory(c.out[c.pick]);
-      // APATHY is bit 7 read raw — a one-bit pulse, so it is always at an end
-      // and "AT ENDS 100%" tells you nothing. Ask a pulse about its duty and a
-      // stepped CV about its range: same slot, right question for each.
-      bool pulse = c.pick == 2;
-      scr.text(kPlotCol, kPlotRow - 1, pulse ? "DUTY" : "AT ENDS", PEN_DIM);
-      scr.textf(kPlotCol + (pulse ? 5 : 8), kPlotRow - 1, PEN_COOL, "%d%%",
-                pulse ? dutyPercent() : extremesPercent());
-    }
+    // The register only exists in RUNGLER mode; the history of the picked
+    // output is worth having in every mode, since "does this actually move"
+    // is the same question whether the source is a shift register or a
+    // strange attractor.
+    if (rung) drawRegister(scr, c);
+
+    scr.reserve(kPlotCol, kPlotRow, kPlotCols, kPlotRows);
+    pushHistory(c.out[c.pick]);
+
+    // Only RUNGLER's APATHY is one bit, and asking a pulse how much of its
+    // range it uses is meaningless — it has two values. Everything else gets
+    // the range question.
+    bool pulse = rung && c.pick == 2;
+    scr.text(kPlotCol, kPlotRow - 1, pulse ? "DUTY" : "AT ENDS", PEN_DIM);
+    scr.textf(kPlotCol + (pulse ? 5 : 8), kPlotRow - 1, PEN_COOL, "%d%%",
+              pulse ? dutyPercent() : extremesPercent());
 
     // The three outputs, with the picked one marked.
     for (int o = 0; o < 3; ++o) {
@@ -124,7 +126,6 @@ class ChaosPage : public IPage {
   }
 
   void drawOverlay(IGfx& gfx) override {
-    if (model_.chaos[which_].mode != CHAOS_RUNGLER) return;
     int x0 = TextScreen::pixelX(kPlotCol);
     int y0 = TextScreen::pixelY(kPlotRow);
     int w = kPlotCols * kCellW;
@@ -143,7 +144,9 @@ class ChaosPage : public IPage {
       int y = mid - static_cast<int>(v * static_cast<float>(span));
       if (y < y0) y = y0;
       if (y > y0 + h - 1) y = y0 + h - 1;
-      // Stepped, not interpolated: the value really does jump.
+      // Stepped rather than interpolated. A rungler really does jump, and a
+      // flow drawn this way just looks finely stepped, which it is at this
+      // sample rate.
       if (x > 0 && y != prev) {
         int lo = y < prev ? y : prev;
         int hi = y < prev ? prev : y;
@@ -196,7 +199,8 @@ class ChaosPage : public IPage {
         if (nav_.field() == 0) {
           c.rate = c.mode == CHAOS_RUNGLER ? runglerRateForDiv(1) : 0.005f;
         } else {
-          c.skew = c.mode == CHAOS_RUNGLER ? runglerSkewForFeedback(0) : 0.0f;
+          if (c.mode == CHAOS_RUNGLER) c.feedback = runglerSkewForFeedback(0);
+          else c.skew = 0.0f;
         }
         break;
       default: c.pick = 0; break;
@@ -217,7 +221,7 @@ class ChaosPage : public IPage {
                        : 0.01f + model_.randomUnit() * 0.4f;
         }
         else if (c.mode == CHAOS_RUNGLER) {
-          c.skew = runglerSkewForFeedback(
+          c.feedback = runglerSkewForFeedback(
               static_cast<int>(model_.random() % 102u) - 1);
         } else {
           c.skew = model_.randomUnit() * 2.0f - 1.0f;
@@ -332,7 +336,7 @@ class ChaosPage : public IPage {
           // The field reads XOR, 0, 5 … 100, so it steps through those and not
           // through the float underneath. XOR sits one press below 0%, and
           // stepping up out of it lands on 0% rather than on the step size.
-          int cur = runglerFeedback(c.skew);
+          int cur = runglerFeedback(c.feedback);
           int fb;
           if (cur == kFeedbackXor) {
             fb = dir > 0 ? 0 : kFeedbackXor;
@@ -341,7 +345,7 @@ class ChaosPage : public IPage {
             if (fb < 0) fb = kFeedbackXor;
             if (fb > 100) fb = 100;
           }
-          c.skew = runglerSkewForFeedback(fb);
+          c.feedback = runglerSkewForFeedback(fb);
           break;
         }
         c.skew += d;

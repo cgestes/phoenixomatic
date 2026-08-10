@@ -178,7 +178,7 @@ PhoenixModel::PhoenixModel() {
 
   // XOR: the Benjolin's own feedback path, so RUNGLER mode is the authentic
   // article out of the box. 93 register states against 15 with none.
-  chaos[0].skew = runglerSkewForFeedback(kFeedbackXor);
+  chaos[0].feedback = runglerSkewForFeedback(kFeedbackXor);
 
   chaos[1].rate = 0.07f;
   chaos[1].skew = 0.20f;

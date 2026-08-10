@@ -61,7 +61,7 @@ void ChaosOsc::tickRungler(bool clock_high, bool data_high) {
 
   uint8_t bit = data_high ? 1u : 0u;
   uint8_t out_bit = static_cast<uint8_t>((rung_shift_ >> 7) & 1u);
-  int fb = runglerFeedback(skew_);
+  int fb = runglerFeedback(feedback_);
   if (fb == kFeedbackXor) {
     // The Benjolin's own path: data XOR the bit leaving the register, always.
     bit ^= out_bit;
@@ -104,6 +104,7 @@ void ChaosOsc::setMode(uint8_t mode) {
 
 void ChaosOsc::setRate(float hz) { rate_ = hz < 0.001f ? 0.001f : hz; }
 void ChaosOsc::setSkew(float s) { skew_ = clamp1(s); }
+void ChaosOsc::setFeedback(float f) { feedback_ = clamp1(f); }
 
 void ChaosOsc::stepCore(Core& c, float dt) {
   switch (mode_) {

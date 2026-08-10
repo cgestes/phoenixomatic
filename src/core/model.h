@@ -135,7 +135,11 @@ struct Chaos {
   // No depth: how much of this reaches anything is the attenuverter's job on
   // the destination, and a second gain in front of it would just be a way to
   // make the same sound at two different settings.
-  float skew = -0.12f;
+  float skew = -0.12f;      // flow modes: tilts the output
+  // RUNGLER's feedback is its own field. Sharing SKEW's storage meant leaving
+  // RUNGLER on XOR (-1) and switching to SLOTH landed on a full negative
+  // skew — the same number meaning two unrelated things.
+  float feedback = -1.0f;   // -1 is XOR; 0..1 is the percentage
   bool freeze = false;
   int pick = 0;            // which output is published on the bus
   int focus = 0;
