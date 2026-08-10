@@ -302,7 +302,7 @@ class LogicPage : public IPage {
                         MOD_FIELD_AMOUNT, 0);
     }
     if (ev.code != KEY_LEFT && ev.code != KEY_RIGHT) return false;
-    float d = (ev.code == KEY_RIGHT ? 1.0f : -1.0f) * (ev.shift ? 0.01f : 0.04f);
+    float d = (ev.code == KEY_RIGHT ? 1.0f : -1.0f) * (ev.shift ? 0.01f : 0.05f);
     if (nav_.row() == kCompOffsetRow) {
       c.offset += d;
       if (c.offset < -1.0f) c.offset = -1.0f;
@@ -354,7 +354,7 @@ class LogicPage : public IPage {
         if (f.mod_src >= SRC_COUNT) f.mod_src = -1;
         break;
       default:
-        f.mod_amt += static_cast<float>(dir) * (ev.shift ? 0.01f : 0.04f);
+        f.mod_amt += static_cast<float>(dir) * (ev.shift ? 0.01f : 0.05f);
         if (f.mod_amt < -1.0f) f.mod_amt = -1.0f;
         if (f.mod_amt > 1.0f) f.mod_amt = 1.0f;
         break;

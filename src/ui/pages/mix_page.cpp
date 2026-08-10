@@ -70,12 +70,12 @@ class MixPage : public IPage {
       if (nav_.field() == 1) {
         model_.toggleMute(nav_.row());
       } else {
-        adjust(constLevelMut(nav_.row()), dir);
+        adjust(constLevelMut(nav_.row()), dir, ev.shift);
       }
       return true;
     }
     if (nav_.row() == kMasterRow) {
-      adjust(&model_.master, dir);
+      adjust(&model_.master, dir, ev.shift);
       return true;
     }
     int* v = nav_.field() == 0 ? &model_.drive : &model_.crush;
@@ -132,8 +132,8 @@ class MixPage : public IPage {
   uint8_t litSources() const override { return srcBit(SRC_CMP); }
 
  private:
-  static void adjust(float* v, int dir) {
-    *v += static_cast<float>(dir) * 0.02f;
+  static void adjust(float* v, int dir, bool fine) {
+    *v += static_cast<float>(dir) * (fine ? 0.01f : 0.05f);
     if (*v < 0.0f) *v = 0.0f;
     if (*v > 1.0f) *v = 1.0f;
   }

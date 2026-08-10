@@ -674,6 +674,13 @@ localStorage on web; help page listing the keymap.
 
 ## 7. Keyboard
 
+**Step sizes follow the units on screen.** A control that reads as a percentage steps by 5, or by
+1 with `SHIFT`. A whole-number count — a divider, a ratio term — steps by 1, or by 8 with `SHIFT`
+where the range runs to 64. Note values step by a semitone, or an octave with `SHIFT`. Selectors
+just cycle. The rule is that a press moves the number on screen by an amount you can predict from
+looking at it, which is also why a field showing a quantised view of a finer value has to be
+edited in the units it displays.
+
 **One interaction model, everywhere.** `↑`/`↓` move between rows, `TAB` cycles the fields within
 the focused row, `←`/`→` change the focused field. `RowNav` owns that cursor for every page; a
 page only declares how many fields each of its rows has and what a field means. No page invents

@@ -243,7 +243,7 @@ class SeqPage : public IPage {
   void editGate(Seq& s, int dir, bool fine) {
     switch (nav_.field()) {
       case 0: s.clock_src = static_cast<uint8_t>((s.clock_src + GATE_COUNT + dir) % GATE_COUNT); break;
-      case 1: s.div = clampRatioTerm(s.div + dir * (fine ? 1 : 4)); break;
+      case 1: s.div = clampRatioTerm(s.div + dir * (fine ? 8 : 1)); break;
       case 2: s.dir = static_cast<uint8_t>((s.dir + DIR_COUNT + dir) % DIR_COUNT); break;
       case 3:
         s.range += dir;

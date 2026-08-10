@@ -63,7 +63,7 @@ class DrumPage : public IPage {
           if (d.div > 16) d.div = 16;
           break;
         default:
-          d.level += static_cast<float>(dir) * 0.02f;
+          d.level += static_cast<float>(dir) * (ev.shift ? 0.01f : 0.05f);
           if (d.level < 0.0f) d.level = 0.0f;
           if (d.level > 1.0f) d.level = 1.0f;
           break;

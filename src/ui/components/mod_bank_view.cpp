@@ -98,8 +98,9 @@ bool editModRow(const UIEvent& ev, ModRow& row, int field, int mode_count) {
     return true;
   }
 
-  // SHIFT is the fine step; the coarse one is four units.
-  float step = ev.shift ? 0.01f : 0.04f;
+  // Five units, or one with SHIFT — the same everywhere a value reads as a
+  // percentage.
+  float step = ev.shift ? 0.01f : 0.05f;
   float prev = row.amount;
   row.amount += static_cast<float>(dir) * step;
   if (row.amount > 1.0f) row.amount = 1.0f;

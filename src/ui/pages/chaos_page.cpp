@@ -313,7 +313,8 @@ class ChaosPage : public IPage {
   }
 
   void editShape(Chaos& c, int dir, bool fine) {
-    float d = static_cast<float>(dir) * (fine ? 0.25f : 1.0f);
+    // Five of whatever the field displays, or one with SHIFT.
+    float d = static_cast<float>(dir) * (fine ? 0.01f : 0.05f);
     switch (nav_.field()) {
       case 0:
         if (c.mode == CHAOS_RUNGLER) {
@@ -322,7 +323,7 @@ class ChaosPage : public IPage {
           c.rate = runglerRateForDiv(runglerClockDiv(c.rate) + dir);
           break;
         }
-        c.rate += d * 0.01f;
+        c.rate += d;
         if (c.rate < 0.005f) c.rate = 0.005f;
         if (c.rate > 2.0f) c.rate = 2.0f;
         break;
@@ -343,7 +344,7 @@ class ChaosPage : public IPage {
           c.skew = runglerSkewForFeedback(fb);
           break;
         }
-        c.skew += d * 0.02f;
+        c.skew += d;
         if (c.skew < -1.0f) c.skew = -1.0f;
         if (c.skew > 1.0f) c.skew = 1.0f;
         break;
