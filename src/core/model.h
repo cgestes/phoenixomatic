@@ -169,6 +169,17 @@ extern const char* const kWaveLabel[WAVE_COUNT];
 // octaves from it — the two must move together, hence the pair.
 inline constexpr float kRootHz = 261.6256f;   // C4
 inline constexpr int kRootOctave = 4;
+// What a full-scale modulation signal is worth. Everything on the patch bus
+// runs -1..+1, and that stands for ±10V — so at 1V/oct a row wide open is ten
+// octaves either way, twenty end to end.
+//
+// The destination is where it runs out, not the source: the oscillator clamps
+// exponential FM at ±8 octaves and the filter at its own edges. Scaling the
+// *source* down so nothing ever clamps would be the wrong fix — it would make
+// every attenuverter mean something different depending on where it was
+// pointed, which is exactly what a shared voltage standard exists to avoid.
+inline constexpr float kOctavesFullScale = 10.0f;
+
 inline constexpr int kRatioMax = 64;
 inline constexpr int clampRatioTerm(int v) {
   return v < 1 ? 1 : (v > kRatioMax ? kRatioMax : v);

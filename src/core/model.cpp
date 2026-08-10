@@ -68,7 +68,7 @@ PhoenixModel::PhoenixModel() {
     // in front of this, and that control is gone as redundant. Keeping the old
     // number would have made removing a duplicate gain quietly modulate 39%
     // harder than before.
-    osc[v].mod[0].amount = 0.36f;  osc[v].mod[0].mode = MOD_FM_EXP;   // CHAOS-A
+    osc[v].mod[0].amount = 0.072f;  osc[v].mod[0].mode = MOD_FM_EXP;   // CHAOS-A
     osc[v].mod[1].amount = 0.00f;  osc[v].mod[1].mode = MOD_FM_EXP;   // CHAOS-B
     osc[v].mod[2].amount = 1.00f;  osc[v].mod[2].mode = MOD_FM_EXP;   // SEQ
     osc[v].mod[3].amount = 0.00f;  osc[v].mod[3].mode = MOD_FM_AC;    // other osc
@@ -106,8 +106,8 @@ PhoenixModel::PhoenixModel() {
     }
     seq[v].mod[3].amount = 0.22f;   // chaos biases the groove by default
   }
-  seq[0].mod[0].amount = 0.40f;
-  seq[0].mod[2].amount = -0.18f;
+  seq[0].mod[0].amount = 0.08f;
+  seq[0].mod[2].amount = -0.036f;
   seq[0].clock_src = GATE_FATE1_DIV;
   seq[1].clock_src = GATE_CMP_LT;
   // Every slot starts with something playable: the designed pattern, then
@@ -155,8 +155,8 @@ PhoenixModel::PhoenixModel() {
     filter.mod[i].src = filt_srcs[i];
     filter.mod[i].mode = FDEST_FREQ;
   }
-  filter.mod[0].amount = 0.55f;   // rungler -> cutoff
-  filter.mod[3].amount = 0.20f;   // OSC-2 sweep
+  filter.mod[0].amount = 0.275f;  // rungler -> cutoff
+  filter.mod[3].amount = 0.10f;   // OSC-2 sweep
 
   // --- comparator offset bank: both sequencers, both chaos oscillators.
   const char* comp_names[kCompModRows] = { "SEQ-1", "SEQ-2", "CHAOS-A", "CHAOS-B" };
@@ -211,7 +211,7 @@ PhoenixModel::PhoenixModel() {
   // its own pattern. Measured on the 3-bit tap: equal depths put 75% of the
   // output at the extremes; +50 against -35 puts 7% there and spreads the
   // rest across all eight levels.
-  osc[1].mod[0].amount = -0.25f;
+  osc[1].mod[0].amount = -0.05f;
 
   // Eight steps and every clock taking new data: the Benjolin's own register,
   // driven purely by the oscillator ratio. Turn CHANCE down to lock a figure

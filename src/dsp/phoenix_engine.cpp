@@ -39,7 +39,7 @@ inline float shapeComp(float a, float b, uint8_t shape, float drive) {
 inline float clamp1(float v) { return v < -1.0f ? -1.0f : (v > 1.0f ? 1.0f : v); }
 
 // How far the filter's bank can drag the cutoff at full travel.
-constexpr float kFilterModOctaves = 5.0f;
+constexpr float kFilterModOctaves = kOctavesFullScale;
 
 // 0…100 onto -1…+1. The halves are exact, so at RANGE 2 — the default — the
 // full width of the step scale lands on the bus with nothing clamped off
@@ -247,7 +247,8 @@ void PhoenixEngine::render(int16_t* out, size_t frames) {
       const Seq& s = model_.seq[v];
       int8_t note = s.notes()[seq_step_[v] & (kSeqSteps - 1)];
       float target = note < 0 ? seq_cv_[v]
-                              : noteToBus(note) * (static_cast<float>(s.range) / 2.0f);
+                              : noteToBus(note) *
+                                    (static_cast<float>(s.range) / kOctavesFullScale);
       // Rows aimed at CV sum straight into the output, which is what makes an
       // audio-rate oscillator on this bank a stepped waveshaper.
       for (int i = 0; i < kSeqModRows; ++i) {
@@ -270,7 +271,7 @@ void PhoenixEngine::render(int16_t* out, size_t frames) {
       // other's CV, so with nothing near to stop it the pair compounds until
       // it pins at the ceiling — which dragged the comparator's B input to
       // -7.7, froze A>B on, and left the machine silent.
-      float span = static_cast<float>(s.range) * 0.5f;
+      float span = static_cast<float>(s.range) / kOctavesFullScale;
       if (seq_cv_[v] > span) seq_cv_[v] = span;
       if (seq_cv_[v] < -span) seq_cv_[v] = -span;
       // The readout stays normalised, so the bar shows the pattern's shape

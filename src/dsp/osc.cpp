@@ -10,11 +10,13 @@ constexpr float kTwoPi = 6.28318530718f;
 // Exponential FM depth at full travel, in octaves. Two keeps a sequencer row
 // at +100 spanning its notes rather than launching the oscillator out of the
 // audible band.
-constexpr float kExpOctaves = 2.0f;
+constexpr float kExpOctaves = kOctavesFullScale;
 // Linear FM depth at full travel, as a multiple of the base frequency. Past
 // 1.0 the instantaneous frequency crosses zero, which is where through-zero
 // starts to matter.
-constexpr float kLinDepth = 4.0f;
+// Linear FM is not volts-per-octave, but full scale should still mean full
+// scale: ten times the base frequency at full travel.
+constexpr float kLinDepth = kOctavesFullScale;
 // One-pole highpass coefficient for AC coupling, ~2 Hz at 22050.
 constexpr float kDcCoeff = 0.9994f;
 

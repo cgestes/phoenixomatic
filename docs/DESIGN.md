@@ -181,6 +181,47 @@ the machine is not at. Three things the line has to get right:
 - **Past Nyquist it says so** and dims the note. The oscillator clamps there,
   so the pitch printed would be one the machine cannot produce.
 
+### 3.1c Full scale is ten octaves
+
+Everything on the patch bus runs -1…+1, and that stands for **±10 V**. At 1 V/oct an
+attenuverter wide open is therefore **ten octaves either way, twenty end to end** — one constant,
+`kOctavesFullScale`, shared by exponential FM, linear FM, the filter's cutoff and the sequencer's
+`RANGE`.
+
+| Amount | Octaves | |
+|---|---|---|
+| 5% | ±0.5 | |
+| 10% | ±1.0 | |
+| 20% | ±2.0 | |
+| 50% | ±5.0 | |
+| 80% | ±8.0 | the oscillator's own guard |
+| 100% | ±10.0 | past it |
+
+**The destination is where it runs out, not the source.** The oscillator clamps exponential FM at
+±8 octaves — already past Nyquist from C4 — and the filter clamps at its own edges. Scaling the
+*source* down so nothing ever clamps would be the wrong fix: it would make the same attenuverter
+reading mean a different depth depending on where it was pointed, which is precisely what a shared
+voltage standard exists to prevent.
+
+The depths were 2 octaves for exponential FM, 4× for linear and 5 octaves for the filter — three
+different ideas of "full". The shipped attenuverters were rescaled by the same factors when this
+changed, so the boot patch is bit-for-bit what it was: `peak 10420, rms 3519, comp 140 Hz` before
+and after. What changed is the headroom above it.
+
+Not everything is volts-per-octave, and those destinations are left alone: `PM` is a whole cycle
+at full travel, `AM`/`RM` are gain, the comparator's `OFFSET` and `DRIVE` are already full-range,
+and `CHANCE`/`PROB` are probabilities.
+
+`RANGE` on the sequencer is divided by the same constant so it keeps meaning octaves. Measured at
+a full attenuverter:
+
+| `RANGE` | bus | octaves |
+|---|---|---|
+| 1 | +0.10 | 1.0 |
+| 2 | +0.20 | 2.0 |
+| 5 | +0.50 | 5.0 |
+| 20 | +2.00 | 20.0 |
+
 ### 3.2 Modulation types
 
 Each row independently selects how its signal is applied:
