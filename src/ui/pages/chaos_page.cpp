@@ -325,34 +325,38 @@ class ChaosPage : public IPage {
   // actually reads. Colouring all three taps at once meant the display was
   // about the module in general; this one is about the signal you have
   // selected, which is the thing you are listening to.
+  // All thirty-two bits, MSB left. The register is always thirty-two wide and
+  // the bits above STEPS are *held*, not overwritten — real material you get
+  // back by widening the window — so hiding them would hide state you can act
+  // on. The old display drew only the picked tap's bits, and drew every other
+  // bit as empty whatever its value, which made held content look like zeros.
+  //
+  // Three weights: the picked tap in its own colour, the rest of the loop dim,
+  // the held bits outside it fainter still. The bar underneath marks how far
+  // the loop reaches, with the tap letters written into it.
   void drawRegister(TextScreen& scr, const Chaos& c) {
     scr.text(2, 10, "REG", PEN_DIM);
     const int n = c.steps;
-    // Two columns a bit while there is room; thirty-two only fits at one.
-    // Either way the whole register is on screen — a truncated one would be
-    // worse than none, since the point is watching the figure come round.
-    const int stride = n <= 16 ? 2 : 1;
-    for (int b = n - 1; b >= 0; --b) {
-      int col = 7 + (n - 1 - b) * stride;
+    constexpr int kCol0 = 7;   // 32 bits at one column each ends at 38
+    for (int b = 31; b >= 0; --b) {
+      int col = kCol0 + (31 - b);
       bool set = (c.rung_bits >> b) & 1u;
-      bool active = false;
+      bool in_loop = b < n;
+
+      bool read = false;
       char tap = ' ';
-      uint8_t pen = PEN_FAINT;
-      // Every tap is measured from the exit, so they mean the same thing at
-      // eight steps as at thirty-two.
+      uint8_t tap_pen = PEN_FAINT;
       switch (c.pick) {
-        case 0:  active = b >= n - 3; tap = 'T'; pen = PEN_COOL; break;
-        case 1:  active = b >= n - 8; tap = 'I'; pen = PEN_VIOLET; break;
-        default: active = b == n - 1; tap = 'A'; pen = PEN_HOT; break;
+        case 0:  read = b >= n - 3 && in_loop; tap = 'T'; tap_pen = PEN_COOL; break;
+        case 1:  read = b >= n - 8 && in_loop; tap = 'I'; tap_pen = PEN_VIOLET; break;
+        default: read = b == n - 1;            tap = 'A'; tap_pen = PEN_HOT; break;
       }
-      if (!active) {
-        // Present but not read: the register still shifts through here.
-        scr.put(col, 10, phx_glyphs::kBlockDim, PEN_FAINT);
-        continue;
-      }
+
+      uint8_t pen = read ? tap_pen : (in_loop ? PEN_DIM : PEN_FAINT);
       scr.put(col, 10, set ? phx_glyphs::kBlock : phx_glyphs::kBlockDim,
               set ? pen : PEN_FAINT);
-      scr.put(col, 11, static_cast<uint8_t>(tap), pen);
+      if (read) scr.put(col, 11, static_cast<uint8_t>(tap), tap_pen);
+      else if (in_loop) scr.put(col, 11, '-', PEN_FAINT);
     }
   }
 

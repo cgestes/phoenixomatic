@@ -560,19 +560,29 @@ In this mode the knobs change meaning, and the panel relabels them rather than l
 | `SKEW` | How long the loop is: 8, 16 or 32. | `STEPS` |
 | — | How often a new bit is let in. See below. | `CHANCE` |
 
-The page draws the register itself, MSB first, with the tap each bit belongs to written directly
-underneath:
+The page draws **all thirty-two bits**, MSB left, one column each, with a bar underneath marking
+how far the loop reaches and the tap letters written into it:
 
 ```
-REG  . . # . . . . .          8 steps, two columns a bit
-     T T T
-REG  .#.##..#.#...##.#..#.#.#...#   32 steps, one column a bit
-             IIIIIIII
+REG  ................................########      STEPS 8, TORPOR picked
+                                     TTT-----
+
+REG  ####.##.....###..#.#..##.#...##.#              STEPS 32, INERTIA picked
+     IIIIIIII------------------------
 ```
 
-Only the bits the **picked** output reads are drawn; the rest stay faint, because the register
-still shifts through them. The display is about the signal you have selected, not the module in
-general.
+The exit is always the **left edge of the loop bar**, since the window is the low `STEPS` bits and
+the taps are measured back from the top of it. Three weights: the picked tap in its own colour,
+the rest of the loop dim, the held bits outside it fainter still.
+
+It used to draw only the picked tap's bits — the display being "about the signal you have
+selected, not the module in general". Two things made that wrong. Every other bit was drawn as
+empty *whatever its value*, so held content was indistinguishable from zeros; and once `STEPS`
+became a window over a register that keeps what is outside it, those bits stopped being scenery.
+They are material you get back by widening the window, so they are worth seeing.
+
+One consequence worth knowing: a register that has only ever run at `STEPS 8` has nothing above
+bit 7 to show, because the window never wrote there. Run it wide to fill it.
 
 The three reads of that one register:
 
