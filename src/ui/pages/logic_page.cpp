@@ -288,9 +288,9 @@ class LogicPage : public IPage {
     switch (nav_.field()) {
       case 0: f.src = static_cast<uint8_t>((f.src + GATE_COUNT + dir) % GATE_COUNT); break;
       case 1:
-        f.ratio += dir;
+        f.ratio += dir * (ev.shift ? 8 : 1);
         if (f.ratio < 1) f.ratio = 1;
-        if (f.ratio > 32) f.ratio = 32;
+        if (f.ratio > kRatioMax) f.ratio = kRatioMax;
         if (f.phase >= f.ratio) f.phase = f.ratio - 1;
         break;
       case 2:

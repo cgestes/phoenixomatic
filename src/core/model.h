@@ -43,7 +43,28 @@ struct ModRow {
 };
 
 // Oscillator mod rows: how the source is applied.
-enum OscModType : uint8_t { MOD_FM_DC = 0, MOD_FM_AC, MOD_PM, MOD_AM, MOD_TYPE_COUNT };
+//
+// Three flavours of FM, because they are genuinely different instruments:
+// exponential tracks pitch the way a V/oct input does but drifts sharp under
+// symmetric modulation; linear stays centred but folds when it hits zero;
+// through-zero keeps going and runs the wave backwards, which is the only one
+// that gives clean sidebands at depth.
+//
+// Four flavours of amplitude, for the same reason: RM inverts through zero,
+// AM does not, AM+5 offsets the modulator so the carrier is never silenced,
+// and AM-RE rectifies it so the effect happens at twice the rate.
+enum OscModType : uint8_t {
+  MOD_FM_EXP = 0,  // exponential, DC coupled — the V/oct-ish path
+  MOD_FM_AC,       // exponential, AC coupled — stays in tune
+  MOD_FM_LIN,      // linear, frequency floors at zero
+  MOD_FM_TZ,       // linear through-zero
+  MOD_PM,          // phase modulation
+  MOD_AM,          // two-quadrant amplitude
+  MOD_AM_OFFSET,   // AM with a +5V offset: tremolo around unity, never silent
+  MOD_AM_RECT,     // rectified AM, twice the rate
+  MOD_RM,          // four-quadrant ring modulation
+  MOD_TYPE_COUNT
+};
 extern const char* const kOscModTypeLabel[MOD_TYPE_COUNT];
 
 // Sequencer mod rows: where inside the sequencer it lands.
@@ -76,18 +97,23 @@ extern const char* const kWaveLabel[WAVE_COUNT];
 // semitones. Simple ratios hold the comparator in a stable repeating pattern;
 // walk away from one and it drifts. That relationship is the instrument, so it
 // gets to be the control.
+//
+// DIV and MULT are separate whole numbers, 1..64 each, rather than one folded
+// scale: the interesting tunings are the plain ratios, and reading "3 over 2"
+// off two fields beats hunting for it in a single list of 127.
 inline constexpr float kRootHz = 130.8128f;   // C3
-inline constexpr int kOscRatioCount = 15;
-inline constexpr int kOscRatioUnity = 7;      // index of x1
-extern const char* const kOscRatioLabel[kOscRatioCount];
-extern const float kOscRatio[kOscRatioCount];
+inline constexpr int kRatioMax = 64;
+inline constexpr int clampRatioTerm(int v) {
+  return v < 1 ? 1 : (v > kRatioMax ? kRatioMax : v);
+}
 
 inline constexpr int kOscModRows = 5;
 
 struct Osc {
   uint8_t wave = WAVE_TRI;
-  int ratio = kOscRatioUnity;  // index into kOscRatio
-  int fine = 0;                // cents, for detuning off an exact ratio
+  int div = 1;                 // frequency is kRootHz * mult / div
+  int mult = 1;
+  int dtune = 0;               // cents off the exact ratio
   float level = 0.74f;
   bool mute = false;
   ModRow mod[kOscModRows];
@@ -103,7 +129,6 @@ inline constexpr int kSeqBanks = 4;
 
 enum SeqDir : uint8_t { DIR_FWD = 0, DIR_REV, DIR_PEND, DIR_RAND, DIR_COUNT };
 extern const char* const kSeqDirLabel[DIR_COUNT];
-extern const char* const kDivMultLabel[7];          // /4 /2 x1 x2 x3 x4 x8
 
 struct Seq {
   // Eight patterns in each of four banks. -1 is a rest.
@@ -116,7 +141,9 @@ struct Seq {
 
   int step = 0;
   uint8_t clock_src = GATE_CMP_GT;
-  int div_mult = 2;        // index into kDivMultLabel, 2 == x1
+  // Only a divider: with no clock there is nothing to multiply against, so a
+  // multiplier here would be a control that does nothing.
+  int div = 1;                 // 1..64 incoming gates per advance
   uint8_t dir = DIR_FWD;
   int range = 2;           // octaves
   float chance = 0.78f;

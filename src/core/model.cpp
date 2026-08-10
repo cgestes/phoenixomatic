@@ -1,6 +1,7 @@
 #include "model.h"
 
 #include <cmath>
+#include <cstdio>
 
 const char* const kSourceLabel[SRC_COUNT] = {
   "CHA", "CHB", "OS1", "OS2", "SQ1", "SQ2", "CMP", "FTE"
@@ -14,24 +15,16 @@ const char* const kGateLabel[GATE_COUNT] = {
   "FATE-4\x87", "FATE-4 A", "FATE-4 B",
 };
 
-const char* const kOscModTypeLabel[MOD_TYPE_COUNT] = { "FM-DC", "FM-AC", "PM", "AM" };
+const char* const kOscModTypeLabel[MOD_TYPE_COUNT] = {
+  "FM-EXP", "FM-AC", "FM-LIN", "FM-TZ", "PM", "AM", "AM+5", "AM-RE", "RM"
+};
 const char* const kSeqDestLabel[DEST_COUNT] = { "CV", "CHANCE", "SLEW", "LEN" };
 const char* const kChaosModeLabel[CHAOS_MODE_COUNT] = { "SLOTH", "LORENZ", "ROSSLER", "RUNGLER" };
 const char* const kChaosOutLabel[3] = { "TORPOR", "INERTIA", "APATHY" };
 const char* const kWaveLabel[WAVE_COUNT] = { "SIN", "TRI", "SAW", "SQR" };
 
-const char* const kOscRatioLabel[kOscRatioCount] = {
-  "/8", "/7", "/6", "/5", "/4", "/3", "/2",
-  "x1",
-  "x2", "x3", "x4", "x5", "x6", "x7", "x8",
-};
-const float kOscRatio[kOscRatioCount] = {
-  1.0f / 8, 1.0f / 7, 1.0f / 6, 1.0f / 5, 1.0f / 4, 1.0f / 3, 1.0f / 2,
-  1.0f,
-  2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f,
-};
+
 const char* const kSeqDirLabel[DIR_COUNT] = { "FWD", "REV", "PEND", "RAND" };
-const char* const kDivMultLabel[7] = { "/4", "/2", "x1", "x2", "x3", "x4", "x8" };
 const char* const kDivModeLabel[DIVMODE_COUNT] = { "DIVIDE", "EUCLID" };
 const char* const kTossModeLabel[TOSS_MODE_COUNT] = { "TOSS", "LATCH" };
 
@@ -51,16 +44,16 @@ PhoenixModel::PhoenixModel() {
       osc[v].mod[i].name = osc_names[v][i];
       osc[v].mod[i].src = osc_srcs[v][i];
     }
-    osc[v].mod[0].amount = 0.50f;  osc[v].mod[0].mode = MOD_FM_DC;
-    osc[v].mod[1].amount = 1.00f;  osc[v].mod[1].mode = MOD_FM_DC;
+    osc[v].mod[0].amount = 0.50f;  osc[v].mod[0].mode = MOD_FM_EXP;
+    osc[v].mod[1].amount = 1.00f;  osc[v].mod[1].mode = MOD_FM_EXP;
     osc[v].mod[2].amount = 0.00f;  osc[v].mod[2].mode = MOD_FM_AC;
     osc[v].mod[3].amount = 0.00f;  osc[v].mod[3].mode = MOD_PM;
     osc[v].mod[4].amount = 0.00f;  osc[v].mod[4].mode = MOD_PM;
   }
   // x1 against x3 is a twelfth: close enough to lock, far enough that the
   // comparator has something to say. A few cents of detune keep it moving.
-  osc[0].ratio = kOscRatioUnity;      osc[0].fine = 0;  osc[0].wave = WAVE_TRI;
-  osc[1].ratio = kOscRatioUnity + 2;  osc[1].fine = 7;  osc[1].wave = WAVE_SAW;
+  osc[0].div = 1;  osc[0].mult = 1;  osc[0].dtune = 0;  osc[0].wave = WAVE_TRI;
+  osc[1].div = 1;  osc[1].mult = 3;  osc[1].dtune = 7;  osc[1].wave = WAVE_SAW;
   osc[1].level = 0.52f;
 
   // --- sequencer banks: the other sequencer, both oscillators, both chaos.

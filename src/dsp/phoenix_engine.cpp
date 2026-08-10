@@ -8,9 +8,6 @@ namespace {
 
 inline float clamp1(float v) { return v < -1.0f ? -1.0f : (v > 1.0f ? 1.0f : v); }
 
-// Sequencer div/mult index -> multiplier on its incoming gate stream.
-constexpr float kDivMult[7] = {0.25f, 0.5f, 1.0f, 2.0f, 3.0f, 4.0f, 8.0f};
-
 // Everything on the patch bus is -1..1, sequencer CV included. Two octaves
 // either side of middle maps to full travel, so a mod row's attenuverter is
 // the only thing deciding how far a note actually moves anything.
@@ -58,9 +55,10 @@ void PhoenixEngine::applyParams() {
     // C3 times a whole-number ratio, detuned by FINE in cents, then moved by
     // the global rate offset that carries both oscillators — and therefore the
     // machine's whole sense of time — together.
-    int idx = o.ratio < 0 ? 0 : (o.ratio >= kOscRatioCount ? kOscRatioCount - 1 : o.ratio);
-    float hz = kRootHz * kOscRatio[idx] *
-               std::exp2(static_cast<float>(o.fine) / 1200.0f + model_.rate_offset);
+    float ratio = static_cast<float>(clampRatioTerm(o.mult)) /
+                  static_cast<float>(clampRatioTerm(o.div));
+    float hz = kRootHz * ratio *
+               std::exp2(static_cast<float>(o.dtune) / 1200.0f + model_.rate_offset);
     osc_[i].setBaseHz(hz);
   }
   for (int i = 0; i < kDrumVoices; ++i) {
@@ -132,11 +130,7 @@ void PhoenixEngine::tickSequencers() {
     Seq& s = model_.seq[v];
     if (!gateEdge(s.clock_src)) continue;
 
-    // Under 1x means skip incoming edges. Over 1x has nothing to multiply
-    // against without a clock, so it passes through — turn the oscillators up
-    // instead, which is the honest way to go faster here.
-    float mult = kDivMult[s.div_mult < 7 ? s.div_mult : 2];
-    int div = mult < 1.0f ? static_cast<int>(1.0f / mult + 0.5f) : 1;
+    int div = clampRatioTerm(s.div);
     if ((++seq_div_count_[v] % div) != 0) continue;
 
     float chance = s.chance;

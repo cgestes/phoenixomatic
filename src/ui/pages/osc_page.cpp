@@ -16,11 +16,11 @@ constexpr int kScopeRow = 11;
 constexpr int kScopeCols = 36;
 constexpr int kScopeRows = 3;
 
-constexpr int kVoiceRow = 0;   // WAVE / RATIO / FINE / LVL
-constexpr int kBankRow0 = 1;   // first attenuverter row
+constexpr int kTuneRow = 0;    // WAVE / DIV / MULT
+constexpr int kVoiceRow = 1;   // DTUNE / LVL
+constexpr int kBankRow0 = 2;   // first attenuverter row
 
-// Fields per row: the voice line has four, each bank row has amount + type.
-constexpr uint8_t kFields[] = {4, 2, 2, 2, 2, 2};
+constexpr uint8_t kFields[] = {3, 2, 2, 2, 2, 2, 2};
 constexpr int kRows = static_cast<int>(sizeof(kFields) / sizeof(kFields[0]));
 
 class OscPage : public IPage {
@@ -36,18 +36,23 @@ class OscPage : public IPage {
   void draw(TextScreen& scr) override {
     Osc& o = model_.osc[voice_];
 
+    bool tr = nav_.atRow(kTuneRow);
+    uint8_t tbg = rowBg(tr);
+    if (tr) scr.highlight(1, 1, kScreenCols - 2, PEN_PANEL);
+    scr.text(1, 1, "WAVE", PEN_DIM, tbg);
+    drawField(scr, 6, 1, kWaveLabel[o.wave], PEN_HOT, nav_.at(kTuneRow, 0), tbg);
+    scr.text(13, 1, "DIV", PEN_DIM, tbg);
+    drawFieldF(scr, 17, 1, PEN_BRIGHT, nav_.at(kTuneRow, 1), tbg, "%d", o.div);
+    scr.text(24, 1, "MULT", PEN_DIM, tbg);
+    drawFieldF(scr, 29, 1, PEN_BRIGHT, nav_.at(kTuneRow, 2), tbg, "%d", o.mult);
+
     bool vr = nav_.atRow(kVoiceRow);
     uint8_t bg = rowBg(vr);
     if (vr) scr.highlight(1, 2, kScreenCols - 2, PEN_PANEL);
-    scr.text(1, 2, "WAVE", PEN_DIM, bg);
-    drawField(scr, 6, 2, kWaveLabel[o.wave], PEN_HOT, nav_.at(kVoiceRow, 0), bg);
-    scr.text(11, 2, "RATIO", PEN_DIM, bg);
-    drawField(scr, 17, 2, kOscRatioLabel[o.ratio], PEN_BRIGHT,
-              nav_.at(kVoiceRow, 1), bg);
-    scr.text(21, 2, "FINE", PEN_DIM, bg);
-    drawFieldF(scr, 26, 2, PEN_BRIGHT, nav_.at(kVoiceRow, 2), bg, "%+d", o.fine);
-    scr.text(31, 2, "LVL", PEN_DIM, bg);
-    drawFieldF(scr, 35, 2, o.mute ? PEN_FAINT : PEN_BRIGHT, nav_.at(kVoiceRow, 3),
+    scr.text(1, 2, "DTUNE", PEN_DIM, bg);
+    drawFieldF(scr, 7, 2, PEN_COOL, nav_.at(kVoiceRow, 0), bg, "%+dc", o.dtune);
+    scr.text(24, 2, "LVL", PEN_DIM, bg);
+    drawFieldF(scr, 29, 2, o.mute ? PEN_FAINT : PEN_BRIGHT, nav_.at(kVoiceRow, 1),
                bg, "%d", static_cast<int>(o.level * 100.0f));
 
     int focus_row = nav_.row() >= kBankRow0 ? nav_.row() - kBankRow0 : -1;
@@ -108,25 +113,26 @@ class OscPage : public IPage {
 
     if (ev.code != KEY_LEFT && ev.code != KEY_RIGHT) return false;
     int dir = ev.code == KEY_RIGHT ? 1 : -1;
-    switch (nav_.field()) {
-      case 0:
-        o.wave = static_cast<uint8_t>((o.wave + WAVE_COUNT + dir) % WAVE_COUNT);
-        break;
-      case 1:
-        o.ratio += dir;
-        if (o.ratio < 0) o.ratio = 0;
-        if (o.ratio >= kOscRatioCount) o.ratio = kOscRatioCount - 1;
-        break;
-      case 2:
-        o.fine += dir * (ev.shift ? 1 : 5);
-        if (o.fine < -100) o.fine = -100;
-        if (o.fine > 100) o.fine = 100;
-        break;
-      default:
-        o.level += static_cast<float>(dir) * 0.02f;
-        if (o.level < 0.0f) o.level = 0.0f;
-        if (o.level > 1.0f) o.level = 1.0f;
-        break;
+    // SHIFT jumps by eight through the 1..64 terms; a 64-step crawl is no way
+    // to find x16.
+    int step = ev.shift ? 8 : 1;
+
+    if (nav_.row() == kTuneRow) {
+      switch (nav_.field()) {
+        case 0: o.wave = static_cast<uint8_t>((o.wave + WAVE_COUNT + dir) % WAVE_COUNT); break;
+        case 1: o.div = clampRatioTerm(o.div + dir * step); break;
+        default: o.mult = clampRatioTerm(o.mult + dir * step); break;
+      }
+      return true;
+    }
+    if (nav_.field() == 0) {
+      o.dtune += dir * (ev.shift ? 1 : 5);
+      if (o.dtune < -100) o.dtune = -100;
+      if (o.dtune > 100) o.dtune = 100;
+    } else {
+      o.level += static_cast<float>(dir) * 0.02f;
+      if (o.level < 0.0f) o.level = 0.0f;
+      if (o.level > 1.0f) o.level = 1.0f;
     }
     return true;
   }
@@ -138,11 +144,16 @@ class OscPage : public IPage {
       o.mod[nav_.row() - kBankRow0] = d.mod[nav_.row() - kBankRow0];
       return;
     }
-    switch (nav_.field()) {
-      case 0: o.wave = d.wave; break;
-      case 1: o.ratio = d.ratio; break;
-      case 2: o.fine = d.fine; break;
-      default: o.level = d.level; break;
+    if (nav_.row() == kTuneRow) {
+      switch (nav_.field()) {
+        case 0: o.wave = d.wave; break;
+        case 1: o.div = d.div; break;
+        default: o.mult = d.mult; break;
+      }
+    } else if (nav_.field() == 0) {
+      o.dtune = d.dtune;
+    } else {
+      o.level = d.level;
     }
   }
 
@@ -154,11 +165,16 @@ class OscPage : public IPage {
       m.mode = static_cast<uint8_t>(model_.random() % MOD_TYPE_COUNT);
       return;
     }
-    switch (nav_.field()) {
-      case 0: o.wave = static_cast<uint8_t>(model_.random() % WAVE_COUNT); break;
-      case 1: o.ratio = static_cast<int>(model_.random() % kOscRatioCount); break;
-      case 2: o.fine = static_cast<int>(model_.random() % 101u) - 50; break;
-      default: o.level = 0.3f + model_.randomUnit() * 0.7f; break;
+    if (nav_.row() == kTuneRow) {
+      switch (nav_.field()) {
+        case 0: o.wave = static_cast<uint8_t>(model_.random() % WAVE_COUNT); break;
+        case 1: o.div = 1 + static_cast<int>(model_.random() % 8u); break;
+        default: o.mult = 1 + static_cast<int>(model_.random() % 8u); break;
+      }
+    } else if (nav_.field() == 0) {
+      o.dtune = static_cast<int>(model_.random() % 41u) - 20;
+    } else {
+      o.level = 0.3f + model_.randomUnit() * 0.7f;
     }
   }
 
@@ -173,7 +189,10 @@ class OscPage : public IPage {
   void randomizePage() override {
     Osc& o = model_.osc[voice_];
     o.wave = static_cast<uint8_t>(model_.random() % WAVE_COUNT);
-    o.ratio = static_cast<int>(model_.random() % kOscRatioCount);
+    // Small whole numbers: they are the ratios that actually hold the
+    // comparator together.
+    o.div = 1 + static_cast<int>(model_.random() % 8u);
+    o.mult = 1 + static_cast<int>(model_.random() % 8u);
     for (int i = 0; i < kOscModRows; ++i) {
       o.mod[i].amount = model_.randomUnit() * 2.0f - 1.0f;
       o.mod[i].mode = static_cast<uint8_t>(model_.random() % MOD_TYPE_COUNT);

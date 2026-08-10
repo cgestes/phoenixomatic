@@ -101,8 +101,13 @@ first few units on each side unreachable.
 
 ### 3.1a Tuning is a ratio, not a pitch
 
-Both oscillators are tuned as whole-number ratios — `/8 … /2, x1, x2 … x8` — against a single
-root of **C3 (130.81 Hz)**, with `FINE` in cents for detuning off an exact ratio.
+Both oscillators are tuned by two whole numbers — **DIV** and **MULT**, each 1…64 — against a
+single root of **C3 (130.81 Hz)**, with **DTUNE** in cents for pulling off an exact ratio.
+Frequency is `C3 × MULT / DIV`.
+
+Two fields rather than one folded scale: the interesting tunings are the plain ratios, and
+reading "3 over 2" off two numbers beats hunting for it in a list of 127 entries. `SHIFT` jumps
+by eight, because a 64-step crawl is no way to find `x16`.
 
 Semitones would be the obvious choice and the wrong one. With no clock, the comparator's edge
 pattern *is* the rhythm, and what decides whether that pattern repeats is the ratio between the
@@ -120,10 +125,21 @@ Each row independently selects how its signal is applied:
 
 | Type | Meaning | Character |
 |---|---|---|
-| `FM-DC` | Linear FM, DC-coupled | Moves average pitch. This is the V/OCT-ish path. Through-zero at high depth. |
-| `FM-AC` | Linear FM, AC-coupled | No average pitch shift — vibrato and timbre only. Stays in tune. |
-| `PM` | Phase modulation | Cleaner sidebands, zero pitch drift. The clangy/metallic one. |
-| `AM` | Amplitude / ring mod | Bipolar source ⇒ true ring mod. Rhythmic chop at slow rates. |
+| `FM-EXP` | Exponential FM, DC-coupled | Tracks pitch the way a V/oct input does. Drifts sharp under symmetric modulation, because octaves are not symmetric in Hz. |
+| `FM-AC` | Exponential FM, AC-coupled | Same depth with the source's DC removed, so the oscillator stays where it was tuned however far the source wanders. |
+| `FM-LIN` | Linear FM | Stays centred where exponential drifts. Folds at the rail when the instantaneous frequency would go negative. |
+| `FM-TZ` | Linear through-zero FM | Keeps going past zero and runs the wave backwards instead of folding. The only one that stays clean at depth. |
+| `PM` | Phase modulation | Cleaner sidebands, zero pitch drift. The clangy, metallic one. |
+| `AM` | Two-quadrant amplitude | Modulator folded to 0…1: can silence the carrier, never inverts it. |
+| `AM+5` | AM with a +5V offset | Swings around unity rather than around silence, so the carrier is never fully cut. Tremolo. |
+| `AM-RE` | Rectified AM | The amplitude effect happens at twice the modulator's rate. |
+| `RM` | Four-quadrant ring mod | A straight multiply at full depth: the carrier inverts along with the modulator. |
+
+**Why three FMs.** They are genuinely different instruments, not settings of one. Exponential is
+what a V/oct input does and is the right thing for pitch, but symmetric modulation makes it drift
+sharp. Linear stays centred, and folds when the frequency hits zero. Through-zero keeps going and
+reverses the waveform, which is what keeps the sidebands clean at depth. Having only one of them
+would quietly rule out a third of what this machine can do.
 
 Type is per-row, so `CHAOS-A` can be doing slow `FM-DC` pitch drift while `OSC-2` rings the
 output and `FDBK` phase-modulates it — simultaneously, from one screen.

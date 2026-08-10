@@ -209,8 +209,7 @@ class SeqPage : public IPage {
     scr.text(1, kScrGate, "GATE", PEN_DIM, bg);
     drawField(scr, 6, kScrGate, kGateLabel[s.clock_src], PEN_HOT,
               nav_.at(kGateRow, 0), bg);
-    drawField(scr, 17, kScrGate, kDivMultLabel[s.div_mult], PEN_HOT,
-              nav_.at(kGateRow, 1), bg);
+    drawFieldF(scr, 17, kScrGate, PEN_HOT, nav_.at(kGateRow, 1), bg, "/%d", s.div);
     drawField(scr, 21, kScrGate, kSeqDirLabel[s.dir], PEN_HOT,
               nav_.at(kGateRow, 2), bg);
     drawFieldF(scr, 27, kScrGate, PEN_HOT, nav_.at(kGateRow, 3), bg, "%doct", s.range);
@@ -221,7 +220,7 @@ class SeqPage : public IPage {
   void editGate(Seq& s, int dir, bool fine) {
     switch (nav_.field()) {
       case 0: s.clock_src = static_cast<uint8_t>((s.clock_src + GATE_COUNT + dir) % GATE_COUNT); break;
-      case 1: s.div_mult = (s.div_mult + 7 + dir) % 7; break;
+      case 1: s.div = clampRatioTerm(s.div + dir * (fine ? 1 : 4)); break;
       case 2: s.dir = static_cast<uint8_t>((s.dir + DIR_COUNT + dir) % DIR_COUNT); break;
       case 3:
         s.range += dir;
@@ -239,7 +238,7 @@ class SeqPage : public IPage {
   void resetGate(Seq& s, const Seq& d) {
     switch (nav_.field()) {
       case 0: s.clock_src = d.clock_src; break;
-      case 1: s.div_mult = d.div_mult; break;
+      case 1: s.div = d.div; break;
       case 2: s.dir = d.dir; break;
       case 3: s.range = d.range; break;
       default: s.chance = d.chance; break;
@@ -248,7 +247,7 @@ class SeqPage : public IPage {
 
   void randomGate(Seq& s) {
     s.clock_src = static_cast<uint8_t>(model_.random() % GATE_COUNT);
-    s.div_mult = static_cast<int>(model_.random() % 7u);
+    s.div = 1 + static_cast<int>(model_.random() % 8u);
     s.dir = static_cast<uint8_t>(model_.random() % DIR_COUNT);
     s.chance = 0.4f + model_.randomUnit() * 0.6f;
   }
