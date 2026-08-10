@@ -4,6 +4,7 @@
 // is written back into here. The UI never talks to the DSP directly.
 #pragma once
 
+#include <cmath>
 #include <cstdint>
 
 // ---------------------------------------------------------------------------
@@ -194,6 +195,39 @@ struct Osc {
   float out = 0.0f;        // live, -1..1
   float phase = 0.0f;
 };
+
+// What a voice is actually running at: its ratio against C3, its detune and
+// the global RATE sweep. The same expression the engine uses, so the number on
+// screen is the frequency being produced rather than an idealised one.
+inline float oscHz(const Osc& o, float rate_offset) {
+  float ratio = static_cast<float>(clampRatioTerm(o.mult)) /
+                static_cast<float>(clampRatioTerm(o.div));
+  return kRootHz * ratio *
+         std::exp2(static_cast<float>(o.dtune) / 1200.0f + rate_offset);
+}
+
+extern const char* const kNoteName[12];
+
+// The nearest equal-tempered note to a frequency, with how far off it is. A
+// ratio almost never lands on a note exactly — 3/2 is two cents sharp of a
+// fifth — so the cents are the honest half of the reading, not a detail.
+struct NoteRead {
+  const char* name;
+  int octave;
+  int cents;     // -50..+50 against the named note
+};
+
+inline NoteRead noteFor(float hz) {
+  if (hz < 1e-4f) hz = 1e-4f;
+  float st = 12.0f * std::log2(hz / kRootHz);
+  int nearest = static_cast<int>(std::lround(st));
+  int cents = static_cast<int>(std::lround((st - static_cast<float>(nearest)) * 100.0f));
+  int idx = ((nearest % 12) + 12) % 12;
+  // Floored, not truncated: C3 is the root, and the octave below it has to
+  // count down rather than fold back towards zero.
+  int octave = 3 + static_cast<int>(std::floor(static_cast<float>(nearest) / 12.0f));
+  return NoteRead{kNoteName[idx], octave, cents};
+}
 
 // A step's value: a plain 0…100, centred on 50, with -1 for a rest. Chosen to
 // match every other percentage on the machine rather than carry a note number

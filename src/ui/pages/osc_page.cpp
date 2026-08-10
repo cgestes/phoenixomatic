@@ -5,6 +5,7 @@
 #include <cmath>
 
 #include "../../core/model.h"
+#include "../../dsp/audio_config.h"
 #include "../components/mod_bank_view.h"
 #include "../components/row_nav.h"
 #include "pages.h"
@@ -45,7 +46,36 @@ class OscPage : public IPage {
     drawFieldF(scr, 24, 1, kTuneRow, 2, PEN_BRIGHT, nav_.at(kTuneRow, 2), tbg, "%d", o.mult);
     scr.text(28, 1, "DTUNE", PEN_DIM, tbg);
     drawFieldF(scr, 34, 1, kTuneRow, 3, PEN_COOL, nav_.at(kTuneRow, 3), tbg, "%+d", o.dtune);
-    if (o.mute) scr.text(1, 2, "muted", PEN_FAINT);
+    // What the ratio actually comes out as. RATE is in the number too, so this
+    // tracks the sweep rather than describing a tuning the machine is not at.
+    float hz = oscHz(o, model_.rate_offset);
+    if (hz >= 10000.0f) {
+      scr.textf(1, 2, PEN_DIM, "%.1fkHz", static_cast<double>(hz) / 1000.0);
+    } else if (hz >= 1000.0f) {
+      scr.textf(1, 2, PEN_DIM, "%.0fHz", static_cast<double>(hz));
+    } else if (hz >= 10.0f) {
+      scr.textf(1, 2, PEN_DIM, "%.1fHz", static_cast<double>(hz));
+    } else {
+      scr.textf(1, 2, PEN_DIM, "%.2fHz", static_cast<double>(hz));
+    }
+    NoteRead n = noteFor(hz);
+    // Past Nyquist the oscillator clamps and you hear the ceiling, not this
+    // note. Saying so beats printing a pitch the machine cannot produce.
+    bool over = hz > static_cast<float>(kSampleRate) * 0.48f;
+    scr.textf(11, 2, over ? PEN_FAINT : PEN_COOL, "%s%d", n.name, n.octave);
+    if (over) {
+      scr.text(17, 2, "over nyquist", PEN_ALERT);
+    } else {
+      // A ratio lands on an exact note only when it is a power of two, so the
+      // cents are most of the information here.
+      if (n.cents != 0) scr.textf(16, 2, PEN_FAINT, "%+dc", n.cents);
+      // Below hearing, the note name is the least useful thing on the line —
+      // and "C-3" reads like three cents flat rather than octave -3. This is
+      // the machine's whole RATE range in one word: down here a voice is a
+      // modulator, up there it is a pitch.
+      if (hz < 20.0f) scr.text(21, 2, "LFO", PEN_VIOLET);
+      if (o.mute) scr.text(26, 2, "muted", PEN_FAINT);
+    }
 
     int focus_row = nav_.row() >= kBankRow0 ? nav_.row() - kBankRow0 : -1;
     drawModBankIndexed(scr, 3, o.mod, bank_index_, bank_count_, focus_row,

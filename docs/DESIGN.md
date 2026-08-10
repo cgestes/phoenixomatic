@@ -127,6 +127,29 @@ arithmetic between two pitch readouts.
 The global rate (`K`/`L`) multiplies both oscillators together, so it slides the whole structure
 up and down without disturbing the ratio that holds it together.
 
+### 3.1b The frequency readout
+
+Under the tuning row, what the ratio actually comes out as:
+
+```
+WAVE TRI  DIV 8  MULT 1  DTUNE +0
+2.04Hz    C-3    LFO
+```
+
+`RATE` is in the number, so it tracks the sweep rather than describing a tuning
+the machine is not at. Three things the line has to get right:
+
+- **Cents are not a detail.** A ratio lands on an exact note only when it is a
+  power of two. `3/2` reads `G3 +2c` and `5/4` reads `E3 -14c` — which is
+  exactly how far just intonation sits from equal temperament, and is the
+  check the maths was verified against.
+- **Below 20 Hz it says `LFO`.** Down there the note name is the least useful
+  thing on the line, and `C-3` reads like three cents flat rather than octave
+  -3. One word carries the machine's whole `RATE` range: at the bottom a voice
+  is a modulator, at the top it is a pitch.
+- **Past Nyquist it says so** and dims the note. The oscillator clamps there,
+  so the pitch printed would be one the machine cannot produce.
+
 ### 3.2 Modulation types
 
 Each row independently selects how its signal is applied:
