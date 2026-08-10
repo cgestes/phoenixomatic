@@ -55,11 +55,12 @@ void PhoenixEngine::applyParams() {
 
     const Osc& o = model_.osc[i];
     osc_[i].setWave(o.wave);
-    // Base pitch: a root, TUNE in semitones, FINE in cents, and the global
-    // rate offset that moves both oscillators — and therefore the whole
-    // machine's sense of time — together.
-    float semis = static_cast<float>(o.tune) + static_cast<float>(o.fine) * 0.01f;
-    float hz = 220.0f * std::exp2(semis / 12.0f + model_.rate_offset);
+    // C3 times a whole-number ratio, detuned by FINE in cents, then moved by
+    // the global rate offset that carries both oscillators — and therefore the
+    // machine's whole sense of time — together.
+    int idx = o.ratio < 0 ? 0 : (o.ratio >= kOscRatioCount ? kOscRatioCount - 1 : o.ratio);
+    float hz = kRootHz * kOscRatio[idx] *
+               std::exp2(static_cast<float>(o.fine) / 1200.0f + model_.rate_offset);
     osc_[i].setBaseHz(hz);
   }
   for (int i = 0; i < kDrumVoices; ++i) {

@@ -19,6 +19,17 @@ const char* const kSeqDestLabel[DEST_COUNT] = { "CV", "CHANCE", "SLEW", "LEN" };
 const char* const kChaosModeLabel[CHAOS_MODE_COUNT] = { "SLOTH", "LORENZ", "ROSSLER", "RUNGLER" };
 const char* const kChaosOutLabel[3] = { "TORPOR", "INERTIA", "APATHY" };
 const char* const kWaveLabel[WAVE_COUNT] = { "SIN", "TRI", "SAW", "SQR" };
+
+const char* const kOscRatioLabel[kOscRatioCount] = {
+  "/8", "/7", "/6", "/5", "/4", "/3", "/2",
+  "x1",
+  "x2", "x3", "x4", "x5", "x6", "x7", "x8",
+};
+const float kOscRatio[kOscRatioCount] = {
+  1.0f / 8, 1.0f / 7, 1.0f / 6, 1.0f / 5, 1.0f / 4, 1.0f / 3, 1.0f / 2,
+  1.0f,
+  2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f,
+};
 const char* const kSeqDirLabel[DIR_COUNT] = { "FWD", "REV", "PEND", "RAND" };
 const char* const kDivMultLabel[7] = { "/4", "/2", "x1", "x2", "x3", "x4", "x8" };
 const char* const kDivModeLabel[DIVMODE_COUNT] = { "DIVIDE", "EUCLID" };
@@ -46,8 +57,10 @@ PhoenixModel::PhoenixModel() {
     osc[v].mod[3].amount = 0.00f;  osc[v].mod[3].mode = MOD_PM;
     osc[v].mod[4].amount = 0.00f;  osc[v].mod[4].mode = MOD_PM;
   }
-  osc[0].tune = 7;   osc[0].fine = -12;  osc[0].wave = WAVE_TRI;
-  osc[1].tune = -5;  osc[1].fine = 4;    osc[1].wave = WAVE_SAW;
+  // x1 against x3 is a twelfth: close enough to lock, far enough that the
+  // comparator has something to say. A few cents of detune keep it moving.
+  osc[0].ratio = kOscRatioUnity;      osc[0].fine = 0;  osc[0].wave = WAVE_TRI;
+  osc[1].ratio = kOscRatioUnity + 2;  osc[1].fine = 7;  osc[1].wave = WAVE_SAW;
   osc[1].level = 0.52f;
 
   // --- sequencer banks: the other sequencer, both oscillators, both chaos.

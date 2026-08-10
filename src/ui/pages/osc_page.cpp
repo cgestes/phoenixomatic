@@ -16,7 +16,7 @@ constexpr int kScopeRow = 11;
 constexpr int kScopeCols = 36;
 constexpr int kScopeRows = 3;
 
-constexpr int kVoiceRow = 0;   // WAVE / TUNE / FINE / LVL
+constexpr int kVoiceRow = 0;   // WAVE / RATIO / FINE / LVL
 constexpr int kBankRow0 = 1;   // first attenuverter row
 
 // Fields per row: the voice line has four, each bank row has amount + type.
@@ -41,8 +41,9 @@ class OscPage : public IPage {
     if (vr) scr.highlight(1, 2, kScreenCols - 2, PEN_PANEL);
     scr.text(1, 2, "WAVE", PEN_DIM, bg);
     drawField(scr, 6, 2, kWaveLabel[o.wave], PEN_HOT, nav_.at(kVoiceRow, 0), bg);
-    scr.text(11, 2, "TUNE", PEN_DIM, bg);
-    drawFieldF(scr, 16, 2, PEN_BRIGHT, nav_.at(kVoiceRow, 1), bg, "%+d", o.tune);
+    scr.text(11, 2, "RATIO", PEN_DIM, bg);
+    drawField(scr, 17, 2, kOscRatioLabel[o.ratio], PEN_BRIGHT,
+              nav_.at(kVoiceRow, 1), bg);
     scr.text(21, 2, "FINE", PEN_DIM, bg);
     drawFieldF(scr, 26, 2, PEN_BRIGHT, nav_.at(kVoiceRow, 2), bg, "%+d", o.fine);
     scr.text(31, 2, "LVL", PEN_DIM, bg);
@@ -112,9 +113,9 @@ class OscPage : public IPage {
         o.wave = static_cast<uint8_t>((o.wave + WAVE_COUNT + dir) % WAVE_COUNT);
         break;
       case 1:
-        o.tune += dir;
-        if (o.tune < -36) o.tune = -36;
-        if (o.tune > 36) o.tune = 36;
+        o.ratio += dir;
+        if (o.ratio < 0) o.ratio = 0;
+        if (o.ratio >= kOscRatioCount) o.ratio = kOscRatioCount - 1;
         break;
       case 2:
         o.fine += dir * (ev.shift ? 1 : 5);
@@ -139,7 +140,7 @@ class OscPage : public IPage {
     }
     switch (nav_.field()) {
       case 0: o.wave = d.wave; break;
-      case 1: o.tune = d.tune; break;
+      case 1: o.ratio = d.ratio; break;
       case 2: o.fine = d.fine; break;
       default: o.level = d.level; break;
     }
@@ -155,7 +156,7 @@ class OscPage : public IPage {
     }
     switch (nav_.field()) {
       case 0: o.wave = static_cast<uint8_t>(model_.random() % WAVE_COUNT); break;
-      case 1: o.tune = static_cast<int>(model_.random() % 25u) - 12; break;
+      case 1: o.ratio = static_cast<int>(model_.random() % kOscRatioCount); break;
       case 2: o.fine = static_cast<int>(model_.random() % 101u) - 50; break;
       default: o.level = 0.3f + model_.randomUnit() * 0.7f; break;
     }
@@ -172,7 +173,7 @@ class OscPage : public IPage {
   void randomizePage() override {
     Osc& o = model_.osc[voice_];
     o.wave = static_cast<uint8_t>(model_.random() % WAVE_COUNT);
-    o.tune = static_cast<int>(model_.random() % 25u) - 12;
+    o.ratio = static_cast<int>(model_.random() % kOscRatioCount);
     for (int i = 0; i < kOscModRows; ++i) {
       o.mod[i].amount = model_.randomUnit() * 2.0f - 1.0f;
       o.mod[i].mode = static_cast<uint8_t>(model_.random() % MOD_TYPE_COUNT);

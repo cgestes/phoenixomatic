@@ -26,7 +26,7 @@ The third decision is the one that defines the instrument. See §3.
 | # | Module | Count | Notes |
 |---|---|---|---|
 | 1 | Chaos oscillator | 2 | Triple-Sloth style. 3 outputs each (TORPOR / INERTIA / APATHY), slow → audio rate |
-| 2 | Oscillator | 2 | SIN / TRI / SAW / SQR, with a 5-slot modulation bank each |
+| 2 | Oscillator | 2 | SIN / TRI / SAW / SQR, tuned as a **ratio** against C3, with a 5-slot modulation bank each |
 | 3 | Step sequencer | 8 steps × 2 | Clock div/mult + a 5-row modulation bank each |
 | 4 | Comparator | 1 | A vs B + modulated offset. Outputs A>B, A<B gates **and** audio |
 | 5 | Gate channel — **FATE** | 4 | Divider **then** coin toss, in series. Three taps each |
@@ -98,6 +98,21 @@ OSC2's bank is the mirror image: `CHAOS-B`, `SEQ-2`, `OSC-1`, `COMP`, `FDBK`.
 The centre detent catches you **once on the way past zero**, and never traps a value that is
 already there. A snap *window* around zero would be easier to write and would silently make the
 first few units on each side unreachable.
+
+### 3.1a Tuning is a ratio, not a pitch
+
+Both oscillators are tuned as whole-number ratios — `/8 … /2, x1, x2 … x8` — against a single
+root of **C3 (130.81 Hz)**, with `FINE` in cents for detuning off an exact ratio.
+
+Semitones would be the obvious choice and the wrong one. With no clock, the comparator's edge
+pattern *is* the rhythm, and what decides whether that pattern repeats is the ratio between the
+two oscillators. At `x1` against `x3` the crossings lock into a steady figure; a few cents of
+detune makes it breathe; an irrational interval makes it wander. Naming the control `RATIO` puts
+the thing that actually governs the machine's behaviour on the panel, instead of burying it in
+arithmetic between two pitch readouts.
+
+The global rate (`K`/`L`) multiplies both oscillators together, so it slides the whole structure
+up and down without disturbing the ratio that holds it together.
 
 ### 3.2 Modulation types
 

@@ -72,12 +72,22 @@ struct Chaos {
 enum OscWave : uint8_t { WAVE_SIN = 0, WAVE_TRI, WAVE_SAW, WAVE_SQR, WAVE_COUNT };
 extern const char* const kWaveLabel[WAVE_COUNT];
 
+// Oscillators are tuned as whole-number ratios against a single root, not in
+// semitones. Simple ratios hold the comparator in a stable repeating pattern;
+// walk away from one and it drifts. That relationship is the instrument, so it
+// gets to be the control.
+inline constexpr float kRootHz = 130.8128f;   // C3
+inline constexpr int kOscRatioCount = 15;
+inline constexpr int kOscRatioUnity = 7;      // index of x1
+extern const char* const kOscRatioLabel[kOscRatioCount];
+extern const float kOscRatio[kOscRatioCount];
+
 inline constexpr int kOscModRows = 5;
 
 struct Osc {
   uint8_t wave = WAVE_TRI;
-  int tune = 0;            // semitones
-  int fine = 0;            // cents
+  int ratio = kOscRatioUnity;  // index into kOscRatio
+  int fine = 0;                // cents, for detuning off an exact ratio
   float level = 0.74f;
   bool mute = false;
   ModRow mod[kOscModRows];
