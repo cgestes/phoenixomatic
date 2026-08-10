@@ -377,14 +377,28 @@ The page draws the register itself, MSB first, with the tap each bit belongs to 
 underneath:
 
 ```
-REG  # . . # . # . #
-     A - I I I T T T
+REG  . . # . . . . .
+     T T T
 ```
 
-`A` is APATHY (bit 7, read raw), `I` is INERTIA (bits 3–5), `T` is TORPOR (bits 0–2), and bit 6
-is not tapped. **APATHY is a pulse, not a stepped CV** — one bit, so it only ever sits at ±1.
-That is the classic rungler pulse, and the row says `PULSE` rather than a value so its meter
-slamming between the rails reads as intended rather than as breakage. Watching the bits march explains a rungler faster than prose does.
+Only the bits the **picked** output reads are drawn; the rest stay faint, because the register
+still shifts through them. The display is about the signal you have selected, not the module in
+general.
+
+The three reads of that one register:
+
+| Output | Reads | Gives |
+|---|---|---|
+| `TORPOR` | bits 5–7 → 3-bit DAC | 8 levels. **The Benjolin's own rungler output** — the three bits nearest the exit. |
+| `INERTIA` | all eight bits | 256 levels of the same pattern: small steps where TORPOR jumps in eighths. |
+| `APATHY` | bit 7, raw | The pulse. One bit, so it only ever sits at ±1 — the row reads `PULSE` rather than a value, so its meter slamming between the rails looks intended rather than broken. |
+
+TORPOR reads the bits nearest the *exit* deliberately. The three nearest the entry give the same
+kind of signal but a looser loop, since the feedback XOR uses the bit leaving the register and
+would then sit outside the tap entirely.
+
+Measured over a minute at the shipped defaults: TORPOR 8 distinct values and 30% at ends,
+INERTIA 97 values and 24%, APATHY 2 values by construction. Watching the bits march explains a rungler faster than prose does.
 
 Beside the output meters is a **21-second history** of whichever tap is picked, drawn stepped
 because the value really does jump, with a readout that asks each output the question that
