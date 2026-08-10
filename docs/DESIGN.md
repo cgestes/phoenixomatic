@@ -585,6 +585,20 @@ The three reads of that one register:
 Every tap is measured **from the exit**, so it means the same thing at 8 steps as at 32. That is
 also where the recycled bit is taken from, so the taps sit on the loop rather than outside it.
 
+**All thirty-two bits always shift, whatever `STEPS` says.** `STEPS` decides only where the loop
+closes and where the taps read; it does not narrow the register. Masking it to the length would
+throw the older bits away, so going from 8 to 32 would hand you twenty-four zeros instead of the
+history already sitting there — the loop would come back with a quarter of a pattern and three
+quarters of silence. Kept whole, lengthening the register widens the window onto bits that were
+already running:
+
+```
+STEPS 8    #.#....##.##..#.##..#...[.###..#.
+STEPS 32  [#.#....##.##..#.##..#....###..#.]
+```
+
+Same bits; the bracket moved. Locking still repeats with period exactly `STEPS` at every length.
+
 `x2` sits one press below `/1` at the fast end of the same field: instead of dividing the rising
 edges it clocks the register on **both** edges of the square, which is the one speed no divider
 can reach and does not need the oscillator retuned to get it. Measured with OSC-1 at ~130 Hz, as
