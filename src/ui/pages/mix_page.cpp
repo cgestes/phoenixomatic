@@ -61,8 +61,10 @@ class MixPage : public IPage {
     drawFieldF(scr, 19, 13, PEN_BRIGHT, nav_.at(kOutRow, 1), obg, "%d", model_.crush);
   }
 
-  bool handleKey(const UIEvent& ev) override {
-    if (nav_.handleNavKey(ev)) return true;
+  bool handleKey(const UIEvent& in) override {
+    UIEvent ev = in;
+    // A column pair becomes a left/right on the field it names.
+    if (!nav_.mapFieldKey(ev) && nav_.handleNavKey(ev)) return true;
     if (ev.code != KEY_LEFT && ev.code != KEY_RIGHT) return false;
     int dir = ev.code == KEY_RIGHT ? 1 : -1;
 

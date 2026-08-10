@@ -59,8 +59,10 @@ class ConfigPage : public IPage {
     scr.text(2, 13, "hidden modules stop modulating too", PEN_FAINT);
   }
 
-  bool handleKey(const UIEvent& ev) override {
-    if (nav_.handleNavKey(ev)) return true;
+  bool handleKey(const UIEvent& in) override {
+    UIEvent ev = in;
+    // A column pair becomes a left/right on the field it names.
+    if (!nav_.mapFieldKey(ev) && nav_.handleNavKey(ev)) return true;
     if (ev.code != KEY_LEFT && ev.code != KEY_RIGHT) return false;
     int dir = ev.code == KEY_RIGHT ? 1 : -1;
     model_.machine_mode = static_cast<uint8_t>(

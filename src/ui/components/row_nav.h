@@ -1,8 +1,15 @@
 // One interaction model for the whole instrument:
 //
 //   up / down     move between rows
-//   TAB           cycle the fields within the focused row (SHIFT+TAB back)
-//   left / right  change the focused field's value
+//   left / right  move between the fields of that row
+//   a/z s/x d/c   raise or lower a field directly — one keyboard column per
+//   f/v g/b h/n   field, top key up and bottom key down, up to eight
+//   j/m k/,
+//
+// The column pairs also move the cursor to the field they touched, so O, R and
+// SPACE act on whatever you last reached for. Cursor movement and value change
+// are separate keys on purpose: sharing them would mean you could not select a
+// field without editing it.
 //
 // Every page describes itself as a list of rows and how many fields each row
 // has; RowNav owns the cursor, the page owns what a field means. Nothing else
@@ -34,8 +41,29 @@ class RowNav {
     clamp();
   }
 
-  // Consumes up/down/TAB. Returns false for anything else so the page can
-  // handle left/right and its own shortcuts.
+  // The eight keyboard columns, top key raises and bottom key lowers.
+  static constexpr const char* kFieldUp = "asdfghjk";
+  static constexpr const char* kFieldDown = "zxcvbnm,";
+
+  // Rewrites a column-pair press into a left/right on that field and moves the
+  // cursor there, so a page's existing edit code needs no special case.
+  // Returns true if the key was one of the pairs and the row has that field.
+  bool mapFieldKey(UIEvent& ev) {
+    if (!ev.key || rows_ <= 0) return false;
+    for (int i = 0; i < 8; ++i) {
+      bool up = ev.key == kFieldUp[i];
+      bool down = ev.key == kFieldDown[i];
+      if (!up && !down) continue;
+      if (i >= fieldCount()) return false;   // this row has no such field
+      field_ = i;
+      ev.code = up ? KEY_RIGHT : KEY_LEFT;
+      ev.key = 0;
+      return true;
+    }
+    return false;
+  }
+
+  // Moves the cursor. Consumes the arrows and nothing else.
   bool handleNavKey(const UIEvent& ev) {
     if (rows_ <= 0) return false;
     switch (ev.code) {
@@ -49,10 +77,11 @@ class RowNav {
         field_ = 0;
         clamp();
         return true;
-      case KEY_TAB: {
+      case KEY_LEFT:
+      case KEY_RIGHT: {
         int n = fieldCount();
         if (n <= 0) return true;
-        field_ = ev.shift ? (field_ + n - 1) % n : (field_ + 1) % n;
+        field_ = ev.code == KEY_RIGHT ? (field_ + 1) % n : (field_ + n - 1) % n;
         return true;
       }
       default:

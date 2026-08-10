@@ -47,8 +47,10 @@ class SeqPage : public IPage {
                 kSeqDestLabel, "DEST");
   }
 
-  bool handleKey(const UIEvent& ev) override {
-    if (nav_.handleNavKey(ev)) return true;
+  bool handleKey(const UIEvent& in) override {
+    UIEvent ev = in;
+    // A column pair becomes a left/right on the field it names.
+    if (!nav_.mapFieldKey(ev) && nav_.handleNavKey(ev)) return true;
     Seq& s = model_.seq[which_];
 
     if (nav_.row() >= kBankRow0) {

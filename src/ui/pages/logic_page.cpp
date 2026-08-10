@@ -73,9 +73,10 @@ class LogicPage : public IPage {
     gfx.fillRect(x0, b_y, w, 1, COLOR_COOL);
   }
 
-  bool handleKey(const UIEvent& ev) override {
+  bool handleKey(const UIEvent& in) override {
     applyNav();
-    if (nav_.handleNavKey(ev)) return true;
+    UIEvent ev = in;
+    if (!nav_.mapFieldKey(ev) && nav_.handleNavKey(ev)) return true;
     return sub_ == 0 ? editComparator(ev) : editFate(ev);
   }
 

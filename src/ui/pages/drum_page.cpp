@@ -43,8 +43,10 @@ class DrumPage : public IPage {
     if (sub_ == 0) drawTrig(scr); else drawVoices(scr);
   }
 
-  bool handleKey(const UIEvent& ev) override {
-    if (nav_.handleNavKey(ev)) return true;
+  bool handleKey(const UIEvent& in) override {
+    UIEvent ev = in;
+    // A column pair becomes a left/right on the field it names.
+    if (!nav_.mapFieldKey(ev) && nav_.handleNavKey(ev)) return true;
     if (ev.code != KEY_LEFT && ev.code != KEY_RIGHT) return false;
     int dir = ev.code == KEY_RIGHT ? 1 : -1;
 
@@ -195,7 +197,7 @@ class DrumPage : public IPage {
                              : phx_glyphs::kLedOff;
       scr.put(8 + i * 5, 11, glyph, d.live ? kDrumPen[i] : PEN_FAINT);
     }
-    scr.text(2, 13, "[4-7] mute these voices", PEN_FAINT);
+    scr.text(2, 13, "4-7 mute these voices", PEN_FAINT);
   }
 
   void drawVoices(TextScreen& scr) {

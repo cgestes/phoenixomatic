@@ -9,6 +9,7 @@
 #include "../../../fonts/phx_glyphs.h"
 #include "../../core/model.h"
 #include "../components/phoenix_sprite.h"
+#include "../components/row_nav.h"
 #include "pages.h"
 
 namespace {
@@ -21,9 +22,13 @@ constexpr int kScopeRow = 2;
 constexpr int kScopeCols = 18;
 constexpr int kScopeRows = 5;
 
+// One row, one field: the global rate. It used to be a pair of global letter
+// keys, and letters now belong to the column pairs that edit fields.
+constexpr uint8_t kFields[] = {1};
+
 class HomePage : public IPage {
  public:
-  explicit HomePage(PhoenixModel& m) : model_(m) {}
+  explicit HomePage(PhoenixModel& m) : model_(m) { nav_.configure(kFields, 1); }
 
   const char* title() const override { return "PHOENIXOMATIC"; }
 
@@ -46,8 +51,10 @@ class HomePage : public IPage {
 
     scr.text(2, 8, "CMP", PEN_DIM);
     scr.textf(6, 8, PEN_BRIGHT, "%.0fHz", static_cast<double>(model_.comp_hz));
-    scr.text(15, 8, "RATE", PEN_DIM);
-    scr.textf(20, 8, PEN_HOT, "%+.2f", static_cast<double>(model_.rate_offset));
+    bool rf = nav_.atRow(0);
+    scr.text(15, 8, "RATE", PEN_DIM, rowBg(rf));
+    drawFieldF(scr, 20, 8, PEN_HOT, nav_.at(0, 0), rowBg(rf), "%+.2f",
+               static_cast<double>(model_.rate_offset));
     scr.text(26, 8, "RUN", PEN_DIM);
     scr.put(30, 8, model_.playing ? phx_glyphs::kLedOn : phx_glyphs::kLedOff,
             model_.playing ? PEN_HOT : PEN_FAINT);
@@ -101,10 +108,22 @@ class HomePage : public IPage {
     }
   }
 
+  bool handleKey(const UIEvent& in) override {
+    UIEvent ev = in;
+    if (!nav_.mapFieldKey(ev) && nav_.handleNavKey(ev)) return true;
+    if (ev.code == KEY_LEFT) { model_.adjustRate(ev.shift ? -1 : -4); return true; }
+    if (ev.code == KEY_RIGHT) { model_.adjustRate(ev.shift ? 1 : 4); return true; }
+    return false;
+  }
+
+  void zeroField() override { model_.rate_offset = 0.0f; }
+  void zeroPage() override { model_.rate_offset = 0.0f; }
+
   uint8_t litSources() const override { return srcBit(SRC_CMP) | srcBit(SRC_FTE); }
 
  private:
   PhoenixModel& model_;
+  RowNav nav_;
   float heat_ = 0.0f;
   bool flap_ = false;
 };

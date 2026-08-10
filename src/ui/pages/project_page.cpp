@@ -43,11 +43,13 @@ class ProjectPage : public IPage {
     scr.text(2, 11, "TARGET", PEN_DIM);
     scr.text(10, 11, "SD card / browser storage", PEN_FAINT);
 
-    scr.text(2, 13, "[ENTER] load", PEN_FAINT);
+    scr.text(2, 13, "ENTER loads", PEN_FAINT);
   }
 
-  bool handleKey(const UIEvent& ev) override {
-    if (nav_.handleNavKey(ev)) return true;
+  bool handleKey(const UIEvent& in) override {
+    UIEvent ev = in;
+    // A column pair becomes a left/right on the field it names.
+    if (!nav_.mapFieldKey(ev) && nav_.handleNavKey(ev)) return true;
     // Left/right and ENTER all mean "load this one" here; there is only ever
     // the one field on a row.
     if (ev.code == KEY_ENTER || ev.code == KEY_LEFT || ev.code == KEY_RIGHT) {
@@ -69,31 +71,31 @@ class HelpPage : public IPage {
   const char* title() const override { return "HELP"; }
 
   void draw(TextScreen& scr) override {
+    // One line each, so the whole map fits on one screen. Two lines per entry
+    // meant half of it did not, and a keymap you have to scroll is a keymap
+    // you look up somewhere else.
     struct Row { const char* key; const char* what; };
     static const Row kRows[] = {
-      {"UP DOWN",   "move between rows"},
-      {"TAB",       "field within the row"},
-      {"LEFT RIGHT","change the value"},
-      {"O / SHIFT+O", "zero field / page"},
-      {"R / SHIFT+R", "random field / page"},
-      {"[ ]",       "previous / next screen"},
-      {"CTRL+UPDN", "sub-page"},
-      {"SPACE",     "toggle (play on HOME)"},
-      {"1-7",       "mute an instrument"},
-      {"- / =",     "mute all / unmute all"},
-      {"ESC",       "invert all mutes"},
-      {"K L",       "global rate"},
+      {"UP DOWN",    "move between rows"},
+      {"LEFT RIGHT", "move between fields"},
+      {"A/Z S/X D/C", "raise / lower fields 1-3"},
+      {"F/V G/B H/N", "fields 4-6"},
+      {"J/M K/,",    "fields 7-8"},
+      {"SHIFT+key",  "fine step"},
+      {"O  SHIFT+O", "zero field / page"},
+      {"R  SHIFT+R", "random field / page"},
+      {"SPACE",      "toggle (play on HOME)"},
+      {"[  ]",       "previous / next screen"},
+      {"CTRL+UP/DN", "sub-page"},
+      {"1 - 7",      "mute an instrument"},
+      {"-  =  ESC",  "mute all / none / invert"},
     };
     constexpr int kCount = static_cast<int>(sizeof(kRows) / sizeof(kRows[0]));
 
     for (int i = 0; i < kCount; ++i) {
-      int col = i < 6 ? 2 : 21;
-      int row = 1 + (i < 6 ? i : i - 6) * 2;
-      scr.text(col, row, kRows[i].key, PEN_HOT);
-      scr.text(col, row + 1, kRows[i].what, PEN_DIM);
+      scr.text(1, 1 + i, kRows[i].key, PEN_HOT);
+      scr.text(14, 1 + i, kRows[i].what, PEN_DIM);
     }
-
-    scr.text(2, 13, "modularcore \x88 phoenixomatic", PEN_FAINT);
   }
 
  private:

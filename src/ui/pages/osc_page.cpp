@@ -93,9 +93,10 @@ class OscPage : public IPage {
     }
   }
 
-  bool handleKey(const UIEvent& ev) override {
+  bool handleKey(const UIEvent& in) override {
     refreshRows();
-    if (nav_.handleNavKey(ev)) return true;
+    UIEvent ev = in;
+    if (!nav_.mapFieldKey(ev) && nav_.handleNavKey(ev)) return true;
     Osc& o = model_.osc[voice_];
 
     if (nav_.row() >= kBankRow0) return editModRow(ev, bankRow(), nav_.field(), MOD_TYPE_COUNT);

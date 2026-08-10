@@ -208,11 +208,11 @@ bool PhoenixDisplay::handleGlobalKey(const UIEvent& ev) {
 
   if (ev.key == '[') { prevPage(); return true; }
   if (ev.key == ']') { nextPage(); return true; }
-  if (ev.key == 'k') { model_.adjustRate(-1); return true; }
-  if (ev.key == 'l') { model_.adjustRate(1); return true; }
-
   // Mutes are global: a number key reaches the same instrument whatever page
   // you are looking at, so silencing something is never a navigation problem.
+  // The letter keys are all spoken for by the column pairs that edit fields,
+  // so nothing else global may live on one. Rate lives on HOME and freeze on
+  // CHAOS, as fields, which is where they were reachable anyway.
   if (ev.key >= '1' && ev.key <= '7') {
     model_.toggleMute(ev.key - '1');
     return true;
@@ -242,12 +242,6 @@ bool PhoenixDisplay::handleGlobalKey(const UIEvent& ev) {
     if (ev.shift) page->randomizePage(); else page->randomizeField();
     return true;
   }
-  if (ev.key == 'f') {
-    model_.chaos[0].freeze = !model_.chaos[0].freeze;
-    model_.chaos[1].freeze = model_.chaos[0].freeze;
-    return true;
-  }
-
   // CTRL+UP/DOWN steps sub-pages.
   if (ev.ctrl && (ev.code == KEY_UP || ev.code == KEY_DOWN)) {
     int n = page->subPageCount();
