@@ -381,12 +381,16 @@ REG  # . . # . # . #
      A - I I I T T T
 ```
 
-`A` is APATHY (bit 7, read raw as a square), `I` is INERTIA (bits 3–5), `T` is TORPOR (bits 0–2),
-and bit 6 is not tapped. Watching the bits march explains a rungler faster than prose does.
+`A` is APATHY (bit 7, read raw), `I` is INERTIA (bits 3–5), `T` is TORPOR (bits 0–2), and bit 6
+is not tapped. **APATHY is a pulse, not a stepped CV** — one bit, so it only ever sits at ±1.
+That is the classic rungler pulse, and the row says `PULSE` rather than a value so its meter
+slamming between the rails reads as intended rather than as breakage. Watching the bits march explains a rungler faster than prose does.
 
 Beside the output meters is a **21-second history** of whichever tap is picked, drawn stepped
-because the value really does jump, with `AT ENDS` reporting the share of that window the
-output spent pinned at the top or bottom of its range rather than using the middle. A meter only ever shows the present, and "it sits at the extremes" is a claim about
+because the value really does jump, with a readout that asks each output the question that
+suits it: `AT ENDS` for the stepped taps — the share of the window spent pinned at the top or
+bottom of the range rather than using the middle — and `DUTY` for the pulse, since "at ends 100%"
+is true of a one-bit output by construction and therefore says nothing. A meter only ever shows the present, and "it sits at the extremes" is a claim about
 time — so the panel measures it rather than leaving it to be eyeballed. At the shipped defaults
 it reads 22%. The history samples on a fixed 0.25 s interval, not per frame, so the window is the
 same whether the panel runs at 25fps on the Cardputer or 60 in a browser.
