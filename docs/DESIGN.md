@@ -400,6 +400,10 @@ would then sit outside the tap entirely.
 Measured over a minute at the shipped defaults: TORPOR 8 distinct values and 30% at ends,
 INERTIA 97 values and 24%, APATHY 2 values by construction. Watching the bits march explains a rungler faster than prose does.
 
+The history plot is drawn in **every** chaos mode, not only RUNGLER — "does this actually move,
+and how much of its range does it use" is the same question whether the source is a shift register
+or a strange attractor. Only the register display is RUNGLER-specific, since only RUNGLER has one.
+
 Beside the output meters is a **21-second history** of whichever tap is picked, drawn stepped
 because the value really does jump, with a readout that asks each output the question that
 suits it: `AT ENDS` for the stepped taps — the share of the window spent pinned at the top or
