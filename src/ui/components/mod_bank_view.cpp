@@ -81,14 +81,6 @@ int visibleModRows(const ModRow* rows, int count, uint8_t machine_mode,
   return n;
 }
 
-uint8_t litSourcesOf(const ModRow* rows, int count) {
-  uint8_t mask = 0;
-  for (int i = 0; i < count; ++i) {
-    if (rows[i].active()) mask |= srcBit(rows[i].src);
-  }
-  return mask;
-}
-
 bool editModRow(const UIEvent& ev, ModRow& row, int field, int mode_count) {
   // The digit 0 is deliberately not bound here — it is reserved for mixing.
   // O is the key that zeroes a value.

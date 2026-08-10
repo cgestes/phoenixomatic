@@ -427,8 +427,9 @@ class PhoenixModel {
   // Advances UI wall-clock only; the engine owns every live field.
   void tick(float dt);
 
-  // The seven things that can be silenced, in the order the number keys and
-  // the MIX page list them.
+  // The eight things that can be silenced, in the order the number keys, the
+  // MIX page and the footer strip all list them. That order is the number key
+  // mapping, so it is one enum and not three lists that can drift apart.
   enum Instrument : uint8_t {
     INST_OSC1 = 0, INST_OSC2, INST_COMP, INST_FILTER,
     INST_KIK, INST_SNR, INST_HH, INST_OH,
@@ -439,6 +440,13 @@ class PhoenixModel {
   void toggleMute(int inst);
   void muteAll(bool muted);
   void invertMutes();
+
+  // Full name for the MIX strips, short one for the footer, where every slot
+  // gets five cells.
+  static const char* instrumentName(int inst);
+  static const char* instrumentShortName(int inst);
+  const float* levelOf(int inst) const;
+  float* levelOf(int inst);
 
   // Shared RNG so pages can randomise without carrying their own state.
   uint32_t random();
@@ -453,9 +461,6 @@ class PhoenixModel {
   void adjustRate(int delta);
   void adjustMaster(int delta);
 
-
-  // Live level of a bus source, 0..1, for the footer strip.
-  float busLevel(SourceId id) const;
 
   Chaos chaos[2];
   Osc osc[2];

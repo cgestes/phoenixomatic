@@ -70,6 +70,4 @@ inline void zeroModField(ModRow& row, int field) {
 }
 
 // Bus sources this bank is currently doing something with.
-uint8_t litSourcesOf(const ModRow* rows, int count);
-
 

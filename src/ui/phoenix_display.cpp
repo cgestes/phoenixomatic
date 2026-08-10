@@ -135,25 +135,31 @@ void PhoenixDisplay::drawHeader() {
   hit_next_hi_ = kScreenCols - 1;        // ">]"
 }
 
-void PhoenixDisplay::drawBus() {
-  uint8_t lit = pages_[page_index_]->litSources();
+// The eight things a number key can silence, in key order, so the mapping is
+// on screen instead of in your head. This replaced the patch bus, which showed
+// what each page was *fed by* — true, but it explained nothing about the one
+// set of keys that works identically on every page.
+void PhoenixDisplay::drawMixFooter() {
+  // Forty columns over eight slots is five cells each, spent as: the key
+  // number, a three-letter name, and a level meter.
+  constexpr int kSlot = kScreenCols / PhoenixModel::INST_COUNT;
+  for (int i = 0; i < PhoenixModel::INST_COUNT; ++i) {
+    int col = i * kSlot;
+    bool mute = model_.isMuted(i);
 
-  // Sources whose module the mode hides are left out, and the rest spread to
-  // fill the strip. Holes where a meter used to be read as breakage, not as a
-  // deliberate absence.
-  int shown[SRC_COUNT];
-  int count = 0;
-  for (int i = 0; i < SRC_COUNT; ++i) {
-    if (!sourceHidden(static_cast<SourceId>(i), model_.machine_mode)) {
-      shown[count++] = i;
-    }
-  }
-  if (count <= 0) return;
-  int spacing = kScreenCols / count;
-  for (int slot = 0; slot < count; ++slot) {
-    SourceId id = static_cast<SourceId>(shown[slot]);
-    screen_.busCell(slot * spacing, kBusRow, kSourceLabel[id],
-                    model_.busLevel(id), (lit & srcBit(id)) != 0);
+    // The digit stays legible when the voice is muted — it is the key you
+    // press to bring it back, so dimming it hides the way out.
+    screen_.put(col, kBusRow, static_cast<uint8_t>('1' + i),
+                mute ? PEN_DIM : PEN_VIOLET);
+    screen_.text(col + 1, kBusRow, PhoenixModel::instrumentShortName(i),
+                 mute ? PEN_FAINT : (i < 4 ? PEN_EMBER : PEN_COOL));
+
+    float level = mute ? 0.0f : *model_.levelOf(i);
+    if (level < 0.0f) level = 0.0f;
+    if (level > 1.0f) level = 1.0f;
+    screen_.put(col + 4, kBusRow,
+                phx_glyphs::bar(static_cast<int>(level * 7.0f + 0.5f)),
+                mute ? PEN_FAINT : PEN_HOT);
   }
 }
 
@@ -207,7 +213,7 @@ void PhoenixDisplay::update(float dt) {
   screen_.setRowOffset(kPageRowOffset);
   page->draw(screen_);
   screen_.setRowOffset(0);
-  drawBus();
+  drawMixFooter();
   screen_.flush();
   page->drawOverlay(gfx_);
   gfx_.flush();

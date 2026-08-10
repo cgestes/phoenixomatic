@@ -80,7 +80,7 @@ platform_sdl/              desktop + wasm backend, Makefile, web shell
 src/core/model.*           all state; the engine writes its live fields
 src/dsp/                   chaos cores, oscillators, drums, the engine
 src/ui/text_screen.*       the 40x16 cell grid with dirty tracking
-src/ui/phoenix_display.*   page host, header, patch-bus footer, splash
+src/ui/phoenix_display.*   page host, header, mix footer, splash
 src/ui/components/         attenuverter bank, the bird
 src/ui/pages/              one file per page
 docs/DESIGN.md             the plan

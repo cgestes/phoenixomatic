@@ -121,9 +121,6 @@ class HomePage : public IPage {
 
   void zeroField() override { model_.rate_offset = 0.0f; }
   void zeroPage() override { model_.rate_offset = 0.0f; }
-
-  uint8_t litSources() const override { return srcBit(SRC_CMP) | srcBit(SRC_FTE); }
-
  private:
   PhoenixModel& model_;
   RowNav nav_;

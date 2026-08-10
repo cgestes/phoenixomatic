@@ -242,21 +242,28 @@ SEQ2's bank mirrors it, starting with `SEQ-1`.
 | `SLEW` | Glide time between steps. |
 | `LEN` | Effective pattern length, 1–8. |
 
-### 3.5 The patch bus footer
+### 3.5 The mix footer
 
-A strip present on **every** page, showing all eight sources live:
+A strip present on **every** page: the eight voices that can be silenced, in
+number-key order, with a live meter each.
 
 ```
-CHA▆ CHB▂ OS1▇ OS2▃ SQ1▅ SQ2▁ CMP▆ FTE▄
+1OS1▆ 2OS2▃ 3CMP▁ 4FLT▄ 5KIK▂ 6SNR▁ 7HH ▅ 8OH ▁
 ```
 
-There is no clock among them — see §3.7. The eighth slot reports whether the
-rhythm section is firing at all, which is the nearest thing this machine has to
-a transport light.
+Forty columns over eight slots is five cells each, spent as the key number, a
+three-letter name, and a meter. A muted voice goes faint and its meter empties —
+but **the digit stays legible**, because that digit is the key you press to
+bring it back, and dimming it would hide the way out.
 
-Each cell animates in real time. A cell is **lit in ember** when that source has a non-zero
-attenuverter on the page you're currently looking at — so you can always see what is feeding
-what without leaving the page.
+This replaced a patch bus that showed the eight modulation *sources* with the
+ones feeding the current page lit in ember. That was true and it was pretty,
+but it explained the one thing you never needed explaining — the page you are
+already looking at tells you what feeds it — while the number keys, the only
+control that behaves identically on every screen, had nothing on screen to say
+what they did. The names and levels come from `PhoenixModel::instrumentName`
+and `levelOf`, shared with the MIX page, so the two cannot disagree about what
+key 5 is called.
 
 ### 3.6 Default normalling (all reachable, all overridable)
 
@@ -444,7 +451,7 @@ feels crowded.
 │  CHAOS A ▓▓▓▓░░░░  B ▓▓▓▓▓▓▓░          │
 │  KIK ● SNR ○ HH ● OH ○                 │
 ├────────────────────────────────────────┤
-│CHA▆ CHB▂ OS1▇ OS2▃ SQ1▅ SQ2▁ CMP▆ CLK● │
+│1OS1▆2OS2▃3CMP▁4FLT▄5KIK▂6SNR▁7HH ▅8OH ▁│
 └────────────────────────────────────────┘
 ```
 
@@ -469,7 +476,7 @@ touch — the rest of the machine is grim industrial.
 │  PICK ▸ TORPOR    ▸ OSC1, COMP, SEQ1   │
 │  [ENTER] reset    [F] freeze           │
 ├────────────────────────────────────────┤
-│CHA▆ CHB▂ OS1▇ OS2▃ SQ1▅ SQ2▁ CMP▆ CLK● │
+│1OS1▆2OS2▃3CMP▁4FLT▄5KIK▂6SNR▁7HH ▅8OH ▁│
 └────────────────────────────────────────┘
 ```
 
@@ -655,7 +662,7 @@ published on the `CHA` bus. The three outputs are always running.
 │  ╱╲    ╱╲    ╱╲    ╱╲    ╱╲            │
 │ ╱  ╲__╱  ╲__╱  ╲__╱  ╲__╱  ╲           │
 ├────────────────────────────────────────┤
-│CHA▆ CHB▂ OS1▇ OS2▃ SQ1▅ SQ2▁ CMP▆ CLK● │
+│1OS1▆2OS2▃3CMP▁4FLT▄5KIK▂6SNR▁7HH ▅8OH ▁│
 └────────────────────────────────────────┘
 ```
 
@@ -682,7 +689,7 @@ oscillator output, so you can see what the modulation is doing.
 │  CHAOS-A   +22        ┃▓▓     CHANCE   │
 │  CHAOS-B     0        ┃       CHANCE   │
 ├────────────────────────────────────────┤
-│CHA▆ CHB▂ OS1▇ OS2▃ SQ1▅ SQ2▁ CMP▆ CLK● │
+│1OS1▆2OS2▃3CMP▁4FLT▄5KIK▂6SNR▁7HH ▅8OH ▁│
 └────────────────────────────────────────┘
 ```
 
@@ -710,7 +717,7 @@ clock source, div/mult, direction, range and current chance — all selectors, a
 │   CHAOS-B   0       ┃                  │
 │  A>B ● ▸FATE-1,2  A<B ○ ▸FATE-3   ▸MIX │
 ├────────────────────────────────────────┤
-│CHA▆ CHB▂ OS1▇ OS2▃ SQ1▅ SQ2▁ CMP▆ CLK● │
+│1OS1▆2OS2▃3CMP▁4FLT▄5KIK▂6SNR▁7HH ▅8OH ▁│
 └────────────────────────────────────────┘
 ```
 
@@ -733,7 +740,7 @@ clock source, div/mult, direction, range and current chance — all selectors, a
 │  4÷ HH          4A OH                  │
 │  [R] scramble all four                 │
 ├────────────────────────────────────────┤
-│CHA▆ CHB▂ OS1▇ OS2▃ SQ1▅ SQ2▁ CMP▆ CLK● │
+│1OS1▆2OS2▃3CMP▁4FLT▄5KIK▂6SNR▁7HH ▅8OH ▁│
 └────────────────────────────────────────┘
 ```
 
@@ -757,7 +764,7 @@ with its own attenuverter, and three live output LEDs — `÷` (divided clock, p
 │                                        │
 │  [1-4] mute      [R] scramble chances  │
 ├────────────────────────────────────────┤
-│CHA▆ CHB▂ OS1▇ OS2▃ SQ1▅ SQ2▁ CMP▆ CLK● │
+│1OS1▆2OS2▃3CMP▁4FLT▄5KIK▂6SNR▁7HH ▅8OH ▁│
 └────────────────────────────────────────┘
 ```
 
@@ -779,7 +786,7 @@ All four fit for routing. Voice params need two per page:
 │                                        │
 │  ● KIK        ○ SNR                    │
 ├────────────────────────────────────────┤
-│CHA▆ CHB▂ OS1▇ OS2▃ SQ1▅ SQ2▁ CMP▆ CLK● │
+│1OS1▆2OS2▃3CMP▁4FLT▄5KIK▂6SNR▁7HH ▅8OH ▁│
 └────────────────────────────────────────┘
 ```
 
@@ -800,7 +807,7 @@ All four fit for routing. Voice params need two per page:
 │  MASTER ▓▓▓▓▓▓▓▓▓▓▓▓▓░░  81            │
 │  DRIVE 22   CRUSH 0    [1-7] mute      │
 ├────────────────────────────────────────┤
-│CHA▆ CHB▂ OS1▇ OS2▃ SQ1▅ SQ2▁ CMP▆ CLK● │
+│1OS1▆2OS2▃3CMP▁4FLT▄5KIK▂6SNR▁7HH ▅8OH ▁│
 └────────────────────────────────────────┘
 ```
 

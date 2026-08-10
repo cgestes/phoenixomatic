@@ -58,7 +58,6 @@ class TextScreen {
   // (ember). `value` in -1..1. Occupies wing*2+1 cells.
   void attenTrack(int col, int row, int wing, float value, bool enabled = true);
   // One patch-bus cell: a 3-character label plus a level bar.
-  void busCell(int col, int row, const char* label, float level, bool lit);
 
   // --- mouse hit map ------------------------------------------------------
   //

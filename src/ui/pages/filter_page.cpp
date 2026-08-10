@@ -159,11 +159,6 @@ class FilterPage : public IPage {
       m.mode = static_cast<uint8_t>(model_.random() % FDEST_COUNT);
     }
   }
-
-  uint8_t litSources() const override {
-    return litSourcesOf(model_.filter.mod, kFilterModRows) | srcBit(SRC_CMP);
-  }
-
  private:
   ModRow& bankRow() {
     int i = nav_.row() - kBankRow0;

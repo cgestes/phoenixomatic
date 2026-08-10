@@ -270,18 +270,31 @@ void PhoenixModel::invertMutes() {
   for (int i = 0; i < INST_COUNT; ++i) setMuted(i, !isMuted(i));
 }
 
-float PhoenixModel::busLevel(SourceId id) const {
-  switch (id) {
-    case SRC_CHA: return (chaos[0].out[chaos[0].pick] + 1.0f) * 0.5f;
-    case SRC_CHB: return (chaos[1].out[chaos[1].pick] + 1.0f) * 0.5f;
-    case SRC_OS1: return (osc[0].out + 1.0f) * 0.5f;
-    case SRC_OS2: return (osc[1].out + 1.0f) * 0.5f;
-    case SRC_SQ1: return seq[0].out;
-    case SRC_SQ2: return seq[1].out;
-    case SRC_CMP: return comp.a_gt_b ? 1.0f : 0.05f;
-    case SRC_FTE: return fate_led;
-    default: return 0.0f;
-  }
+const char* PhoenixModel::instrumentName(int inst) {
+  static const char* const kNames[INST_COUNT] = {
+    "OSC-1", "OSC-2", "COMP", "FILT", "KIK", "SNR", "HH", "OH"
+  };
+  return (inst >= 0 && inst < INST_COUNT) ? kNames[inst] : "?";
+}
+
+const char* PhoenixModel::instrumentShortName(int inst) {
+  // Three cells each, so the footer can carry the key number and a level
+  // meter beside every name inside forty columns.
+  static const char* const kShort[INST_COUNT] = {
+    "OS1", "OS2", "CMP", "FLT", "KIK", "SNR", "HH", "OH"
+  };
+  return (inst >= 0 && inst < INST_COUNT) ? kShort[inst] : "?";
+}
+
+const float* PhoenixModel::levelOf(int inst) const {
+  if (inst < 2) return &osc[inst].level;
+  if (inst == 2) return &comp.level;
+  if (inst == 3) return &filter.level;
+  return &drum[inst - 4].level;
+}
+
+float* PhoenixModel::levelOf(int inst) {
+  return const_cast<float*>(static_cast<const PhoenixModel*>(this)->levelOf(inst));
 }
 
 // The engine owns every live field on the model — chaos outputs, oscillator

@@ -152,9 +152,6 @@ class DrumPage : public IPage {
       for (int p = 0; p < 5; ++p) *param(v, p) = static_cast<int>(model_.random() % 101u);
     }
   }
-
-  uint8_t litSources() const override { return srcBit(SRC_FTE) | srcBit(SRC_CMP); }
-
  private:
   void applyNav() {
     if (sub_ == 0) nav_.configure(kTrigFields, kDrumVoices);

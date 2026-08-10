@@ -1,4 +1,4 @@
-// MIX — seven voices and a master. The comparator sits here as a voice, which
+// MIX — eight voices and a master. The comparator sits here as a voice, which
 // is the whole point of it: the thing generating the rhythm also makes a sound.
 #include "../../../fonts/phx_glyphs.h"
 #include "../../core/model.h"
@@ -7,9 +7,9 @@
 
 namespace {
 
-constexpr int kStrips = PhoenixModel::INST_COUNT;   // 7
-constexpr int kMasterRow = kStrips;                 // 7
-constexpr int kOutRow = kStrips + 1;                // 8: DRIVE | CRUSH
+constexpr int kStrips = PhoenixModel::INST_COUNT;   // 8
+constexpr int kMasterRow = kStrips;                 // 8
+constexpr int kOutRow = kStrips + 1;                // 9: DRIVE | CRUSH
 
 // Each strip has a level and a mute; the master is one field; the output row
 // carries drive and crush.
@@ -137,9 +137,6 @@ class MixPage : public IPage {
       *constLevelMut(i) = 0.3f + model_.randomUnit() * 0.7f;
     }
   }
-
-  uint8_t litSources() const override { return srcBit(SRC_CMP); }
-
  private:
   static void adjust(float* v, int dir, bool fine) {
     *v += static_cast<float>(dir) * (fine ? 0.01f : 0.05f);
@@ -147,29 +144,15 @@ class MixPage : public IPage {
     if (*v > 1.0f) *v = 1.0f;
   }
 
-  static const char* stripName(int i) {
-    static const char* const kNames[kStrips] = {
-      "OSC-1", "OSC-2", "COMP", "FILT", "KIK", "SNR", "HH", "OH"
-    };
-    return kNames[i];
-  }
+  // Names and levels come from the model, so this page and the footer strip
+  // cannot disagree about what key 5 is called or how loud it is.
+  static const char* stripName(int i) { return PhoenixModel::instrumentName(i); }
   static uint8_t stripPen(int i) {
     return i < 4 ? PEN_EMBER : kDrumPen[i - 4];
   }
 
-  float* constLevelMut(int i) {
-    if (i < 2) return &model_.osc[i].level;
-    if (i == 2) return &model_.comp.level;
-    if (i == 3) return &model_.filter.level;
-    return &model_.drum[i - 4].level;
-  }
-  const float* constLevel(int i) const { return constLevelOf(model_, i); }
-  static const float* constLevelOf(const PhoenixModel& m, int i) {
-    if (i < 2) return &m.osc[i].level;
-    if (i == 2) return &m.comp.level;
-    if (i == 3) return &m.filter.level;
-    return &m.drum[i - 4].level;
-  }
+  float* constLevelMut(int i) { return model_.levelOf(i); }
+  const float* constLevel(int i) const { return model_.levelOf(i); }
 
   PhoenixModel& model_;
   RowNav nav_;

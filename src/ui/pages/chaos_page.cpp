@@ -261,11 +261,6 @@ class ChaosPage : public IPage {
     c.skew = model_.randomUnit() * 2.0f - 1.0f;
     c.pick = static_cast<int>(model_.random() % 3u);
   }
-
-  uint8_t litSources() const override {
-    return srcBit(which_ == 0 ? SRC_CHA : SRC_CHB);
-  }
-
  private:
   // The shift register, MSB first, showing only the bits the picked output
   // actually reads. Colouring all three taps at once meant the display was

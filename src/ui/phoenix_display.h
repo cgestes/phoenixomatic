@@ -42,7 +42,7 @@ class PhoenixDisplay {
 
   bool available(int index) const;
   void drawHeader();
-  void drawBus();
+  void drawMixFooter();
   void drawSplash();
   bool handleGlobalKey(const UIEvent& ev);
   void adjustFocused(int dir, bool fine);

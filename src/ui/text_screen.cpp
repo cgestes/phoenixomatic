@@ -103,14 +103,6 @@ void TextScreen::attenTrack(int col, int row, int wing, float value, bool enable
   }
 }
 
-void TextScreen::busCell(int col, int row, const char* label, float level, bool lit) {
-  text(col, row, label, lit ? PEN_EMBER : PEN_FAINT);
-  if (level < 0.0f) level = 0.0f;
-  if (level > 1.0f) level = 1.0f;
-  int lvl = static_cast<int>(level * 7.0f + 0.5f);
-  put(col + 3, row, phx_glyphs::bar(lvl), lit ? PEN_HOT : PEN_DIM);
-}
-
 void TextScreen::reserve(int col, int row, int cols, int rows) {
   row += row_offset_;
   for (int r = 0; r < rows; ++r) {

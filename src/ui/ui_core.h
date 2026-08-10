@@ -79,5 +79,4 @@ class IPage {
   virtual void randomizePage() {}
 
   // Which bus sources are doing something on this screen right now.
-  virtual uint8_t litSources() const { return 0; }
 };

@@ -170,13 +170,6 @@ class SeqPage : public IPage {
       s.mod[i].mode = static_cast<uint8_t>(model_.random() % DEST_COUNT);
     }
   }
-
-  uint8_t litSources() const override {
-    uint8_t mask = litSourcesOf(model_.seq[which_].mod, kSeqModRows);
-    mask |= srcBit(which_ == 0 ? SRC_SQ1 : SRC_SQ2);
-    return mask;
-  }
-
  private:
   int8_t randomNote() {
     if (model_.random() % 5u == 0) return -1;  // one step in five is a rest

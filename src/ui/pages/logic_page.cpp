@@ -186,21 +186,6 @@ class LogicPage : public IPage {
       for (int i = 0; i < kFateChannels; ++i) randomFate(model_.fate[i]);
     }
   }
-
-  uint8_t litSources() const override {
-    if (sub_ == 0) {
-      uint8_t mask = litSourcesOf(model_.comp.mod, kCompModRows);
-      return mask | srcBit(SRC_OS1) | srcBit(SRC_OS2) | srcBit(SRC_CMP);
-    }
-    uint8_t mask = srcBit(SRC_FTE) | srcBit(SRC_CMP);
-    for (int i = 0; i < kFateChannels; ++i) {
-      if (model_.fate[i].mod_src >= 0 && model_.fate[i].mod_amt != 0.0f) {
-        mask |= srcBit(model_.fate[i].mod_src);
-      }
-    }
-    return mask;
-  }
-
  private:
   // COMP's bank only lists rows whose source this mode shows, so the table is
   // rebuilt whenever the mode or the sub-page changes.
