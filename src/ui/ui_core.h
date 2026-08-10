@@ -66,6 +66,11 @@ class IPage {
   // SPACE toggles the focused thing when that means something — a modulation
   // row on or off, a step to a rest, a mute. Return false and the key falls
   // through untouched.
+  // Which mixer voice this page makes, or -1 for pages that make no sound of
+  // their own. The footer marks it, so the strip answers "where am I" as well
+  // as "what do the number keys do".
+  virtual int outputInstrument() const { return -1; }
+
   virtual bool toggleField() { return false; }
 
   // O zeroes the focused field, SHIFT+O every field on the page. "Zero" means

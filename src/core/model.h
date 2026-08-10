@@ -441,6 +441,12 @@ class PhoenixModel {
   void muteAll(bool muted);
   void invertMutes();
 
+  // True when the current mode does not have this voice — the drums under
+  // BENJOLIN. Hidden voices are left out of the MIX page and the footer, and
+  // the mute controls skip them: a voice with no strip and no footer slot that
+  // could still be unmuted is sound you cannot see, reach, or switch off.
+  bool instrumentHidden(int inst) const;
+
   // Full name for the MIX strips, short one for the footer, where every slot
   // gets five cells.
   static const char* instrumentName(int inst);

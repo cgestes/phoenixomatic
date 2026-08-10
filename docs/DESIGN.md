@@ -248,13 +248,31 @@ A strip present on **every** page: the eight voices that can be silenced, in
 number-key order, with a live meter each.
 
 ```
-1OS1▆ 2OS2▃ 3CMP▁ 4FLT▄ 5KIK▂ 6SNR▁ 7HH ▅ 8OH ▁
+ADVANCED   1OS1▆ 2OS2▃ 3CMP▁ 4FLT▄ 5KIK▂ 6SNR▁ 7HH ▅ 8OH ▁
+BENJOLIN   1OS1▆     2OS2▃     3CMP▁     4FLT▄
 ```
 
-Forty columns over eight slots is five cells each, spent as the key number, a
-three-letter name, and a meter. A muted voice goes faint and its meter empties —
-but **the digit stays legible**, because that digit is the key you press to
-bring it back, and dimming it would hide the way out.
+Five cells per slot — key number, three-letter name, meter — spread over
+whatever room the visible voices have. A muted voice goes faint and its meter
+empties, but **the digit stays legible**, because that digit is the key you
+press to bring it back, and dimming it would hide the way out.
+
+**Voices the mode does not have are left out.** Under `BENJOLIN` the strip is
+four slots wide and the MIX page lists four; keeping a slot for a drum the mode
+has no page for would advertise a key that does nothing. That rule has to reach
+past the drawing, so `toggleMute`, `muteAll` and `invertMutes` all skip hidden
+voices — otherwise `=` would unmute four drums with no strip, no footer slot
+and no page: sound you can neither see nor switch off. `setMuted` stays an
+ungated primitive, because `applyMachineMode` uses it to silence exactly those
+voices.
+
+**The slot for the page you are on is marked** — panel background and the
+bright pen. Only pages that make a sound claim one, via
+`IPage::outputInstrument()`: the two `OSC` sub-pages, `COMP` (but not `FATE`,
+which makes no sound), `FILTER`, and the drum pages, where the mark follows the
+cursor because each voice sub-page covers two drums. `MIX` claims none — it is
+all of them. The panel background alone proved too quiet to find at a glance
+down there, hence the pen change as well.
 
 This replaced a patch bus that showed the eight modulation *sources* with the
 ones feeding the current page lit in ember. That was true and it was pretty,

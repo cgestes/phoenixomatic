@@ -124,6 +124,10 @@ class OscPage : public IPage {
     }
   }
 
+  int outputInstrument() const override {
+    return voice_ == 0 ? PhoenixModel::INST_OSC1 : PhoenixModel::INST_OSC2;
+  }
+
   void setCursor(int row, int field) override { nav_.setCursor(row, field); }
   int focusedField() const override { return nav_.field(); }
 

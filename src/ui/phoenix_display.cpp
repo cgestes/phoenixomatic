@@ -140,26 +140,49 @@ void PhoenixDisplay::drawHeader() {
 // what each page was *fed by* — true, but it explained nothing about the one
 // set of keys that works identically on every page.
 void PhoenixDisplay::drawMixFooter() {
-  // Forty columns over eight slots is five cells each, spent as: the key
-  // number, a three-letter name, and a level meter.
-  constexpr int kSlot = kScreenCols / PhoenixModel::INST_COUNT;
+  // Voices the mode does not have are left out entirely, and the rest spread
+  // to fill the strip. Keeping a slot for a drum BENJOLIN has no page for
+  // would advertise a key that does nothing.
+  int shown[PhoenixModel::INST_COUNT];
+  int count = 0;
   for (int i = 0; i < PhoenixModel::INST_COUNT; ++i) {
-    int col = i * kSlot;
-    bool mute = model_.isMuted(i);
+    if (!model_.instrumentHidden(i)) shown[count++] = i;
+  }
+  if (count <= 0) return;
 
+  // Five cells per slot — key number, three-letter name, level meter — spread
+  // over whatever room the visible ones have.
+  int spacing = kScreenCols / count;
+  int here = pages_[page_index_]->outputInstrument();
+
+  for (int slot = 0; slot < count; ++slot) {
+    int i = shown[slot];
+    int col = slot * spacing;
+    bool mute = model_.isMuted(i);
+    // The page you are on, marked so the strip says where you are as well as
+    // what the keys do. Only pages that make a sound claim a slot.
+    bool active = i == here;
+    uint8_t bg = active ? PEN_PANEL : PEN_BG;
+
+    if (active) screen_.highlight(col, kBusRow, 5, PEN_PANEL);
     // The digit stays legible when the voice is muted — it is the key you
     // press to bring it back, so dimming it hides the way out.
     screen_.put(col, kBusRow, static_cast<uint8_t>('1' + i),
-                mute ? PEN_DIM : PEN_VIOLET);
+                mute ? PEN_DIM : PEN_VIOLET, bg);
+    // The panel background alone is too quiet to find at a glance down here,
+    // so the active slot takes the bright pen as well.
+    uint8_t name_pen = mute ? PEN_FAINT
+                     : active ? PEN_BRIGHT
+                     : (i < 4 ? PEN_EMBER : PEN_COOL);
     screen_.text(col + 1, kBusRow, PhoenixModel::instrumentShortName(i),
-                 mute ? PEN_FAINT : (i < 4 ? PEN_EMBER : PEN_COOL));
+                 name_pen, bg);
 
     float level = mute ? 0.0f : *model_.levelOf(i);
     if (level < 0.0f) level = 0.0f;
     if (level > 1.0f) level = 1.0f;
     screen_.put(col + 4, kBusRow,
                 phx_glyphs::bar(static_cast<int>(level * 7.0f + 0.5f)),
-                mute ? PEN_FAINT : PEN_HOT);
+                mute ? PEN_FAINT : PEN_HOT, bg);
   }
 }
 

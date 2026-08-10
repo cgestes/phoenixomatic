@@ -73,6 +73,12 @@ class LogicPage : public IPage {
     gfx.fillRect(x0, b_y, w, 1, COLOR_COOL);
   }
 
+  // FATE makes no sound of its own, so only the comparator sub-page claims
+  // a footer slot.
+  int outputInstrument() const override {
+    return sub_ == 0 ? PhoenixModel::INST_COMP : -1;
+  }
+
   void setCursor(int row, int field) override { nav_.setCursor(row, field); }
   int focusedField() const override { return nav_.field(); }
 

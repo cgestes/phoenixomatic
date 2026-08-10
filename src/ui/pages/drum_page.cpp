@@ -39,6 +39,14 @@ class DrumPage : public IPage {
   }
   const char* subPageDots() const override { return "T 1 2"; }
 
+  // Each voice sub-page covers two drums, so the slot follows the cursor
+  // rather than picking one of them arbitrarily.
+  int outputInstrument() const override {
+    int voice = sub_ == 0 ? nav_.row() : voiceIndex(nav_.row());
+    if (voice < 0 || voice >= kDrumVoices) return -1;
+    return PhoenixModel::INST_KIK + voice;
+  }
+
   void draw(TextScreen& scr) override {
     if (sub_ == 0) drawTrig(scr); else drawVoices(scr);
   }

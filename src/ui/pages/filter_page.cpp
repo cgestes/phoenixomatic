@@ -59,6 +59,8 @@ class FilterPage : public IPage {
     scr.text(2, 13, "PWM in, rungler on cutoff \x88 the voice", PEN_FAINT);
   }
 
+  int outputInstrument() const override { return PhoenixModel::INST_FILTER; }
+
   void setCursor(int row, int field) override { nav_.setCursor(row, field); }
   int focusedField() const override { return nav_.field(); }
 

@@ -260,14 +260,29 @@ void PhoenixModel::setMuted(int inst, bool muted) {
   }
 }
 
-void PhoenixModel::toggleMute(int inst) { setMuted(inst, !isMuted(inst)); }
+bool PhoenixModel::instrumentHidden(int inst) const {
+  // BENJOLIN has no drums. Everything else the mode keeps.
+  return machine_mode == MODE_BENJOLIN && inst >= INST_KIK;
+}
+
+// The three below are what the user drives, so they are where the mode is
+// enforced. setMuted stays a plain primitive: applyMachineMode uses it to
+// silence the very voices these refuse to touch.
+void PhoenixModel::toggleMute(int inst) {
+  if (instrumentHidden(inst)) return;
+  setMuted(inst, !isMuted(inst));
+}
 
 void PhoenixModel::muteAll(bool muted) {
-  for (int i = 0; i < INST_COUNT; ++i) setMuted(i, muted);
+  for (int i = 0; i < INST_COUNT; ++i) {
+    if (!instrumentHidden(i)) setMuted(i, muted);
+  }
 }
 
 void PhoenixModel::invertMutes() {
-  for (int i = 0; i < INST_COUNT; ++i) setMuted(i, !isMuted(i));
+  for (int i = 0; i < INST_COUNT; ++i) {
+    if (!instrumentHidden(i)) setMuted(i, !isMuted(i));
+  }
 }
 
 const char* PhoenixModel::instrumentName(int inst) {
