@@ -110,17 +110,18 @@ inline int runglerLengthIndex(int steps) {
   return kRunglerLengthCount - 1;
 }
 
-inline int runglerClockDiv(float rate) {
-  int div = 1 + static_cast<int>(rate * 8.0f);
-  return div < 1 ? 1 : (div > kRunglerMaxDiv ? kRunglerMaxDiv : div);
-}
+// The rungler's clock setting is its own whole number rather than a reading of
+// the flow modes' RATE. Sharing storage between two unrelated meanings is the
+// mistake FEEDBACK made with SKEW, and it cost a bug each time.
+//
+// 0 is the fast end: clock on *both* edges of the oscillator's square, which
+// runs the register at twice the rate no division can reach. 1..16 divide the
+// rising edges as before.
+inline constexpr int kRunglerDoubleSpeed = 0;
 
-// The inverse, so the panel can step the divider as the whole number it shows
-// instead of nudging the underlying rate 1/13th of a step at a time.
-inline float runglerRateForDiv(int div) {
-  if (div < 1) div = 1;
-  if (div > kRunglerMaxDiv) div = kRunglerMaxDiv;
-  return static_cast<float>(div - 1) / 8.0f + 0.01f;
+inline int clampRunglerDiv(int div) {
+  if (div < kRunglerDoubleSpeed) return kRunglerDoubleSpeed;
+  return div > kRunglerMaxDiv ? kRunglerMaxDiv : div;
 }
 
 struct Chaos {
@@ -141,6 +142,7 @@ struct Chaos {
   // "the pattern you tuned in stays tuned in" still holds where it matters.
   int steps = 8;            // 8, 16 or 32
   float chance = 1.0f;      // 0..1
+  int clk_div = 1;          // 0 = both edges (x2), else divide rising edges
   bool freeze = false;
   int pick = 0;            // which output is published on the bus
   int focus = 0;

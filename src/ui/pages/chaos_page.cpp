@@ -54,8 +54,9 @@ class ChaosPage : public IPage {
       scr.highlight(1, 4, kScreenCols - 2, PEN_PANEL);
     }
     // The rungler's knobs mean something else, so they say something else: the
-    // clock comes from an oscillator, so RATE divides it, and instead of
-    // tilting a flow there is a loop length and how often it lets a new bit in.
+    // clock comes from an oscillator, so RATE divides it — or doubles it, by
+    // taking both edges — and instead of tilting a flow there is a loop length
+    // and how often it lets a new bit in.
     bool rung = c.mode == CHAOS_RUNGLER;
     const char* names[3] = {rung ? "CLK DIV" : "RATE",
                             rung ? "STEPS" : "SKEW",
@@ -66,7 +67,10 @@ class ChaosPage : public IPage {
       scr.text(col, 3, names[i], PEN_DIM, sbg);
       char buf[12];
       if (i == 0) {
-        if (rung) snprintf(buf, sizeof(buf), "/%d", runglerClockDiv(c.rate));
+        if (rung) {
+          if (c.clk_div == kRunglerDoubleSpeed) snprintf(buf, sizeof(buf), "x2");
+          else snprintf(buf, sizeof(buf), "/%d", c.clk_div);
+        }
         else snprintf(buf, sizeof(buf), "%.2fHz", static_cast<double>(c.rate));
       } else if (i == 1) {
         if (rung) snprintf(buf, sizeof(buf), "%d", c.steps);
@@ -220,7 +224,8 @@ class ChaosPage : public IPage {
         // goes to the slowest it will run.
         // Zero for a divider is 1, its origin.
         if (nav_.field() == 0) {
-          c.rate = c.mode == CHAOS_RUNGLER ? runglerRateForDiv(1) : 0.005f;
+          if (c.mode == CHAOS_RUNGLER) c.clk_div = 1;   // origin is one per edge
+          else c.rate = 0.005f;
         } else if (nav_.field() == 1) {
           // The register's origin is the Benjolin's own eight.
           if (c.mode == CHAOS_RUNGLER) c.steps = 8;
@@ -242,9 +247,11 @@ class ChaosPage : public IPage {
         break;
       case kShapeRow:
         if (nav_.field() == 0) {
-          c.rate = c.mode == CHAOS_RUNGLER
-                       ? runglerRateForDiv(1 + static_cast<int>(model_.random() % kRunglerMaxDiv))
-                       : 0.01f + model_.randomUnit() * 0.4f;
+          if (c.mode == CHAOS_RUNGLER) {
+            c.clk_div = static_cast<int>(model_.random() % (kRunglerMaxDiv + 1));
+          } else {
+            c.rate = 0.01f + model_.randomUnit() * 0.4f;
+          }
         }
         else if (nav_.field() == 1) {
           if (c.mode == CHAOS_RUNGLER) {
@@ -355,9 +362,9 @@ class ChaosPage : public IPage {
     switch (nav_.field()) {
       case 0:
         if (c.mode == CHAOS_RUNGLER) {
-          // The field shows a whole-number divider, so it steps by one. Moving
-          // the underlying rate instead took thirteen presses per step.
-          c.rate = runglerRateForDiv(runglerClockDiv(c.rate) + dir);
+          // x2 sits one press below /1, at the fast end of the same field —
+          // the register only ever gets faster or slower, so it is one control.
+          c.clk_div = clampRunglerDiv(c.clk_div + dir);
           break;
         }
         c.rate += d;

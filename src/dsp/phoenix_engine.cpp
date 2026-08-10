@@ -84,6 +84,7 @@ void PhoenixEngine::applyParams() {
     chaos_[i].setRate(c.rate);
     chaos_[i].setSkew(c.skew);
     chaos_[i].setRunglerSteps(c.steps);
+    chaos_[i].setRunglerDiv(c.clk_div);
     chaos_[i].setRunglerChance(c.chance);
 
     const Osc& o = model_.osc[i];

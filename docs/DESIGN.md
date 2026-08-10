@@ -525,7 +525,7 @@ In this mode the knobs change meaning, and the panel relabels them rather than l
 
 | Knob | In RUNGLER mode | Shown as |
 |---|---|---|
-| `RATE` | Divides the incoming clock, 1…16. The clock is an oscillator, so there is no frequency to set. | `CLK DIV /n` |
+| `RATE` | `x2`, then `/1`…`/16`. The clock is an oscillator, so there is no frequency to set — only how it is counted. | `CLK DIV` |
 | `SKEW` | How long the loop is: 8, 16 or 32. | `STEPS` |
 | — | How often a new bit is let in. See below. | `CHANCE` |
 
@@ -553,6 +553,21 @@ The three reads of that one register:
 
 Every tap is measured **from the exit**, so it means the same thing at 8 steps as at 32. That is
 also where the recycled bit is taken from, so the taps sit on the loop rather than outside it.
+
+`x2` sits one press below `/1` at the fast end of the same field: instead of dividing the rising
+edges it clocks the register on **both** edges of the square, which is the one speed no divider
+can reach and does not need the oscillator retuned to get it. Measured with OSC-1 at ~130 Hz, as
+ratios against `/1` — a shift only shows when the bits actually change, so the absolute counts
+undercount slightly at the fast end:
+
+| | `x2` | `/1` | `/2` | `/3` | `/4` |
+|---|---|---|---|---|---|
+| measured | 1.90× | 1.00× | 0.51× | 0.32× | 0.24× |
+| expected | 2× | 1× | 0.50× | 0.33× | 0.25× |
+
+The setting is its own whole number on the model rather than a reading of the flow modes' `RATE`.
+Sharing storage between two unrelated meanings is the mistake `FEEDBACK` made with `SKEW`, and it
+cost a bug both times it was done.
 
 ### CHANCE — the Turing Machine control
 

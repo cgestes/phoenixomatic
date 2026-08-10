@@ -15,6 +15,7 @@ class ChaosOsc {
   void setRate(float hz);
   void setSkew(float skew);        // -1..1, flow modes
   void setRunglerSteps(int steps); // 8, 16 or 32
+  void setRunglerDiv(int div);     // 0 = both edges, else divide rising edges
   void setRunglerChance(float c);  // 0 = locked loop, 1 = always new data
 
   // Advance by `dt_samples` samples. Cheap: called every kChaosStride samples.
@@ -51,6 +52,7 @@ class ChaosOsc {
   float rate_ = 0.04f;
   float skew_ = 0.0f;
   int rung_steps_ = 8;
+  int rung_div_ = 1;
   float rung_chance_ = 1.0f;
   uint8_t mode_ = 0;
   uint32_t rng_ = 1;

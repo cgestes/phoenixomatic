@@ -51,11 +51,15 @@ void ChaosOsc::reset() {
 //          the bit leaving the end is recycled and the figure repeats forever;
 //          at 100 every clock takes fresh data from the other oscillator.
 void ChaosOsc::tickRungler(bool clock_high, bool data_high) {
-  bool rising = clock_high && !rung_prev_clock_;
+  // At the fast end both edges of the square clock the register, which is the
+  // one speed no divider can reach: twice the oscillator, without retuning it.
+  bool edge = rung_div_ == kRunglerDoubleSpeed
+                  ? clock_high != rung_prev_clock_
+                  : clock_high && !rung_prev_clock_;
   rung_prev_clock_ = clock_high;
-  if (!rising) return;
+  if (!edge) return;
 
-  if ((++rung_div_count_ % runglerClockDiv(rate_)) != 0) return;
+  if (rung_div_ > 1 && (++rung_div_count_ % rung_div_) != 0) return;
 
   const int n = rung_steps_;
   const uint32_t mask = n >= 32 ? 0xFFFFFFFFu : ((1u << n) - 1u);
@@ -106,6 +110,8 @@ void ChaosOsc::setSkew(float s) { skew_ = clamp1(s); }
 void ChaosOsc::setRunglerSteps(int steps) {
   rung_steps_ = kRunglerLengths[runglerLengthIndex(steps)];
 }
+
+void ChaosOsc::setRunglerDiv(int div) { rung_div_ = clampRunglerDiv(div); }
 
 void ChaosOsc::setRunglerChance(float c) {
   rung_chance_ = c < 0.0f ? 0.0f : (c > 1.0f ? 1.0f : c);
