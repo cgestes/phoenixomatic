@@ -87,9 +87,12 @@ class ChaosPage : public IPage {
       // claim about time and a bar only ever shows the present.
       scr.reserve(kPlotCol, kPlotRow, kPlotCols, kPlotRows);
       pushHistory(c.out[c.pick]);
-      // Answer the question the plot raises, rather than making it eyeballed.
-      scr.text(kPlotCol, kPlotRow - 1, "EXT", PEN_DIM);
-      scr.textf(kPlotCol + 4, kPlotRow - 1, PEN_COOL, "%d%%", extremesPercent());
+      // How much of the window the output spent pinned at the top or bottom of
+      // its range rather than using the middle — the number that says whether
+      // the rungler is lively or stuck. Spelled out: "EXT" was my shorthand,
+      // and nobody else had a reason to know it.
+      scr.text(kPlotCol, kPlotRow - 1, "AT ENDS", PEN_DIM);
+      scr.textf(kPlotCol + 8, kPlotRow - 1, PEN_COOL, "%d%%", extremesPercent());
     }
 
     // The three outputs, with the picked one marked.
