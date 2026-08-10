@@ -105,13 +105,13 @@ class ChaosPage : public IPage {
 
     bool pr = nav_.atRow(kPickRow);
     uint8_t pbg = rowBg(pr);
-    if (pr) scr.highlight(1, 10, kScreenCols - 2, PEN_PANEL);
-    scr.text(2, 10, "PICK", PEN_DIM, pbg);
-    drawField(scr, 7, 10, kChaosOutLabel[c.pick], PEN_HOT, nav_.at(kPickRow, 0), pbg);
+    if (pr) scr.highlight(1, 5, kScreenCols - 2, PEN_PANEL);
+    scr.text(2, 5, "PICK", PEN_DIM, pbg);
+    drawField(scr, 7, 5, kChaosOutLabel[c.pick], PEN_HOT, nav_.at(kPickRow, 0), pbg);
 
     // Only list destinations this mode actually has. Both oscillators carry a
     // row for each chaos core, so a single core feeds the pair.
-    int frow = rung ? 13 : 12;
+    int frow = rung ? 13 : 10;
     scr.text(2, frow, "FEEDS", PEN_DIM);
     int col = scr.text(8, frow, "OSC1", PEN_EMBER) + 1;
     col = scr.text(col, frow, "OSC2", PEN_EMBER) + 1;
@@ -250,7 +250,7 @@ class ChaosPage : public IPage {
   // directly underneath: A - I I I T T T. A legend off to one side made you
   // work out which bits were which; this does not.
   void drawRegister(TextScreen& scr, const Chaos& c) {
-    scr.text(2, 11, "REG", PEN_DIM);
+    scr.text(2, 10, "REG", PEN_DIM);
     for (int b = 7; b >= 0; --b) {
       int col = 7 + (7 - b) * 2;
       bool set = (c.rung_bits >> b) & 1u;
@@ -260,9 +260,9 @@ class ChaosPage : public IPage {
       else if (b >= 3 && b <= 5)  { tap = 'I'; pen = PEN_VIOLET; }
       else if (b <= 2)            { tap = 'T'; pen = PEN_COOL; }
       else                        { tap = '-'; pen = PEN_FAINT; }
-      scr.put(col, 11, set ? phx_glyphs::kBlock : phx_glyphs::kBlockDim,
+      scr.put(col, 10, set ? phx_glyphs::kBlock : phx_glyphs::kBlockDim,
               set ? pen : PEN_FAINT);
-      scr.put(col, 12, static_cast<uint8_t>(tap), pen == PEN_FAINT ? PEN_FAINT : pen);
+      scr.put(col, 11, static_cast<uint8_t>(tap), pen == PEN_FAINT ? PEN_FAINT : pen);
     }
   }
 
