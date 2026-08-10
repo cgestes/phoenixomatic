@@ -136,7 +136,14 @@ PhoenixModel::PhoenixModel() {
   drum[1].tune = 61; drum[1].decay = 40; drum[1].p3 = 77; drum[1].p4 = 66; drum[1].p5 = 38;
   drum[2].tune = 70; drum[2].decay = 18; drum[2].p3 = 12; drum[2].p4 = 80; drum[2].p5 = 30;
   drum[3].tune = 66; drum[3].decay = 58; drum[3].p3 = 24; drum[3].p4 = 74; drum[3].p5 = 41;
-  drum[2].mute = true;
+
+  // Boot with only the two oscillators audible. Everything downstream of the
+  // comparator is already running and already wired — it is just muted — so
+  // the machine starts as the thing you have to understand first: two
+  // oscillators and the interval between them. Un-mute with 1-7, or = for the
+  // lot.
+  comp.mute = true;
+  for (int i = 0; i < kDrumVoices; ++i) drum[i].mute = true;
 
   chaos[1].rate = 0.07f;
   chaos[1].depth = 0.55f;
