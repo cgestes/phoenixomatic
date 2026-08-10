@@ -86,6 +86,22 @@ class SeqPage : public IPage {
     }
   }
 
+  bool toggleField() override {
+    Seq& s = model_.seq[which_];
+    if (nav_.row() >= kBankRow0) {
+      ModRow& m = s.mod[nav_.row() - kBankRow0];
+      m.on = !m.on;
+      return true;
+    }
+    if (nav_.row() == kStepRow) {
+      // A step is on or it is a rest; SPACE is the natural key for that.
+      int8_t& n = s.editNotes()[nav_.field()];
+      n = n < 0 ? 48 : -1;
+      return true;
+    }
+    return false;
+  }
+
   void resetField() override {
     const Seq& d = PhoenixModel::factory().seq[which_];
     Seq& s = model_.seq[which_];

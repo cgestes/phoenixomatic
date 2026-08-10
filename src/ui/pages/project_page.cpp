@@ -78,7 +78,7 @@ class HelpPage : public IPage {
       {"R / SHIFT+R", "random field / page"},
       {"[ ]",       "previous / next screen"},
       {"CTRL+UPDN", "sub-page"},
-      {"SPACE",     "play / stop"},
+      {"SPACE",     "toggle (play on HOME)"},
       {"1-7",       "mute an instrument"},
       {"- / =",     "mute all / unmute all"},
       {"ESC",       "invert all mutes"},

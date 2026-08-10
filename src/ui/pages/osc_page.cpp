@@ -137,6 +137,13 @@ class OscPage : public IPage {
     return true;
   }
 
+  bool toggleField() override {
+    if (nav_.row() < kBankRow0) return false;
+    ModRow& m = model_.osc[voice_].mod[nav_.row() - kBankRow0];
+    m.on = !m.on;
+    return true;
+  }
+
   void resetField() override {
     const Osc& d = PhoenixModel::factory().osc[voice_];
     Osc& o = model_.osc[voice_];

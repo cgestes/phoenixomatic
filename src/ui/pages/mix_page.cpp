@@ -85,6 +85,12 @@ class MixPage : public IPage {
     return true;
   }
 
+  bool toggleField() override {
+    if (nav_.row() >= kStrips) return false;
+    model_.toggleMute(nav_.row());
+    return true;
+  }
+
   void resetField() override {
     const PhoenixModel& d = PhoenixModel::factory();
     if (nav_.row() < kStrips) {

@@ -40,6 +40,11 @@ struct ModRow {
   SourceId src = SRC_CHA;
   float amount = 0.0f;   // -1..1, centre-detented
   uint8_t mode = 0;      // meaning depends on the owning module
+  // SPACE bypasses a row without disturbing its amount, so a modulation can
+  // drop out and come back exactly where it was.
+  bool on = true;
+
+  bool active() const { return on && amount != 0.0f; }
 };
 
 // Oscillator mod rows: how the source is applied.

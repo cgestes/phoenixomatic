@@ -534,7 +534,7 @@ looking at, because silencing something should never be a navigation problem. ma
 ### Global
 | Key | Action |
 |---|---|
-| `SPACE` | Play / stop (auto-saves on stop) |
+| `SPACE` | Toggle the focused thing: a modulation row in or out, a step to a rest, a mute. On HOME, play/stop. |
 | `[` `]` | Previous / next page |
 | `CTRL+↑` `CTRL+↓` | Previous / next sub-page |
 | `TAB` `SHIFT+TAB` | Move focus |

@@ -48,6 +48,11 @@ class IPage {
   // Return true if the key was consumed.
   virtual bool handleKey(const UIEvent& ev) { (void)ev; return false; }
 
+  // SPACE toggles the focused thing when that means something — a modulation
+  // row on or off, a step to a rest, a mute. Return false and the key falls
+  // through untouched.
+  virtual bool toggleField() { return false; }
+
   // O / R act on the focused field; SHIFT+O / SHIFT+R on the whole page.
   // Pages that have nothing to reset or randomise leave these alone.
   virtual void resetField() {}

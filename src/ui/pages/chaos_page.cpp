@@ -106,6 +106,13 @@ class ChaosPage : public IPage {
     }
   }
 
+  bool toggleField() override {
+    if (nav_.row() != kModeRow || nav_.field() != 1) return false;
+    Chaos& c = model_.chaos[which_];
+    c.freeze = !c.freeze;
+    return true;
+  }
+
   void resetField() override {
     const Chaos& d = PhoenixModel::factory().chaos[which_];
     Chaos& c = model_.chaos[which_];

@@ -81,12 +81,12 @@ void TextScreen::bar(int col, int row, int cols, float value, uint8_t pen) {
   }
 }
 
-void TextScreen::attenTrack(int col, int row, int wing, float value) {
+void TextScreen::attenTrack(int col, int row, int wing, float value, bool enabled) {
   if (value < -1.0f) value = -1.0f;
   if (value > 1.0f) value = 1.0f;
   float mag = value < 0 ? -value : value;
   int filled = static_cast<int>(mag * static_cast<float>(wing) + 0.5f);
-  uint8_t pen = value < 0 ? PEN_COOL : PEN_EMBER;
+  uint8_t pen = enabled ? (value < 0 ? PEN_COOL : PEN_EMBER) : PEN_FAINT;
 
   for (int i = 0; i < wing; ++i) {
     // Left wing counts inward towards the detent.

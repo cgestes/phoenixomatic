@@ -77,6 +77,12 @@ class DrumPage : public IPage {
     return true;
   }
 
+  bool toggleField() override {
+    int voice = sub_ == 0 ? nav_.row() : voiceIndex(nav_.row());
+    model_.drum[voice].mute = !model_.drum[voice].mute;
+    return true;
+  }
+
   void resetField() override {
     if (sub_ == 0) {
       const Drum& d = PhoenixModel::factory().drum[nav_.row()];

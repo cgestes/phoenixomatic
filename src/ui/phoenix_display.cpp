@@ -157,10 +157,7 @@ bool PhoenixDisplay::handleGlobalKey(const UIEvent& ev) {
     dismissSplash();
     return true;
   }
-  if (ev.key == ' ') {
-    model_.togglePlay();
-    return true;
-  }
+
   if (ev.key == '[') { prevPage(); return true; }
   if (ev.key == ']') { nextPage(); return true; }
   if (ev.key == 'k') { model_.adjustRate(-1); return true; }
@@ -177,6 +174,17 @@ bool PhoenixDisplay::handleGlobalKey(const UIEvent& ev) {
   if (ev.code == KEY_ESC) { model_.invertMutes(); return true; }
 
   IPage* page = pages_[page_index_].get();
+
+  if (ev.key == ' ') {
+    // Play/stop belongs to the front page. Everywhere else SPACE is the
+    // toggle for whatever is focused, which is the more useful key to have
+    // under your thumb while editing.
+    if (page_index_ == 0) {
+      model_.togglePlay();
+      return true;
+    }
+    return page->toggleField();
+  }
 
   if (ev.key == 'o') {
     if (ev.shift) page->resetPage(); else page->resetField();

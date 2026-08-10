@@ -19,7 +19,8 @@ void drawModRow(TextScreen& scr, int row, const ModRow& mod, int focused_field,
   uint8_t bg = rowBg(row_focused);
   if (row_focused) scr.highlight(1, row, kScreenCols - 2, PEN_PANEL);
 
-  scr.text(kBankNameCol, row, mod.name, row_focused ? PEN_HOT : PEN_TEXT, bg);
+  scr.text(kBankNameCol, row, mod.name,
+           row_focused ? PEN_HOT : (mod.on ? PEN_TEXT : PEN_FAINT), bg);
 
   int value = static_cast<int>(mod.amount * 100.0f + (mod.amount < 0 ? -0.5f : 0.5f));
   char buf[8];
@@ -28,17 +29,19 @@ void drawModRow(TextScreen& scr, int row, const ModRow& mod, int focused_field,
   } else {
     snprintf(buf, sizeof(buf), "%+d", value);
   }
-  uint8_t pen = value == 0 ? PEN_DIM : (value < 0 ? PEN_COOL : PEN_EMBER);
+  uint8_t pen = !mod.on ? PEN_FAINT
+              : value == 0 ? PEN_DIM
+              : (value < 0 ? PEN_COOL : PEN_EMBER);
   int len = 0;
   for (const char* p = buf; *p; ++p) ++len;
   drawField(scr, kBankAmtCol - len + 1, row, buf, pen,
             focused_field == MOD_FIELD_AMOUNT, bg);
 
-  scr.attenTrack(kBankTrackCol, row, kBankTrackWing, mod.amount);
+  scr.attenTrack(kBankTrackCol, row, kBankTrackWing, mod.amount, mod.on);
 
   if (mode_labels) {
-    drawField(scr, kBankModeCol, row, mode_labels[mod.mode], PEN_DIM,
-              focused_field == MOD_FIELD_MODE, bg);
+    drawField(scr, kBankModeCol, row, mode_labels[mod.mode],
+              mod.on ? PEN_DIM : PEN_FAINT, focused_field == MOD_FIELD_MODE, bg);
   }
 }
 
@@ -57,7 +60,7 @@ int drawModBank(TextScreen& scr, int row, const ModRow* rows, int count,
 uint8_t litSourcesOf(const ModRow* rows, int count) {
   uint8_t mask = 0;
   for (int i = 0; i < count; ++i) {
-    if (rows[i].amount != 0.0f) mask |= srcBit(rows[i].src);
+    if (rows[i].active()) mask |= srcBit(rows[i].src);
   }
   return mask;
 }

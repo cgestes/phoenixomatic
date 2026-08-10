@@ -76,6 +76,26 @@ class LogicPage : public IPage {
     return sub_ == 0 ? editComparator(ev) : editFate(ev);
   }
 
+  bool toggleField() override {
+    if (sub_ == 0) {
+      if (nav_.row() < kCompBankRow0 || nav_.row() >= kCompLevelRow) return false;
+      ModRow& m = model_.comp.mod[nav_.row() - kCompBankRow0];
+      m.on = !m.on;
+      return true;
+    }
+    if (nav_.row() == kFateModeRow) return false;
+    // Drop the channel's probability modulator in and out without losing which
+    // source it was.
+    FateChannel& f = model_.fate[nav_.row()];
+    if (f.mod_src >= 0) {
+      stashed_mod_src_[nav_.row()] = f.mod_src;
+      f.mod_src = -1;
+    } else {
+      f.mod_src = stashed_mod_src_[nav_.row()];
+    }
+    return true;
+  }
+
   void resetField() override {
     if (sub_ == 0) {
       const Comparator& d = PhoenixModel::factory().comp;
@@ -332,6 +352,7 @@ class LogicPage : public IPage {
   int sub_ = 0;
   uint8_t div_mode_ = DIVMODE_DIVIDE;
   uint8_t toss_mode_ = TOSS_TOSS;
+  int stashed_mod_src_[kFateChannels] = {SRC_CHA, SRC_CHA, SRC_CHA, SRC_CHA};
 };
 
 }  // namespace

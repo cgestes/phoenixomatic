@@ -138,7 +138,7 @@ void PhoenixEngine::tickSequencers() {
     int len = kSeqSteps;
     for (int i = 0; i < kSeqModRows; ++i) {
       const ModRow& m = s.mod[i];
-      if (m.amount == 0.0f) continue;
+      if (!m.active()) continue;
       switch (m.mode) {
         case DEST_CHANCE: chance += m.amount * bus_[m.src]; break;
         case DEST_SLEW:   slew_target += m.amount * bus_[m.src]; break;
@@ -210,7 +210,7 @@ void PhoenixEngine::render(int16_t* out, size_t frames) {
       // audio-rate oscillator on this bank a stepped waveshaper.
       for (int i = 0; i < kSeqModRows; ++i) {
         const ModRow& m = s.mod[i];
-        if (m.mode == DEST_CV && m.amount != 0.0f) target += m.amount * bus_[m.src];
+        if (m.mode == DEST_CV && m.active()) target += m.amount * bus_[m.src];
       }
       float slew = seq_slew_[v];
       if (slew > 0.001f) {
@@ -233,7 +233,9 @@ void PhoenixEngine::render(int16_t* out, size_t frames) {
       ModInput mods[kOscModRows];
       for (int i = 0; i < kOscModRows; ++i) {
         mods[i].value = bus_[o.mod[i].src];
-        mods[i].amount = o.mod[i].amount;
+        // A bypassed row keeps its amount for when it comes back, so the
+        // engine reads through active() rather than the amount alone.
+        mods[i].amount = o.mod[i].on ? o.mod[i].amount : 0.0f;
         mods[i].mode = o.mod[i].mode;
       }
       float s = osc_[v].process(mods, kOscModRows);
