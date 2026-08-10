@@ -57,6 +57,11 @@ class IPage {
   // Where the cursor is and how to move it, so a click can put it somewhere.
   virtual void setCursor(int row, int field) { (void)row; (void)field; }
   virtual int focusedField() const { return -1; }
+  // Clicking one choice of a multi-choice field selects that choice outright,
+  // rather than only moving the cursor to the field and making you scroll.
+  virtual void setFieldValue(int row, int field, int value) {
+    (void)row; (void)field; (void)value;
+  }
 
   // SPACE toggles the focused thing when that means something — a modulation
   // row on or off, a step to a rest, a mute. Return false and the key falls

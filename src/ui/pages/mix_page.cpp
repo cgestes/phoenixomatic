@@ -37,6 +37,7 @@ class MixPage : public IPage {
       // The fader stays put whether or not it is focused — it is the thing you
       // are actually reading. Only the number takes the field highlight.
       float level = *constLevel(i);
+      scr.markField(9, row, 10, i, 0);
       scr.bar(9, row, 10, level, mute ? PEN_FAINT : pen);
       drawFieldF(scr, 21, row, i, 0, mute ? PEN_FAINT : PEN_BRIGHT, nav_.at(i, 0), bg,
                  "%d", static_cast<int>(level * 100.0f));
@@ -48,6 +49,7 @@ class MixPage : public IPage {
     uint8_t mbg = rowBg(mr);
     if (mr) scr.highlight(1, 11, kScreenCols - 2, PEN_PANEL);
     scr.text(2, 11, "MASTER", PEN_BRIGHT, mbg);
+    scr.markField(9, 11, 14, kMasterRow, 0);
     scr.bar(9, 11, 14, model_.master, PEN_EMBER);
     drawFieldF(scr, 25, 11, kMasterRow, 0, PEN_BRIGHT, nav_.at(kMasterRow, 0), mbg, "%d",
                static_cast<int>(model_.master * 100.0f));

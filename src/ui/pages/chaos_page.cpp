@@ -98,6 +98,8 @@ class ChaosPage : public IPage {
       bool picked = o == c.pick;
       scr.put(1, row, picked ? phx_glyphs::kTriRight : ' ',
               picked ? PEN_HOT : PEN_FAINT);
+      // Clicking an output row picks that output.
+      scr.markField(1, row, 25, kPickRow, 0, o);
       scr.text(3, row, kChaosOutLabel[o], picked ? PEN_BRIGHT : PEN_DIM);
       scr.bar(11, row, 8, (c.out[o] + 1.0f) * 0.5f, PEN_COOL);
       // APATHY is a pulse, not a stepped CV. Say so on the row, or its meter
@@ -159,6 +161,9 @@ class ChaosPage : public IPage {
   }
 
   void setCursor(int row, int field) override { nav_.setCursor(row, field); }
+  void setFieldValue(int row, int field, int value) override {
+    if (row == kPickRow && field == 0) model_.chaos[which_].pick = value;
+  }
   int focusedField() const override { return nav_.field(); }
 
   bool handleKey(const UIEvent& in) override {

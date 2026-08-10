@@ -1,6 +1,7 @@
 #include "phoenix_display.h"
 
 #include <cstdio>
+#include <cstring>
 
 #include "../../fonts/phx_glyphs.h"
 #include "../core/model.h"
@@ -112,15 +113,25 @@ void PhoenixDisplay::drawHeader() {
       }
       screen_.put(col, kHeaderRow, static_cast<uint8_t>(*p), pen);
     }
+    hit_dots_lo_ = kTitleWidth + 1;
+    hit_dots_hi_ = col - 1;
   }
 
-  screen_.put(26, kHeaderRow, model_.playing ? phx_glyphs::kTriRight : '=',
+  hit_play_ = 26;
+  screen_.put(hit_play_, kHeaderRow, model_.playing ? phx_glyphs::kTriRight : '=',
               model_.playing ? PEN_EMBER : PEN_DIM);
 
-  // [< 5/15 >] — the arrows are the keys that move it.
+  // [< 5/15 >] — the arrows are the keys that move it, and clicking them does
+  // the same thing.
   char buf[24];
   snprintf(buf, sizeof(buf), "[< %d/%d >]", screenIndex() + 1, screenCount());
-  screen_.textRight(kScreenCols - 1, kHeaderRow, buf, PEN_BRIGHT);
+  int len = static_cast<int>(strlen(buf));
+  int start = kScreenCols - len;
+  screen_.text(start, kHeaderRow, buf, PEN_BRIGHT);
+  hit_prev_lo_ = start;
+  hit_prev_hi_ = start + 1;              // "[<"
+  hit_next_lo_ = kScreenCols - 2;
+  hit_next_hi_ = kScreenCols - 1;        // ">]"
 }
 
 void PhoenixDisplay::drawBus() {
@@ -219,9 +230,41 @@ void PhoenixDisplay::mouseDown(int x, int y) {
     dismissSplash();
     return;
   }
+
+  // The header first: it is drawn outside any page, so its controls need their
+  // own hit test rather than the page's field map.
+  if (y < kCellH) {
+    int col = x / kCellW;
+    if (col == hit_play_) {
+      model_.togglePlay();
+      return;
+    }
+    if (col >= hit_prev_lo_ && col <= hit_prev_hi_) {
+      prevPage();
+      return;
+    }
+    if (col >= hit_next_lo_ && col <= hit_next_hi_) {
+      nextPage();
+      return;
+    }
+    if (hit_dots_lo_ >= 0 && col >= hit_dots_lo_ && col <= hit_dots_hi_) {
+      // Each marker is two cells wide, so the dot you clicked is the sub-page.
+      IPage* page = pages_[page_index_].get();
+      int idx = (col - hit_dots_lo_) / 2;
+      if (idx >= 0 && idx < page->subPageCount()) {
+        page->setSubPage(idx);
+        screen_.invalidate();
+      }
+      return;
+    }
+    return;
+  }
+
   TextScreen::FieldHit hit = screen_.hitAtPixel(x, y);
   if (!hit.valid()) return;
-  pages_[page_index_]->setCursor(hit.row, hit.field);
+  IPage* page = pages_[page_index_].get();
+  page->setCursor(hit.row, hit.field);
+  if (hit.value >= 0) page->setFieldValue(hit.row, hit.field, hit.value);
   drag_accum_ = 0;
 }
 

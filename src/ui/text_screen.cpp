@@ -122,7 +122,8 @@ void TextScreen::reserve(int col, int row, int cols, int rows) {
   }
 }
 
-void TextScreen::markField(int col, int row, int cols, int nav_row, int nav_field) {
+void TextScreen::markField(int col, int row, int cols, int nav_row, int nav_field,
+                           int value) {
   row += row_offset_;
   if (row < 0 || row >= kScreenRows) return;
   // One cell of pad either side: a two-character value is a hard thing to hit
@@ -132,7 +133,8 @@ void TextScreen::markField(int col, int row, int cols, int nav_row, int nav_fiel
     if (c < 0 || c >= kScreenCols) continue;
     if (hits_[row][c].valid()) continue;   // the first field to claim a cell keeps it
     hits_[row][c] = FieldHit{static_cast<int8_t>(nav_row),
-                             static_cast<int8_t>(nav_field)};
+                             static_cast<int8_t>(nav_field),
+                             static_cast<int8_t>(value)};
   }
 }
 

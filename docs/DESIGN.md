@@ -713,6 +713,14 @@ Hit-testing works because a field registers the cells it occupies *as it draws*,
 layout when a page moves something. Each field claims a cell of padding either side, since a
 two-character value is hard to hit with a pointer and the space beside it belongs to nothing else.
 
+The header is chrome rather than a page, so it keeps its own small hit map: the transport glyph
+toggles play, `[<` and `>]` step screens, and the sub-page dots jump straight to a sub-page.
+
+Controls drawn as a row of choices — pattern slots, banks, the three chaos outputs — register
+*which* choice each cell is, so clicking slot 5 selects pattern 5 rather than merely putting the
+cursor on the field and leaving you to scroll to it. Meters register too: a fader is the level
+control, not a picture of one.
+
 The Cardputer has no pointer, so the on-screen help lists keys only.
 
 `RowNav` owns the cursor for every page; a page only declares how many fields each of its rows has

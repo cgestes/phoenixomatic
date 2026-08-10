@@ -55,4 +55,11 @@ class PhoenixDisplay {
   bool splash_ = true;
   float splash_time_ = 0.0f;
   int drag_accum_ = 0;
+
+  // Where the header put its controls this frame, so a click can find them.
+  // The header is chrome rather than a page, so it keeps its own hit map.
+  int hit_play_ = -1;
+  int hit_prev_lo_ = -1, hit_prev_hi_ = -1;
+  int hit_next_lo_ = -1, hit_next_hi_ = -1;
+  int hit_dots_lo_ = -1, hit_dots_hi_ = -1;
 };

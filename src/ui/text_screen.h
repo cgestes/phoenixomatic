@@ -68,9 +68,14 @@ class TextScreen {
   struct FieldHit {
     int8_t row = -1;
     int8_t field = -1;
+    // For controls drawn as a row of choices — pattern slots, banks, the three
+    // chaos outputs — which choice this cell is. -1 when the field is a plain
+    // value with no choice to point at.
+    int8_t value = -1;
     bool valid() const { return row >= 0; }
   };
-  void markField(int col, int row, int cols, int nav_row, int nav_field);
+  void markField(int col, int row, int cols, int nav_row, int nav_field,
+                 int value = -1);
   FieldHit hitAtPixel(int px, int py) const;
 
   // --- pixel overlays -----------------------------------------------------

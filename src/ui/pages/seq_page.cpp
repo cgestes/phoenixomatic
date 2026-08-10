@@ -48,6 +48,11 @@ class SeqPage : public IPage {
   }
 
   void setCursor(int row, int field) override { nav_.setCursor(row, field); }
+  void setFieldValue(int row, int field, int value) override {
+    if (row != kPatRow) return;
+    if (field == 0) model_.seq[which_].pat = value;
+    else model_.seq[which_].bank = value;
+  }
   int focusedField() const override { return nav_.field(); }
 
   bool handleKey(const UIEvent& in) override {
@@ -189,6 +194,8 @@ class SeqPage : public IPage {
     for (int i = 0; i < kSeqPatterns; ++i) {
       bool sel = i == s.pat;
       bool cursor = nav_.at(kPatRow, 0) && sel;
+      // Each slot claims its own cell, so clicking slot 5 selects pattern 5.
+      scr.markField(5 + i * 2, kScrPat, 1, kPatRow, 0, i);
       scr.put(5 + i * 2, kScrPat, static_cast<uint8_t>('1' + i),
               sel ? PEN_BG : PEN_DIM, cursor ? PEN_HOT : (sel ? PEN_EMBER : bg));
     }
@@ -196,6 +203,7 @@ class SeqPage : public IPage {
     for (int b = 0; b < kSeqBanks; ++b) {
       bool sel = b == s.bank;
       bool cursor = nav_.at(kPatRow, 1) && sel;
+      scr.markField(28 + b * 2, kScrPat, 1, kPatRow, 1, b);
       scr.put(28 + b * 2, kScrPat, static_cast<uint8_t>('A' + b),
               sel ? PEN_BG : PEN_DIM, cursor ? PEN_HOT : (sel ? PEN_COOL : bg));
     }
@@ -210,6 +218,9 @@ class SeqPage : public IPage {
       bool here = i == s.step;
       bool cursor = rf && nav_.field() == i;
       uint8_t pen = here ? PEN_HOT : PEN_COOL;
+      // The bars are part of the step: clicking one reaches its note.
+      scr.markField(col, kScrBarTop, 2, kStepRow, i);
+      scr.markField(col, kScrBarTop + 1, 2, kStepRow, i);
 
       if (on) {
         // Two cells give the pattern enough vertical presence to read as a
