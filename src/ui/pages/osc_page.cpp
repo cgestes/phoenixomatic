@@ -14,7 +14,7 @@ namespace {
 constexpr int kScopeCol = 2;
 constexpr int kScopeRow = 12;
 constexpr int kScopeCols = 36;
-constexpr int kScopeRows = 3;
+constexpr int kScopeRows = 2;
 
 constexpr int kTuneRow = 0;    // WAVE / DIV / MULT
 constexpr int kVoiceRow = 1;   // DTUNE / LVL

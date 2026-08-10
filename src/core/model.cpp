@@ -59,8 +59,14 @@ PhoenixModel::PhoenixModel() {
   }
   // x1 against x3 is a twelfth: close enough to lock, far enough that the
   // comparator has something to say. A few cents of detune keep it moving.
-  osc[0].div = 1;  osc[0].mult = 1;  osc[0].dtune = 0;  osc[0].wave = WAVE_TRI;
-  osc[1].div = 1;  osc[1].mult = 3;  osc[1].dtune = 7;  osc[1].wave = WAVE_SAW;
+  // 35 cents, not 7. At a near-exact x3 the rungler's clock samples its data
+  // square at almost the same phase every time, so the register shifts long
+  // runs and sits at all-zeros or all-ones two thirds of the time. Measured
+  // across the range: +7c leaves it railed 66% of the time, +25c 29%, +35c
+  // 10%. Enough detune to keep the register moving, not so much that the
+  // twelfth stops sounding like one.
+  osc[0].div = 1;  osc[0].mult = 1;  osc[0].dtune = 0;   osc[0].wave = WAVE_TRI;
+  osc[1].div = 1;  osc[1].mult = 3;  osc[1].dtune = 35;  osc[1].wave = WAVE_SAW;
   osc[1].level = 0.52f;
 
   // --- sequencer banks: the other sequencer, both oscillators, both chaos.
@@ -153,6 +159,10 @@ PhoenixModel::PhoenixModel() {
   for (int i = 0; i < kDrumVoices; ++i) drum[i].mute = true;
 
   applyMachineMode();
+
+  // FEEDBACK at its origin, so the default rungler is the classic one and
+  // turning the knob up is audibly a change.
+  chaos[0].skew = 0.0f;
 
   chaos[1].rate = 0.07f;
   chaos[1].depth = 0.55f;

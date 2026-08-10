@@ -212,7 +212,7 @@ class LogicPage : public IPage {
       drawModRow(scr, 8 + i, c.mod[bank_index_[i]], focused, nullptr);
     }
 
-    int level_row = 8 + bank_count_ + 1;
+    int level_row = 8 + bank_count_;
     bool lrow = nav_.atRow(compLevelRow());
     uint8_t lbg = rowBg(lrow);
     if (lrow) scr.highlight(1, level_row, kScreenCols - 2, PEN_PANEL);

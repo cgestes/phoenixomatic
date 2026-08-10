@@ -16,6 +16,7 @@ void TextScreen::beginFrame() {
 }
 
 void TextScreen::put(int col, int row, uint8_t code, uint8_t pen, uint8_t bg) {
+  row += row_offset_;
   if (!inBounds(col, row)) return;
   cells_[row][col] = Cell{code, pen, bg};
 }
@@ -54,6 +55,7 @@ void TextScreen::fillRow(int row, uint8_t pen, uint8_t bg) {
 }
 
 void TextScreen::highlight(int col, int row, int cols, uint8_t bg) {
+  row += row_offset_;
   if (row < 0 || row >= kScreenRows) return;
   for (int i = 0; i < cols; ++i) {
     int c = col + i;
@@ -109,6 +111,7 @@ void TextScreen::busCell(int col, int row, const char* label, float level, bool 
 }
 
 void TextScreen::reserve(int col, int row, int cols, int rows) {
+  row += row_offset_;
   for (int r = 0; r < rows; ++r) {
     for (int c = 0; c < cols; ++c) {
       if (!inBounds(col + c, row + r)) continue;

@@ -191,7 +191,9 @@ void PhoenixDisplay::update(float dt) {
 
   IPage* page = pages_[page_index_].get();
   drawHeader();
+  screen_.setRowOffset(kPageRowOffset);
   page->draw(screen_);
+  screen_.setRowOffset(0);
   drawBus();
   screen_.flush();
   page->drawOverlay(gfx_);

@@ -377,12 +377,25 @@ The page also draws the register itself, MSB first, coloured by which output rea
 `A` for APATHY (bit 7 raw), `I` for INERTIA (bits 3–5), `T` for TORPOR (bits 0–2). Watching the
 bits march explains a rungler faster than any amount of prose about it.
 
-**A thing worth knowing.** At simple ratios the clock samples the data square at a near-integer
-rate, so the register shifts in long runs and spends most of its time at all-zeros or all-ones.
-Measured at `x1` against `x3` with 7 cents of detune: 22 distinct register values, 66% of the
-time at a rail. That is the "simple ratios lock" property doing exactly what it should, and both
-escape routes work — `FEEDBACK` at +30 gives 39 distinct values and 26% rail time, and 40 cents
-of `DTUNE` on OSC-2 drops rail time to 2%. `PICK` chooses which of the three outputs is
+**Why OSC-2 ships detuned 35 cents.** At a near-exact `x3` the rungler's clock samples its data
+square at almost the same phase every time, so the register shifts long runs and sits at a rail —
+all-zeros or all-ones — most of the time. Measured across the range:
+
+| DTUNE on OSC-2 | time at a rail |
+|---|---|
+| +7c | 66% |
+| +15c | 54% |
+| +25c | 29% |
+| **+35c** | **10%** |
+| +50c | 0% |
+
+35 cents is enough to keep the register moving and not so much that the twelfth stops sounding
+like one. `FEEDBACK` ships at its origin so the classic rungler is the default and turning the
+knob up is audibly a change; it is the other escape from the same corner (+30 takes 66% down to
+26% and raises the distinct-value count from 22 to 39).
+
+This is the "simple ratios lock" property working, not a defect — it is why the machine rewards
+tuning at all. `PICK` chooses which of the three outputs is
 published on the `CHA` bus. The three outputs are always running.
 
 ### 6.3 OSC (1 · 2) — the main performance page

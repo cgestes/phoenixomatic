@@ -18,6 +18,10 @@
 #include "../../display.h"
 #include "ui_colors.h"
 
+// A blank line under the header plate, applied while pages draw so no page has
+// to carry the offset in its own coordinates.
+inline constexpr int kPageRowOffset = 1;
+
 inline constexpr int kScreenCols = 40;
 inline constexpr int kScreenRows = 16;
 inline constexpr int kCellW = 6;
@@ -29,6 +33,10 @@ class TextScreen {
 
   // Start a new frame: everything back to blank background.
   void beginFrame();
+
+  // Rows written while this is set land that much further down. The header and
+  // the patch bus draw with it at zero.
+  void setRowOffset(int rows) { row_offset_ = rows; }
 
   // --- cell writing -------------------------------------------------------
   void put(int col, int row, uint8_t code, uint8_t pen, uint8_t bg = PEN_BG);
@@ -56,7 +64,8 @@ class TextScreen {
   void reserve(int col, int row, int cols, int rows);
   // Pixel bounds of a cell region, for pages painting overlays.
   static int pixelX(int col) { return col * kCellW; }
-  static int pixelY(int row) { return row * kCellH; }
+  // Overlays live in page coordinates, so they carry the same offset.
+  static int pixelY(int row) { return (row + kPageRowOffset) * kCellH; }
 
   // Paint the diff to the display.
   void flush();
@@ -84,4 +93,5 @@ class TextScreen {
   Cell prev_[kScreenRows][kScreenCols];
   bool reserved_[kScreenRows][kScreenCols] = {};
   bool full_repaint_ = true;
+  int row_offset_ = 0;
 };
