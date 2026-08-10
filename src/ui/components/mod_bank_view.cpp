@@ -69,11 +69,16 @@ bool handleBankKey(const UIEvent& ev, ModRow* rows, int count, int& focus,
     case KEY_LEFT:
     case KEY_RIGHT: {
       float step = ev.shift ? 0.01f : 0.04f;
+      float prev = row.amount;
       row.amount += (ev.code == KEY_RIGHT ? step : -step);
       if (row.amount > 1.0f) row.amount = 1.0f;
       if (row.amount < -1.0f) row.amount = -1.0f;
-      // Snap through the detent so centring is reachable by feel.
-      if (row.amount > -0.02f && row.amount < 0.02f) row.amount = 0.0f;
+      // The detent catches you once on the way *past* centre, but must never
+      // trap a value that started there — a window around zero would make the
+      // first few units on each side unreachable.
+      if (prev != 0.0f && ((prev > 0.0f) != (row.amount > 0.0f))) {
+        row.amount = 0.0f;
+      }
       return true;
     }
     default:

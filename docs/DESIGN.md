@@ -92,8 +92,12 @@ Five permanent rows. Each row is `{ source (fixed), amount (bipolar attenuverter
 
 OSC2's bank is the mirror image: `CHAOS-B`, `SEQ-2`, `OSC-1`, `COMP`, `FDBK`.
 
-**Attenuverter**: bipolar, `-100 … 0 … +100`, center-detented. Drawn as a center-zero track that
-fills left (cool/teal) or right (ember).
+**Attenuverter**: bipolar, `-100 … 0 … +100`. Drawn as a centre-zero track that fills left
+(cool/teal) or right (ember). `←`/`→` step by 4, `SHIFT` for 1, `0` recentres.
+
+The centre detent catches you **once on the way past zero**, and never traps a value that is
+already there. A snap *window* around zero would be easier to write and would silently make the
+first few units on each side unreachable.
 
 ### 3.2 Modulation types
 
@@ -213,7 +217,12 @@ Header: `▶120` transport (5 ch) · page title · subpage dots `1·2` · page i
 
 ## 5. Page map
 
-Nine top-level pages via `[` / `]`. Sub-pages via `CTRL+↑/↓`, ordered to follow signal flow.
+Fifteen screens. `[` / `]` walk **every** one of them in a flat sequence, stepping
+through a page's sub-pages before moving on, so there is one axis to remember
+rather than two. `CTRL+↑/↓` still jumps sub-pages directly when you want it.
+
+The header carries the page name in a solid white plate, the sub-page dots, the
+run indicator, and `[< 6/15 >]` — the arrows being the keys that move it.
 
 | # | Page | Sub-pages |
 |---|---|---|
@@ -489,6 +498,8 @@ localStorage on web; help page listing the keymap.
 | `↑` `↓` | Move between rows / controls |
 | `←` `→` | Adjust focused control |
 | `K` `L` | Global rate — sweeps both oscillators, and therefore the tempo |
+| `1`–`8` | Select pattern (SEQ page) |
+| `B` | Cycle bank (SEQ page) |
 | `-` `=` | Master volume |
 | `ESC` | Page help |
 | `ENTER` | Confirm / toggle / reset |

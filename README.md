@@ -42,7 +42,7 @@ Open `phoenixomatic.ino` in the Arduino IDE with the M5Stack board support insta
 | Key | Action |
 |---|---|
 | `SPACE` | play / stop |
-| `[` `]` | previous / next page |
+| `[` `]` | previous / next screen — walks sub-pages too, 15 in all |
 | `CTRL`+`↑`/`↓` | previous / next sub-page |
 | `↑` `↓` | move between rows |
 | `←` `→` | sweep the focused attenuverter or value (hold `SHIFT` for fine, or for the second parameter on a row) |
@@ -53,7 +53,8 @@ Open `phoenixomatic.ino` in the Arduino IDE with the M5Stack board support insta
 | `R` | scramble — randomise the current page |
 | `K` `L` | global rate — sweeps both oscillators, and so the tempo with them |
 | `-` `=` | master level |
-| `1`–`7` | mute (page dependent) |
+| `1`–`8` | select pattern (SEQ), mute (MIX / DRUM) |
+| `B` | cycle bank (SEQ) |
 
 ## Layout
 
