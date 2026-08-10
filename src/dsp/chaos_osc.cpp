@@ -62,7 +62,10 @@ bool ChaosOsc::tickRungler(bool clock_high, bool data_high) {
   if (rung_div_ > 1 && (++rung_div_count_ % rung_div_) != 0) return false;
 
   const int n = rung_steps_;
-  const uint32_t mask = n >= 32 ? 0xFFFFFFFFu : ((1u << n) - 1u);
+  // All thirty-two bits always shift, whatever STEPS says. STEPS decides only
+  // where the loop closes and where the taps read; masking the register down
+  // to the length would throw the older bits away, so going from 8 to 32 would
+  // hand you twenty-four zeros instead of the history that was already there.
   const uint32_t out_bit = (rung_shift_ >> (n - 1)) & 1u;
 
   // The extremes never draw a random number, so a locked loop is genuinely
@@ -75,7 +78,7 @@ bool ChaosOsc::tickRungler(bool clock_high, bool data_high) {
   else take_new = (runglerRand() >> 8) * (1.0f / 16777216.0f) < rung_chance_;
 
   uint32_t bit = take_new ? (data_high ? 1u : 0u) : out_bit;
-  rung_shift_ = ((rung_shift_ << 1) | bit) & mask;
+  rung_shift_ = (rung_shift_ << 1) | bit;
 
   // Three reads of the one register, all measured from the exit so they mean
   // the same thing at every length.
