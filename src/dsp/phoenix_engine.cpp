@@ -83,7 +83,8 @@ void PhoenixEngine::applyParams() {
     chaos_[i].setMode(c.mode);
     chaos_[i].setRate(c.rate);
     chaos_[i].setSkew(c.skew);
-    chaos_[i].setFeedback(c.feedback);
+    chaos_[i].setRunglerSteps(c.steps);
+    chaos_[i].setRunglerChance(c.chance);
 
     const Osc& o = model_.osc[i];
     osc_[i].setWave(o.wave);

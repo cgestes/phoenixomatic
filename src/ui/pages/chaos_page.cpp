@@ -11,7 +11,6 @@ constexpr int kModeRow = 0;   // MODE | FREEZE
 constexpr int kShapeRow = 1;  // RATE | DEPTH | SKEW
 constexpr int kPickRow = 2;   // PICK
 
-constexpr uint8_t kFields[] = {2, 2, 1};
 constexpr int kRows = 3;
 
 // The history plot sits to the right of the three output meters.
@@ -24,7 +23,7 @@ constexpr double kSampleSeconds = 0.25;   // 84 samples -> a 21 second window
 
 class ChaosPage : public IPage {
  public:
-  explicit ChaosPage(PhoenixModel& m) : model_(m) { nav_.configure(kFields, kRows); }
+  explicit ChaosPage(PhoenixModel& m) : model_(m) { refreshRows(); }
 
   const char* title() const override { return which_ == 0 ? "CHAOS-A" : "CHAOS-B"; }
   // Benjolin has one chaos oscillator, so there is no B to step to.
@@ -36,6 +35,7 @@ class ChaosPage : public IPage {
   const char* subPageDots() const override { return "A B"; }
 
   void draw(TextScreen& scr) override {
+    refreshRows();
     Chaos& c = model_.chaos[which_];
 
     bool mr = nav_.atRow(kModeRow);
@@ -53,26 +53,36 @@ class ChaosPage : public IPage {
       scr.highlight(1, 3, kScreenCols - 2, PEN_PANEL);
       scr.highlight(1, 4, kScreenCols - 2, PEN_PANEL);
     }
-    // In RUNGLER mode the first two knobs mean something different, so they say
-    // something different: the clock comes from an oscillator, so RATE divides
-    // it, and SKEW feeds the register back on itself instead of tilting a flow.
+    // The rungler's knobs mean something else, so they say something else: the
+    // clock comes from an oscillator, so RATE divides it, and instead of
+    // tilting a flow there is a loop length and how often it lets a new bit in.
     bool rung = c.mode == CHAOS_RUNGLER;
-    const char* names[2] = {rung ? "CLK DIV" : "RATE", rung ? "FEEDBACK" : "SKEW"};
-    for (int i = 0; i < 2; ++i) {
-      int col = 3 + i * 14;
+    const char* names[3] = {rung ? "CLK DIV" : "RATE",
+                            rung ? "STEPS" : "SKEW",
+                            "CHANCE"};
+    int count = rung ? 3 : 2;
+    for (int i = 0; i < count; ++i) {
+      int col = 3 + i * 12;
       scr.text(col, 3, names[i], PEN_DIM, sbg);
       char buf[12];
       if (i == 0) {
         if (rung) snprintf(buf, sizeof(buf), "/%d", runglerClockDiv(c.rate));
         else snprintf(buf, sizeof(buf), "%.2fHz", static_cast<double>(c.rate));
-      } else if (rung) {
-        int fb = runglerFeedback(c.feedback);
-        if (fb == kFeedbackXor) snprintf(buf, sizeof(buf), "XOR");
-        else snprintf(buf, sizeof(buf), "%d%%", fb);
+      } else if (i == 1) {
+        if (rung) snprintf(buf, sizeof(buf), "%d", c.steps);
+        else snprintf(buf, sizeof(buf), "%+d", static_cast<int>(c.skew * 100.0f));
       } else {
-        snprintf(buf, sizeof(buf), "%+d", static_cast<int>(c.skew * 100.0f));
+        snprintf(buf, sizeof(buf), "%d%%", static_cast<int>(c.chance * 100.0f));
       }
       drawField(scr, col, 4, kShapeRow, i, buf, PEN_COOL, nav_.at(kShapeRow, i), sbg);
+    }
+    // At either end no random number is drawn at all, so the reading says
+    // which of the three things the dial is actually doing.
+    if (rung) {
+      const char* what = c.chance <= 0.0f ? "LOCKED"
+                       : c.chance >= 1.0f ? "OPEN"
+                                          : "DRIFT";
+      scr.text(33, 4, what, PEN_FAINT, sbg);
     }
 
     // The register only exists in RUNGLER mode; the history of the picked
@@ -167,6 +177,7 @@ class ChaosPage : public IPage {
   int focusedField() const override { return nav_.field(); }
 
   bool handleKey(const UIEvent& in) override {
+    refreshRows();
     UIEvent ev = in;
     // A column pair becomes a left/right on the field it names.
     if (!nav_.mapFieldKey(ev) && nav_.handleNavKey(ev)) return true;
@@ -210,9 +221,12 @@ class ChaosPage : public IPage {
         // Zero for a divider is 1, its origin.
         if (nav_.field() == 0) {
           c.rate = c.mode == CHAOS_RUNGLER ? runglerRateForDiv(1) : 0.005f;
-        } else {
-          if (c.mode == CHAOS_RUNGLER) c.feedback = runglerSkewForFeedback(0);
+        } else if (nav_.field() == 1) {
+          // The register's origin is the Benjolin's own eight.
+          if (c.mode == CHAOS_RUNGLER) c.steps = 8;
           else c.skew = 0.0f;
+        } else {
+          c.chance = 1.0f;   // origin is the plain rungler, always taking data
         }
         break;
       default: c.pick = 0; break;
@@ -232,11 +246,14 @@ class ChaosPage : public IPage {
                        ? runglerRateForDiv(1 + static_cast<int>(model_.random() % kRunglerMaxDiv))
                        : 0.01f + model_.randomUnit() * 0.4f;
         }
-        else if (c.mode == CHAOS_RUNGLER) {
-          c.feedback = runglerSkewForFeedback(
-              static_cast<int>(model_.random() % 102u) - 1);
+        else if (nav_.field() == 1) {
+          if (c.mode == CHAOS_RUNGLER) {
+            c.steps = kRunglerLengths[model_.random() % kRunglerLengthCount];
+          } else {
+            c.skew = model_.randomUnit() * 2.0f - 1.0f;
+          }
         } else {
-          c.skew = model_.randomUnit() * 2.0f - 1.0f;
+          c.chance = model_.randomUnit();
         }
         break;
       default: c.pick = static_cast<int>(model_.random() % 3u); break;
@@ -268,16 +285,23 @@ class ChaosPage : public IPage {
   // selected, which is the thing you are listening to.
   void drawRegister(TextScreen& scr, const Chaos& c) {
     scr.text(2, 10, "REG", PEN_DIM);
-    for (int b = 7; b >= 0; --b) {
-      int col = 7 + (7 - b) * 2;
+    const int n = c.steps;
+    // Two columns a bit while there is room; thirty-two only fits at one.
+    // Either way the whole register is on screen — a truncated one would be
+    // worse than none, since the point is watching the figure come round.
+    const int stride = n <= 16 ? 2 : 1;
+    for (int b = n - 1; b >= 0; --b) {
+      int col = 7 + (n - 1 - b) * stride;
       bool set = (c.rung_bits >> b) & 1u;
       bool active = false;
       char tap = ' ';
       uint8_t pen = PEN_FAINT;
+      // Every tap is measured from the exit, so they mean the same thing at
+      // eight steps as at thirty-two.
       switch (c.pick) {
-        case 0:  active = b >= 5;  tap = 'T'; pen = PEN_COOL; break;    // bits 5-7
-        case 1:  active = true;    tap = 'I'; pen = PEN_VIOLET; break;  // all eight
-        default: active = b == 7;  tap = 'A'; pen = PEN_HOT; break;     // bit 7
+        case 0:  active = b >= n - 3; tap = 'T'; pen = PEN_COOL; break;
+        case 1:  active = b >= n - 8; tap = 'I'; pen = PEN_VIOLET; break;
+        default: active = b == n - 1; tap = 'A'; pen = PEN_HOT; break;
       }
       if (!active) {
         // Present but not read: the register still shifts through here.
@@ -340,32 +364,49 @@ class ChaosPage : public IPage {
         if (c.rate < 0.005f) c.rate = 0.005f;
         if (c.rate > 2.0f) c.rate = 2.0f;
         break;
-      default:
+      case 1:
         if (c.mode == CHAOS_RUNGLER) {
-          // The field reads XOR, 0, 5 … 100, so it steps through those and not
-          // through the float underneath. XOR sits one press below 0%, and
-          // stepping up out of it lands on 0% rather than on the step size.
-          int cur = runglerFeedback(c.feedback);
-          int fb;
-          if (cur == kFeedbackXor) {
-            fb = dir > 0 ? 0 : kFeedbackXor;
-          } else {
-            fb = cur + dir * (fine ? 1 : 5);
-            if (fb < 0) fb = kFeedbackXor;
-            if (fb > 100) fb = 100;
+          // Three lengths, stepped as the list they are.
+          {
+            int i = runglerLengthIndex(c.steps) + dir;
+            if (i < 0) i = 0;
+            if (i >= kRunglerLengthCount) i = kRunglerLengthCount - 1;
+            c.steps = kRunglerLengths[i];
           }
-          c.feedback = runglerSkewForFeedback(fb);
           break;
         }
         c.skew += d;
         if (c.skew < -1.0f) c.skew = -1.0f;
         if (c.skew > 1.0f) c.skew = 1.0f;
         break;
+      default:
+        // CHANCE. Both ends are meaningful settings rather than limits, so a
+        // coarse press lands exactly on them rather than near them.
+        c.chance += d;
+        if (c.chance < 0.0f) c.chance = 0.0f;
+        if (c.chance > 1.0f) c.chance = 1.0f;
+        break;
     }
+  }
+
+  // The rungler carries a third knob the flow modes do not, so the row table
+  // is rebuilt when the mode changes — the same rule the mod banks follow.
+  void refreshRows() {
+    uint8_t mode = model_.chaos[which_].mode;
+    if (nav_mode_ == mode && nav_which_ == which_) return;
+    nav_mode_ = mode;
+    nav_which_ = which_;
+    fields_[kModeRow] = 2;
+    fields_[kShapeRow] = mode == CHAOS_RUNGLER ? 3 : 2;
+    fields_[kPickRow] = 1;
+    nav_.configure(fields_, kRows);
   }
 
   PhoenixModel& model_;
   RowNav nav_;
+  uint8_t fields_[kRows] = {};
+  uint8_t nav_mode_ = 0xFF;
+  int nav_which_ = -1;
   int which_ = 0;
   float hist_[kHistory] = {};
   int hist_pos_ = 0;

@@ -507,11 +507,12 @@ steer it.
 RUNGLER is the benjolin article, and it is a *loop through the oscillators*:
 
 ```
-OSC1 square ──clock──▶ ┌─────────────────┐
-                       │ 8-bit shift reg │──┬─ bits 5-7 ─▶ TORPOR   (3-bit DAC)
-OSC2 square ──data───▶ └─────────────────┘  ├─ all eight ▶ INERTIA
-       ▲                        │           └─ bit 7 ────▶ APATHY   (raw pulse)
-       └──── XOR ◀──── bit 7 ───┘
+OSC1 square ──clock──▶ ┌──────────────────────┐
+                       │ shift reg, 8/16/32   │──┬─ top 3 ▶ TORPOR   (3-bit DAC)
+OSC2 square ──data───▶ │                      │  ├─ top 8 ▶ INERTIA
+       ▲    (CHANCE %) └──────────────────────┘  └─ top 1 ▶ APATHY   (raw pulse)
+       │                          │
+       └──── recycled bit ◀───────┘   (1 - CHANCE)
 ```
 
 CHAOS-B mirrors it — clocked by OSC2, fed by OSC1 — so the two are different runglers rather than
@@ -525,15 +526,17 @@ In this mode the knobs change meaning, and the panel relabels them rather than l
 | Knob | In RUNGLER mode | Shown as |
 |---|---|---|
 | `RATE` | Divides the incoming clock, 1…16. The clock is an oscillator, so there is no frequency to set. | `CLK DIV /n` |
-| `DEPTH` | Scales the output. | `LEVEL` |
-| `SKEW` | `XOR`, then 0…100. See below. | `FEEDBACK` |
+| `SKEW` | How long the loop is: 8, 16 or 32. | `STEPS` |
+| — | How often a new bit is let in. See below. | `CHANCE` |
 
 The page draws the register itself, MSB first, with the tap each bit belongs to written directly
 underneath:
 
 ```
-REG  . . # . . . . .
+REG  . . # . . . . .          8 steps, two columns a bit
      T T T
+REG  .#.##..#.#...##.#..#.#.#...#   32 steps, one column a bit
+             IIIIIIII
 ```
 
 Only the bits the **picked** output reads are drawn; the rest stay faint, because the register
@@ -544,13 +547,41 @@ The three reads of that one register:
 
 | Output | Reads | Gives |
 |---|---|---|
-| `TORPOR` | bits 5–7 → 3-bit DAC | 8 levels. **The Benjolin's own rungler output** — the three bits nearest the exit. |
-| `INERTIA` | all eight bits | 256 levels of the same pattern: small steps where TORPOR jumps in eighths. |
-| `APATHY` | bit 7, raw | The pulse. One bit, so it only ever sits at ±1 — the row reads `PULSE` rather than a value, so its meter slamming between the rails looks intended rather than broken. |
+| `TORPOR` | 3 bits nearest the exit → 3-bit DAC | 8 levels. **The Benjolin's own rungler output.** |
+| `INERTIA` | 8 bits nearest the exit | 256 levels of the same pattern: small steps where TORPOR jumps in eighths. At `STEPS 8` that is the whole register, which is where it started. |
+| `APATHY` | the bit at the exit, raw | The pulse. One bit, so it only ever sits at ±1 — the row reads `PULSE` rather than a value, so its meter slamming between the rails looks intended rather than broken. |
 
-TORPOR reads the bits nearest the *exit* deliberately. The three nearest the entry give the same
-kind of signal but a looser loop, since the feedback XOR uses the bit leaving the register and
-would then sit outside the tap entirely.
+Every tap is measured **from the exit**, so it means the same thing at 8 steps as at 32. That is
+also where the recycled bit is taken from, so the taps sit on the loop rather than outside it.
+
+### CHANCE — the Turing Machine control
+
+`FEEDBACK` used to live here: `XOR`, then 0…100 for a percentage of clocks. It was removed because
+nobody could tell what it did. `CHANCE` replaces it with the control from the Music Thing Turing
+Machine, which answers a question you can actually hear:
+
+| `CHANCE` | Reads | What the register does |
+|---|---|---|
+| `0%` | `LOCKED` | Recycles the bit leaving the end. The figure repeats forever, with period exactly `STEPS`. |
+| `1…99%` | `DRIFT` | Some clocks recycle, some take new data. The figure holds its shape while wandering. |
+| `100%` | `OPEN` | Every clock takes a fresh bit from the other oscillator — the plain rungler. |
+
+Measured, clocking OSC-1 at ~130 Hz:
+
+| | `STEPS 8` | `STEPS 16` | `STEPS 32` |
+|---|---|---|---|
+| `CHANCE 0%` — period found | **8** | **16** | **32** |
+| `CHANCE 100%` — distinct states | 190 | 399 | 400+ |
+| `CHANCE 25%` — distinct states | 167 | 333 | 396 |
+
+**Neither end draws a random number.** At `0` and `100` the code never consults the RNG at all, so
+a locked loop is genuinely locked and a fully-open one is still driven purely by the oscillator
+ratio — the property the whole machine rests on. Randomness exists only in the middle of the dial,
+which is the only place it is wanted. The generator is seeded deterministically besides, so even a
+drifting setting reproduces run to run.
+
+This also closes the gap against the real Benjolin's **LOOP switch**: `CHANCE 0` is that switch,
+and the rest of the dial is the part the switch could not do.
 
 Measured over a minute at the shipped defaults: TORPOR 8 distinct values and 30% at ends,
 INERTIA 97 values and 24%, APATHY 2 values by construction. Watching the bits march explains a rungler faster than prose does.
@@ -611,33 +642,13 @@ Generally: **modulating both oscillators equally from one source is a no-op** fo
 downstream that cares about the interval between them — which here is the comparator and the
 rungler, which is to say everything.
 
-**FEEDBACK reads `XOR`, then 0…100.** `XOR` is the Benjolin's own path: the bit shifted in is the
-data bit XORed with the one falling off the end, every clock, no exceptions. In the original that
-feedback *is* the mechanism rather than a garnish on it, so `XOR` is what RUNGLER mode ships with.
-The numeric range applies that same XOR on a percentage of clocks, spread evenly, giving patterns
-between the pure data and the full loop.
-
-Measured over a minute — distinct register states out of 256:
-
-| FEEDBACK | states | at ends |
-|---|---|---|
-| 0% | 15 | 27% |
-| 10% | 30 | 26% |
-| 50% | 98 | 25% |
-| 100% | 93 | 20% |
-| `XOR` | 93 | 20% |
-
-The percentage counts clocks rather than thresholding the register, deliberately. A threshold on
-the register is self-reinforcing — one stuck at an end then fails the very test that would have
-unstuck it — and measured that way the dial did nothing across most of its travel.
-
 **The shipped tuning is 1/8 against 8/1** — six octaves apart. A slow clock sampling a fast data
 square is what gives a rungler varied bits rather than long runs: OSC-1 clocks it at about 2 Hz
-while OSC-2 supplies a square six octaves up. `FEEDBACK` ships at 10%, enough to keep the register
-out of a short loop without the data bit ceasing to matter.
+while OSC-2 supplies a square six octaves up. `STEPS` ships at 8 and `CHANCE` at 100%, so what you
+get out of the box is the Benjolin's own register taking fresh data every clock.
 
-Measured over a minute at those defaults: 15 distinct register values, 101 steps on the TORPOR
-tap, comparator running at ~320 Hz. The rungler steps with OSC-1 and the comparator follows
+Measured over a minute at those defaults: 101 steps on the TORPOR tap. The rungler steps with
+OSC-1 and the comparator follows
 OSC-2, so the machine has a slow modulation layer and a fast time base going at once — which is
 the arrangement worth starting from.
 
@@ -654,9 +665,8 @@ all-zeros or all-ones — most of the time. Measured across the range:
 | +50c | 0% |
 
 35 cents is enough to keep the register moving and not so much that the twelfth stops sounding
-like one. `FEEDBACK` ships at its origin so the classic rungler is the default and turning the
-knob up is audibly a change; it is the other escape from the same corner (+30 takes 66% down to
-26% and raises the distinct-value count from 22 to 39).
+like one. Lengthening `STEPS` is the other escape from that corner: a longer register takes longer
+to come round, so the same run of repeated bits fills less of it.
 
 This is the "simple ratios lock" property working, not a defect — it is why the machine rewards
 tuning at all. `PICK` chooses which of the three outputs is
@@ -881,7 +891,7 @@ where they were already reachable anyway.
 **Mouse, on desktop and web.** Click a value to put the cursor on it, then drag up and down or use
 the wheel to change it. The pointer drives the same code the keyboard does: a drag or a wheel notch
 synthesises the column-pair key for whichever field the cursor is on, so step sizes, clamping,
-detents and the `XOR` position on `FEEDBACK` all behave identically whichever you use, and none of
+detents all behave identically whichever you use, and none of
 it exists twice.
 
 A drag or a wheel notch is exactly one keypress, `SHIFT` included. The pointer does not get step

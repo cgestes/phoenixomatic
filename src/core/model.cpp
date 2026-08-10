@@ -211,9 +211,11 @@ PhoenixModel::PhoenixModel() {
   // rest across all eight levels.
   osc[1].mod[0].amount = -0.25f;
 
-  // XOR: the Benjolin's own feedback path, so RUNGLER mode is the authentic
-  // article out of the box. 93 register states against 15 with none.
-  chaos[0].feedback = runglerSkewForFeedback(kFeedbackXor);
+  // Eight steps and every clock taking new data: the Benjolin's own register,
+  // driven purely by the oscillator ratio. Turn CHANCE down to lock a figure
+  // in, or lengthen STEPS to make it take longer to come round.
+  chaos[0].steps = 8;
+  chaos[0].chance = 1.0f;
 
   chaos[1].rate = 0.07f;
   chaos[1].skew = 0.20f;

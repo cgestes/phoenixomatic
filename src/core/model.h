@@ -98,23 +98,16 @@ extern const char* const kChaosOutLabel[3];         // TORPOR / INERTIA / APATHY
 // engine and the page, so the number on screen is the number in use.
 inline constexpr int kRunglerMaxDiv = 16;
 
-// FEEDBACK reads XOR, then 0..100. XOR is the Benjolin article: the bit
-// shifted in is the data bit XORed with the one falling off the end, every
-// clock, no exceptions — that feedback *is* the mechanism, not a garnish on
-// it. 0..100 is the softer version, mixing that XOR in against a threshold on
-// the register itself.
-inline constexpr int kFeedbackXor = -1;
+// STEPS is how long the loop is before it comes back round. Eight is the
+// Benjolin's own register; sixteen and thirty-two just take longer to repeat.
+inline constexpr int kRunglerLengths[] = {8, 16, 32};
+inline constexpr int kRunglerLengthCount = 3;
 
-inline int runglerFeedback(float skew) {
-  if (skew < -0.5f) return kFeedbackXor;
-  int fb = static_cast<int>(skew * 100.0f + 0.5f);
-  return fb < 0 ? 0 : (fb > 100 ? 100 : fb);
-}
-
-inline float runglerSkewForFeedback(int fb) {
-  if (fb <= kFeedbackXor) return -1.0f;
-  if (fb > 100) fb = 100;
-  return static_cast<float>(fb) / 100.0f;
+inline int runglerLengthIndex(int steps) {
+  for (int i = 0; i < kRunglerLengthCount; ++i) {
+    if (kRunglerLengths[i] >= steps) return i;
+  }
+  return kRunglerLengthCount - 1;
 }
 
 inline int runglerClockDiv(float rate) {
@@ -137,15 +130,22 @@ struct Chaos {
   // the destination, and a second gain in front of it would just be a way to
   // make the same sound at two different settings.
   float skew = -0.12f;      // flow modes: tilts the output
-  // RUNGLER's feedback is its own field. Sharing SKEW's storage meant leaving
-  // RUNGLER on XOR (-1) and switching to SLOTH landed on a full negative
-  // skew — the same number meaning two unrelated things.
-  float feedback = -1.0f;   // -1 is XOR; 0..1 is the percentage
+  // RUNGLER: how long the loop is, and how often a new bit is let in.
+  //
+  // CHANCE is the Turing Machine's control. At 0 the register recycles the bit
+  // leaving the end and the pattern repeats forever; at 100 every clock takes
+  // a fresh bit from the other oscillator. In between, some clocks recycle and
+  // some do not, so the figure holds its shape while drifting.
+  //
+  // Both ends stay deterministic — no random number is drawn at 0 or 100 — so
+  // "the pattern you tuned in stays tuned in" still holds where it matters.
+  int steps = 8;            // 8, 16 or 32
+  float chance = 1.0f;      // 0..1
   bool freeze = false;
   int pick = 0;            // which output is published on the bus
   int focus = 0;
   float out[3] = {0, 0, 0};  // live, -1..1
-  uint8_t rung_bits = 0;     // live shift register, for the RUNGLER display
+  uint32_t rung_bits = 0;    // live shift register, for the RUNGLER display
 };
 
 enum OscWave : uint8_t { WAVE_SIN = 0, WAVE_TRI, WAVE_SAW, WAVE_SQR, WAVE_COUNT };

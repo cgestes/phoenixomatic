@@ -38,7 +38,6 @@ void ChaosOsc::reset() {
   rung_shift_ = 0x2Du;   // any non-zero seed; all-zeros with pure data is fine
   rung_prev_clock_ = false;
   rung_div_count_ = 0;
-  rung_fb_accum_ = 0;
 }
 
 // The benjolin article: one oscillator clocks the register, the other supplies
@@ -46,12 +45,11 @@ void ChaosOsc::reset() {
 // ratio between the two oscillators, which is exactly why a pattern you tune
 // in stays tuned in.
 //
-//   RATE  divides the incoming clock, 1..16
-//   SKEW  is FEEDBACK: XOR is the authentic path — the incoming bit is the
-//         data XORed with the one falling off the end, every clock. 0..100
-//         mixes that XOR in against a threshold on the register instead, for
-//         patterns that sit somewhere between the data and the feedback
-//   DEPTH scales the output
+//   RATE   divides the incoming clock, 1..16
+//   STEPS  how long the loop is: 8 (the Benjolin's own), 16 or 32
+//   CHANCE how often a new bit is let in, the Turing Machine's control. At 0
+//          the bit leaving the end is recycled and the figure repeats forever;
+//          at 100 every clock takes fresh data from the other oscillator.
 void ChaosOsc::tickRungler(bool clock_high, bool data_high) {
   bool rising = clock_high && !rung_prev_clock_;
   rung_prev_clock_ = clock_high;
@@ -59,37 +57,38 @@ void ChaosOsc::tickRungler(bool clock_high, bool data_high) {
 
   if ((++rung_div_count_ % runglerClockDiv(rate_)) != 0) return;
 
-  uint8_t bit = data_high ? 1u : 0u;
-  uint8_t out_bit = static_cast<uint8_t>((rung_shift_ >> 7) & 1u);
-  int fb = runglerFeedback(feedback_);
-  if (fb == kFeedbackXor) {
-    // The Benjolin's own path: data XOR the bit leaving the register, always.
-    bit ^= out_bit;
-  } else if (fb > 0) {
-    // Softer: apply that XOR on fb% of clocks, spread evenly. Deliberately not
-    // a threshold on the register — that is self-reinforcing, because a
-    // register stuck at one end then fails the test that would have unstuck
-    // it, and the dial does nothing for most of its travel.
-    rung_fb_accum_ += fb;
-    if (rung_fb_accum_ >= 100) {
-      rung_fb_accum_ -= 100;
-      bit ^= out_bit;
-    }
-  }
-  rung_shift_ = static_cast<uint8_t>((rung_shift_ << 1) | bit);
+  const int n = rung_steps_;
+  const uint32_t mask = n >= 32 ? 0xFFFFFFFFu : ((1u << n) - 1u);
+  const uint32_t out_bit = (rung_shift_ >> (n - 1)) & 1u;
 
-  // Three reads of the one register.
+  // The extremes never draw a random number, so a locked loop is genuinely
+  // locked and a fully-open one is still driven purely by the oscillator
+  // ratio — the property the whole machine is built on. Randomness only
+  // exists in the middle of the dial, which is the only place it is wanted.
+  bool take_new;
+  if (rung_chance_ <= 0.0f)      take_new = false;
+  else if (rung_chance_ >= 1.0f) take_new = true;
+  else take_new = (runglerRand() >> 8) * (1.0f / 16777216.0f) < rung_chance_;
+
+  uint32_t bit = take_new ? (data_high ? 1u : 0u) : out_bit;
+  rung_shift_ = ((rung_shift_ << 1) | bit) & mask;
+
+  // Three reads of the one register, all measured from the exit so they mean
+  // the same thing at every length.
   //
   // TORPOR is the Benjolin's own output: the three bits nearest the exit
-  // through a 3-bit DAC, eight levels. Reading the three nearest the *entry*
-  // would give the same kind of signal but a looser loop, since the feedback
-  // XOR uses the bit leaving the register and would then sit outside the tap.
-  float torpor = static_cast<float>((rung_shift_ >> 5) & 0x07u) / 3.5f - 1.0f;
-  // INERTIA reads the whole byte: 256 levels of the same pattern, so it moves
-  // in small steps where TORPOR jumps in eighths.
-  float inertia = static_cast<float>(rung_shift_) / 127.5f - 1.0f;
-  // APATHY is the bit on its way out, raw — the pulse.
-  float apathy = ((rung_shift_ >> 7) & 1u) ? 1.0f : -1.0f;
+  // through a 3-bit DAC, eight levels.
+  float torpor =
+      static_cast<float>((rung_shift_ >> (n - 3)) & 0x07u) / 3.5f - 1.0f;
+  // INERTIA reads the eight nearest the exit: 256 levels of the same pattern,
+  // so it moves in small steps where TORPOR jumps in eighths. At 8 steps that
+  // is the whole register, which is where it started.
+  float inertia =
+      static_cast<float>((rung_shift_ >> (n - 8)) & 0xFFu) / 127.5f - 1.0f;
+  // APATHY is the top bit of the register as it now stands, raw — the pulse.
+  // Read after the shift like the other two, not from the pre-shift out_bit,
+  // or it would lag them by a clock.
+  float apathy = ((rung_shift_ >> (n - 1)) & 1u) ? 1.0f : -1.0f;
 
   out_[0] = torpor;
   out_[1] = inertia;
@@ -104,7 +103,20 @@ void ChaosOsc::setMode(uint8_t mode) {
 
 void ChaosOsc::setRate(float hz) { rate_ = hz < 0.001f ? 0.001f : hz; }
 void ChaosOsc::setSkew(float s) { skew_ = clamp1(s); }
-void ChaosOsc::setFeedback(float f) { feedback_ = clamp1(f); }
+void ChaosOsc::setRunglerSteps(int steps) {
+  rung_steps_ = kRunglerLengths[runglerLengthIndex(steps)];
+}
+
+void ChaosOsc::setRunglerChance(float c) {
+  rung_chance_ = c < 0.0f ? 0.0f : (c > 1.0f ? 1.0f : c);
+}
+
+uint32_t ChaosOsc::runglerRand() {
+  rung_rng_ ^= rung_rng_ << 13;
+  rung_rng_ ^= rung_rng_ >> 17;
+  rung_rng_ ^= rung_rng_ << 5;
+  return rung_rng_;
+}
 
 void ChaosOsc::stepCore(Core& c, float dt) {
   switch (mode_) {
