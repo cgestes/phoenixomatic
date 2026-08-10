@@ -266,16 +266,34 @@ with a chaos section bolted on:
 - The comparator's `OUT` shape is deliberately outside all of this: it is the
   one comparator control that cannot disturb the timing (3.3a).
 
-A step's value is stored as 12…96 and **shown signed against its centre of 48**,
-so it reads -36…+36 with `0` in the middle. Absolute numbers gave no hint that
-48 was the centre or that 12 was the end of the scale, and the step bars only
-mapped 24…72 — so the bottom and top thirds drew an identical bar while the
-number kept moving, which made the floor look like a bug rather than a limit.
-The span is symmetric on purpose: at `RANGE 1` all of it reaches the bus, and
-at wider ranges the ends clamp, which is what the range scaling is for. The
-step grid starts at column 2 rather than 3 because a signed value is three
+A step's value is a plain **0…100**, centred on 50, with `--` for a rest. It
+used to be a note number floored at 12 and ceilinged at 96, which was opaque in
+two ways at once: nothing said 48 was the centre, and the CV mapping clamped
+everything below 24 and above 72 at the default `RANGE` — so a third of the
+scale was already dead before you reached the floor, with the number still
+moving and the step bar already pinned.
+
+Measured, with modulation off:
+
+| Step | `RANGE 1` | `RANGE 2` (default) | `RANGE 5` |
+|---|---|---|---|
+| 0 | -0.500 | **-1.000** | -1.000 (clamped) |
+| 25 | -0.250 | -0.500 | -1.000 (clamped) |
+| 50 | +0.000 | +0.000 | +0.000 |
+| 75 | +0.250 | +0.500 | +1.000 (clamped) |
+| 100 | +0.500 | **+1.000** | +1.000 (clamped) |
+
+The halves are exact, so at the default range the full width of the scale lands
+on the bus with nothing dead at either end, and `RANGE` is a straight scaler
+either side of that. Wider ranges clamp the extremes, which is what asking for
+five octaves out of eight steps means.
+
+The step grid starts at column 2 rather than 3 because `100` is three
 characters wide and the eighth step would otherwise be clipped by the screen
-edge.
+edge. The shipped seed patterns were rescaled from the old note numbers by
+`50 + (n-48)·50/24`, so they put the same voltages on the bus as before, and
+the per-bank transpose is clamped — a low step transposed down would otherwise
+go negative, which the engine reads as a rest.
 
 ---
 

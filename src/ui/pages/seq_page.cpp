@@ -83,7 +83,7 @@ class SeqPage : public IPage {
         if (n < 0) {
           n = kSeqNoteMid;
         } else {
-          n = static_cast<int8_t>(n + dir * (ev.shift ? 12 : 1));
+          n = static_cast<int8_t>(n + dir * (ev.shift ? 10 : 1));
           if (n < kSeqNoteMin) n = kSeqNoteMin;
           if (n > kSeqNoteMax) n = kSeqNoteMax;
         }
@@ -180,7 +180,9 @@ class SeqPage : public IPage {
  private:
   int8_t randomNote() {
     if (model_.random() % 5u == 0) return -1;  // one step in five is a rest
-    return static_cast<int8_t>(28 + model_.random() % 40u);
+    // Around the centre rather than the whole span: the extremes are where a
+    // pattern stops sounding like a pattern.
+    return static_cast<int8_t>(kSeqNoteMid - 25 + model_.random() % 50u);
   }
 
   // PATTERNS 1-8 and BANK A-D. The selected slot is a filled plate rather than
@@ -213,8 +215,8 @@ class SeqPage : public IPage {
     const int8_t* notes = s.notes();
     bool rf = nav_.atRow(kStepRow);
     for (int i = 0; i < kSeqSteps; ++i) {
-      // Two, not three: a signed value is three characters wide, and the last
-      // step starting at 38 would have its final digit clipped off the edge.
+      // Two, not three: 100 is three characters wide, and the last step
+      // starting at 38 would have its final digit clipped off the edge.
       int col = 2 + i * 5;
       bool on = notes[i] >= 0;
       bool here = i == s.step;
@@ -238,10 +240,8 @@ class SeqPage : public IPage {
         scr.put(col, kScrBarTop, phx_glyphs::bar(lvl > 7 ? lvl - 7 : 0),
                 lvl > 7 ? pen : PEN_FAINT);
         scr.put(col, kScrBarTop + 1, phx_glyphs::bar(lvl > 7 ? 7 : lvl), pen);
-        // Signed against the centre. An absolute 12..96 gave no hint that 48
-        // was the middle or that 12 was the end of the scale.
         drawFieldF(scr, col, kScrNote, kStepRow, i, here ? PEN_BRIGHT : PEN_TEXT,
-                   cursor, PEN_BG, "%+d", notes[i] - kSeqNoteMid);
+                   cursor, PEN_BG, "%d", notes[i]);
       } else {
         scr.put(col, kScrBarTop + 1, phx_glyphs::kBlockDim, PEN_FAINT);
         drawField(scr, col, kScrNote, kStepRow, i, "--", PEN_FAINT, cursor, PEN_BG);

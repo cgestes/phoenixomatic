@@ -108,9 +108,11 @@ PhoenixModel::PhoenixModel() {
   // Every slot starts with something playable: the designed pattern, then
   // deterministic variations of it. An empty bank would just make the machine
   // go quiet when you go looking, which teaches nothing.
+  // Rescaled from the old 48-centred note numbers to 0…100 so the shipped
+  // patterns put the same voltages on the bus as they always did.
   const int8_t seed_notes[2][kSeqSteps] = {
-    {48, 36, 61, -1, 50, 67, 41, 58},
-    {31, -1, 43, 43, 26, 55, -1, 38},
+    {50, 25, 77, -1, 54, 90, 35, 71},
+    {15, -1, 40, 40, 4, 65, -1, 29},
   };
   for (int v = 0; v < 2; ++v) {
     for (int b = 0; b < kSeqBanks; ++b) {
@@ -121,7 +123,12 @@ PhoenixModel::PhoenixModel() {
           int src = (i + p) % kSeqSteps;
           int8_t n = seed_notes[v][src];
           if (n >= 0) {
-            n = static_cast<int8_t>(n + b * 3 - 3);
+            // Clamped, or a low step transposed down goes negative and the
+            // engine reads that as a rest rather than a quiet note.
+            int t = n + b * 6 - 6;
+            if (t < kSeqNoteMin) t = kSeqNoteMin;
+            if (t > kSeqNoteMax) t = kSeqNoteMax;
+            n = static_cast<int8_t>(t);
             if (((i * 7 + p * 5 + b) % 11) < p / 3) n = -1;
           }
           seq[v].pattern[b][p][i] = n;

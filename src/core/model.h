@@ -195,12 +195,13 @@ struct Osc {
   float phase = 0.0f;
 };
 
-// A step's value, stored absolute but shown signed against the centre. The
-// span is symmetric on purpose — at RANGE 1 the whole of it reaches the bus,
-// and at wider ranges the ends clamp, which is what the scaling is for.
-inline constexpr int8_t kSeqNoteMid = 48;
-inline constexpr int8_t kSeqNoteMin = 12;
-inline constexpr int8_t kSeqNoteMax = 96;
+// A step's value: a plain 0…100, centred on 50, with -1 for a rest. Chosen to
+// match every other percentage on the machine rather than carry a note number
+// nothing else speaks. At the default RANGE the whole span reaches the bus
+// exactly, so no part of the scale is dead.
+inline constexpr int8_t kSeqNoteMid = 50;
+inline constexpr int8_t kSeqNoteMin = 0;
+inline constexpr int8_t kSeqNoteMax = 100;
 
 inline constexpr int kSeqSteps = 8;
 inline constexpr int kSeqModRows = 5;

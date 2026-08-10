@@ -44,8 +44,12 @@ constexpr float kFilterModOctaves = 5.0f;
 // Everything on the patch bus is -1..1, sequencer CV included. Two octaves
 // either side of middle maps to full travel, so a mod row's attenuverter is
 // the only thing deciding how far a note actually moves anything.
+// 0…100 onto -1…+1. The halves are exact, so at RANGE 2 — the default — the
+// full width of the step scale lands on the bus with nothing clamped off
+// either end, and RANGE is a straight scaler either side of that.
 inline float noteToBus(int8_t note) {
-  return (static_cast<float>(note) - 48.0f) / 24.0f;
+  return (static_cast<float>(note) - static_cast<float>(kSeqNoteMid)) /
+         (static_cast<float>(kSeqNoteMax - kSeqNoteMin) * 0.5f);
 }
 
 }  // namespace
