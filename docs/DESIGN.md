@@ -371,7 +371,7 @@ In this mode the knobs change meaning, and the panel relabels them rather than l
 |---|---|---|
 | `RATE` | Divides the incoming clock, 1…16. The clock is an oscillator, so there is no frequency to set. | `CLK DIV /n` |
 | `DEPTH` | Scales the output. | `LEVEL` |
-| `SKEW` | Blends the data bit with feedback from the register's top tap. Zero is the classic rungler; up from there lengthens and roughens the pattern. | `FEEDBACK` |
+| `SKEW` | `XOR`, then 0…100. See below. | `FEEDBACK` |
 
 The page draws the register itself, MSB first, with the tap each bit belongs to written directly
 underneath:
@@ -416,6 +416,26 @@ sampling, and the sampling changes the register.
 Generally: **modulating both oscillators equally from one source is a no-op** for anything
 downstream that cares about the interval between them — which here is the comparator and the
 rungler, which is to say everything.
+
+**FEEDBACK reads `XOR`, then 0…100.** `XOR` is the Benjolin's own path: the bit shifted in is the
+data bit XORed with the one falling off the end, every clock, no exceptions. In the original that
+feedback *is* the mechanism rather than a garnish on it, so `XOR` is what RUNGLER mode ships with.
+The numeric range applies that same XOR on a percentage of clocks, spread evenly, giving patterns
+between the pure data and the full loop.
+
+Measured over a minute — distinct register states out of 256:
+
+| FEEDBACK | states | at ends |
+|---|---|---|
+| 0% | 15 | 27% |
+| 10% | 30 | 26% |
+| 50% | 98 | 25% |
+| 100% | 93 | 20% |
+| `XOR` | 93 | 20% |
+
+The percentage counts clocks rather than thresholding the register, deliberately. A threshold on
+the register is self-reinforcing — one stuck at an end then fails the very test that would have
+unstuck it — and measured that way the dial did nothing across most of its travel.
 
 **The shipped tuning is 1/8 against 8/1** — six octaves apart. A slow clock sampling a fast data
 square is what gives a rungler varied bits rather than long runs: OSC-1 clocks it at about 2 Hz
