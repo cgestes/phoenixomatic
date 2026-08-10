@@ -766,7 +766,7 @@ looking at, because silencing something should never be a navigation problem. ma
 ### Global
 | Key | Action |
 |---|---|
-| `SPACE` | Toggle the focused thing: a modulation row in or out, a step to a rest, a mute. On HOME, play/stop. |
+| `SPACE` | Toggle the focused thing: a modulation row in or out, a step to a rest. Above a module's bank it silences the module — mute on OSC, COMP and FILTER, freeze on CHAOS, which is a modulator's equivalent. On HOME, play/stop. |
 | `[` `]` | Previous / next page |
 | `CTRL+↑` `CTRL+↓` | Previous / next sub-page |
 | `TAB` `SHIFT+TAB` | Move focus |

@@ -56,7 +56,7 @@ Open `phoenixomatic.ino` in the Arduino IDE with the M5Stack board support insta
 | `1`–`7` | mute/unmute OSC-1, OSC-2, COMP, KIK, SNR, HH, OH (`0` is reserved for mixing) |
 | `-` / `=` | mute everything / start everything |
 | `ESC` | invert every mute |
-| `SPACE` | toggle the focused thing — a mod row on/off, a step to a rest, a mute. On HOME it is play/stop. |
+| `SPACE` | toggle the focused thing — a mod row on/off, a step to a rest. Above a module's bank it silences the module (freeze on CHAOS). On HOME it is play/stop. |
 | `[` `]` | previous / next screen — walks sub-pages too, 15 in all |
 | `CTRL`+`↑`/`↓` | jump sub-pages directly |
 | `K` `L` | global rate — sweeps both oscillators, and so the tempo with them |
