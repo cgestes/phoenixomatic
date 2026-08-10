@@ -78,14 +78,22 @@ void ChaosOsc::tickRungler(bool clock_high, bool data_high) {
   }
   rung_shift_ = static_cast<uint8_t>((rung_shift_ << 1) | bit);
 
-  // Three taps off the one register: two 3-bit DACs and the raw top bit.
-  float low = static_cast<float>(rung_shift_ & 0x07u) / 3.5f - 1.0f;
-  float high = static_cast<float>((rung_shift_ >> 3) & 0x07u) / 3.5f - 1.0f;
-  float msb = ((rung_shift_ >> 7) & 1u) ? 1.0f : -1.0f;
+  // Three reads of the one register.
+  //
+  // TORPOR is the Benjolin's own output: the three bits nearest the exit
+  // through a 3-bit DAC, eight levels. Reading the three nearest the *entry*
+  // would give the same kind of signal but a looser loop, since the feedback
+  // XOR uses the bit leaving the register and would then sit outside the tap.
+  float torpor = static_cast<float>((rung_shift_ >> 5) & 0x07u) / 3.5f - 1.0f;
+  // INERTIA reads the whole byte: 256 levels of the same pattern, so it moves
+  // in small steps where TORPOR jumps in eighths.
+  float inertia = static_cast<float>(rung_shift_) / 127.5f - 1.0f;
+  // APATHY is the bit on its way out, raw — the pulse.
+  float apathy = ((rung_shift_ >> 7) & 1u) ? 1.0f : -1.0f;
 
-  out_[0] = low * depth_;
-  out_[1] = high * depth_;
-  out_[2] = msb * depth_;
+  out_[0] = torpor * depth_;
+  out_[1] = inertia * depth_;
+  out_[2] = apathy * depth_;
 }
 
 void ChaosOsc::setMode(uint8_t mode) {

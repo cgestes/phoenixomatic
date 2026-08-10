@@ -259,23 +259,31 @@ class ChaosPage : public IPage {
   }
 
  private:
-  // The shift register, MSB first, with the tap each bit belongs to written
-  // directly underneath: A - I I I T T T. A legend off to one side made you
-  // work out which bits were which; this does not.
+  // The shift register, MSB first, showing only the bits the picked output
+  // actually reads. Colouring all three taps at once meant the display was
+  // about the module in general; this one is about the signal you have
+  // selected, which is the thing you are listening to.
   void drawRegister(TextScreen& scr, const Chaos& c) {
     scr.text(2, 10, "REG", PEN_DIM);
     for (int b = 7; b >= 0; --b) {
       int col = 7 + (7 - b) * 2;
       bool set = (c.rung_bits >> b) & 1u;
-      char tap;
-      uint8_t pen;
-      if (b == 7)                 { tap = 'A'; pen = PEN_HOT; }
-      else if (b >= 3 && b <= 5)  { tap = 'I'; pen = PEN_VIOLET; }
-      else if (b <= 2)            { tap = 'T'; pen = PEN_COOL; }
-      else                        { tap = '-'; pen = PEN_FAINT; }
+      bool active = false;
+      char tap = ' ';
+      uint8_t pen = PEN_FAINT;
+      switch (c.pick) {
+        case 0:  active = b >= 5;  tap = 'T'; pen = PEN_COOL; break;    // bits 5-7
+        case 1:  active = true;    tap = 'I'; pen = PEN_VIOLET; break;  // all eight
+        default: active = b == 7;  tap = 'A'; pen = PEN_HOT; break;     // bit 7
+      }
+      if (!active) {
+        // Present but not read: the register still shifts through here.
+        scr.put(col, 10, phx_glyphs::kBlockDim, PEN_FAINT);
+        continue;
+      }
       scr.put(col, 10, set ? phx_glyphs::kBlock : phx_glyphs::kBlockDim,
               set ? pen : PEN_FAINT);
-      scr.put(col, 11, static_cast<uint8_t>(tap), pen == PEN_FAINT ? PEN_FAINT : pen);
+      scr.put(col, 11, static_cast<uint8_t>(tap), pen);
     }
   }
 
