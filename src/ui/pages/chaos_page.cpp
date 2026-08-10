@@ -45,18 +45,35 @@ class ChaosPage : public IPage {
       scr.highlight(1, 3, kScreenCols - 2, PEN_PANEL);
       scr.highlight(1, 4, kScreenCols - 2, PEN_PANEL);
     }
-    const char* names[3] = {"RATE", "DEPTH", "SKEW"};
+    // In RUNGLER mode the first two knobs mean something different, so they say
+    // something different: the clock comes from an oscillator, so RATE divides
+    // it, and SKEW feeds the register back on itself instead of tilting a flow.
+    bool rung = c.mode == CHAOS_RUNGLER;
+    const char* names[3] = {rung ? "CLK DIV" : "RATE", rung ? "LEVEL" : "DEPTH",
+                            rung ? "FEEDBACK" : "SKEW"};
     for (int i = 0; i < 3; ++i) {
       int col = 3 + i * 12;
       scr.text(col, 3, names[i], PEN_DIM, sbg);
       char buf[12];
       switch (i) {
-        case 0: snprintf(buf, sizeof(buf), "%.2fHz", static_cast<double>(c.rate)); break;
+        case 0:
+          if (rung) snprintf(buf, sizeof(buf), "/%d", runglerClockDiv(c.rate));
+          else snprintf(buf, sizeof(buf), "%.2fHz", static_cast<double>(c.rate));
+          break;
         case 1: snprintf(buf, sizeof(buf), "%d", static_cast<int>(c.depth * 100.0f)); break;
-        default: snprintf(buf, sizeof(buf), "%+d", static_cast<int>(c.skew * 100.0f)); break;
+        default:
+          if (rung) {
+            snprintf(buf, sizeof(buf), "%d", c.skew > 0.0f
+                         ? static_cast<int>(c.skew * 100.0f) : 0);
+          } else {
+            snprintf(buf, sizeof(buf), "%+d", static_cast<int>(c.skew * 100.0f));
+          }
+          break;
       }
       drawField(scr, col, 4, buf, PEN_COOL, nav_.at(kShapeRow, i), sbg);
     }
+
+    if (rung) drawRegister(scr, c);
 
     // The three outputs, with the picked one marked.
     for (int o = 0; o < 3; ++o) {
@@ -77,13 +94,14 @@ class ChaosPage : public IPage {
 
     // Only list destinations this mode actually has. Both oscillators carry a
     // row for each chaos core, so a single core feeds the pair.
-    scr.text(2, 12, "FEEDS", PEN_DIM);
-    int col = scr.text(8, 12, "OSC1", PEN_EMBER) + 1;
-    col = scr.text(col, 12, "OSC2", PEN_EMBER) + 1;
-    col = scr.text(col, 12, "COMP", PEN_EMBER) + 1;
+    int frow = rung ? 13 : 12;
+    scr.text(2, frow, "FEEDS", PEN_DIM);
+    int col = scr.text(8, frow, "OSC1", PEN_EMBER) + 1;
+    col = scr.text(col, frow, "OSC2", PEN_EMBER) + 1;
+    col = scr.text(col, frow, "COMP", PEN_EMBER) + 1;
     if (model_.machine_mode == MODE_ADVANCED) {
-      col = scr.text(col, 12, which_ == 0 ? "SEQ1" : "SEQ2", PEN_EMBER) + 1;
-      if (which_ == 0) scr.text(col, 12, "FATE", PEN_EMBER);
+      col = scr.text(col, frow, which_ == 0 ? "SEQ1" : "SEQ2", PEN_EMBER) + 1;
+      if (which_ == 0) scr.text(col, frow, "FATE", PEN_EMBER);
     }
   }
 
@@ -172,6 +190,29 @@ class ChaosPage : public IPage {
   }
 
  private:
+  // The shift register itself, MSB first, coloured by which output reads it.
+  // A rungler is easier to understand watching the bits march than from any
+  // amount of prose about it.
+  void drawRegister(TextScreen& scr, const Chaos& c) {
+    scr.text(2, 12, "REG", PEN_DIM);
+    for (int b = 7; b >= 0; --b) {
+      int col = 7 + (7 - b) * 2;
+      bool set = (c.rung_bits >> b) & 1u;
+      uint8_t pen;
+      if (b == 7) pen = PEN_HOT;              // APATHY reads this bit raw
+      else if (b >= 3 && b <= 5) pen = PEN_VIOLET;   // INERTIA
+      else if (b <= 2) pen = PEN_COOL;        // TORPOR
+      else pen = PEN_FAINT;                   // bit 6 is not tapped
+      scr.put(col, 12, set ? phx_glyphs::kBlock : phx_glyphs::kBlockDim,
+              set ? pen : PEN_FAINT);
+    }
+    // Which tap belongs to which output.
+    scr.text(25, 12, "A", PEN_HOT);
+    scr.text(27, 12, "I", PEN_VIOLET);
+    scr.text(29, 12, "T", PEN_COOL);
+    scr.text(31, 12, "taps", PEN_FAINT);
+  }
+
   void editShape(Chaos& c, int dir, bool fine) {
     float d = static_cast<float>(dir) * (fine ? 0.25f : 1.0f);
     switch (nav_.field()) {

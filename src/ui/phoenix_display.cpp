@@ -124,10 +124,23 @@ void PhoenixDisplay::drawHeader() {
 
 void PhoenixDisplay::drawBus() {
   uint8_t lit = pages_[page_index_]->litSources();
+
+  // Sources whose module the mode hides are left out, and the rest spread to
+  // fill the strip. Holes where a meter used to be read as breakage, not as a
+  // deliberate absence.
+  int shown[SRC_COUNT];
+  int count = 0;
   for (int i = 0; i < SRC_COUNT; ++i) {
-    SourceId id = static_cast<SourceId>(i);
-    screen_.busCell(i * 5, kBusRow, kSourceLabel[i], model_.busLevel(id),
-                    (lit & srcBit(i)) != 0);
+    if (!sourceHidden(static_cast<SourceId>(i), model_.machine_mode)) {
+      shown[count++] = i;
+    }
+  }
+  if (count <= 0) return;
+  int spacing = kScreenCols / count;
+  for (int slot = 0; slot < count; ++slot) {
+    SourceId id = static_cast<SourceId>(shown[slot]);
+    screen_.busCell(slot * spacing, kBusRow, kSourceLabel[id],
+                    model_.busLevel(id), (lit & srcBit(id)) != 0);
   }
 }
 

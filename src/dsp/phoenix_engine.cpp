@@ -252,10 +252,12 @@ void PhoenixEngine::render(int16_t* out, size_t frames) {
     if (model_.chaos[0].mode == CHAOS_RUNGLER && !model_.chaos[0].freeze) {
       chaos_[0].tickRungler(osc_[0].value() > 0.0f, osc_[1].value() > 0.0f);
       for (int o = 0; o < 3; ++o) model_.chaos[0].out[o] = chaos_[0].out(o);
+      model_.chaos[0].rung_bits = chaos_[0].registerBits();
     }
     if (model_.chaos[1].mode == CHAOS_RUNGLER && !model_.chaos[1].freeze) {
       chaos_[1].tickRungler(osc_[1].value() > 0.0f, osc_[0].value() > 0.0f);
       for (int o = 0; o < 3; ++o) model_.chaos[1].out[o] = chaos_[1].out(o);
+      model_.chaos[1].rung_bits = chaos_[1].registerBits();
     }
 
     // --- comparator: the only time base ------------------------------------

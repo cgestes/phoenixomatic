@@ -38,6 +38,17 @@ int drawModBank(TextScreen& scr, int row, const ModRow* rows, int count,
                 int focus_row, int focused_field,
                 const char* const* mode_labels, const char* mode_caption);
 
+// Same, but draws only the rows named in `index` — for modes that hide the
+// modules some rows are fed by.
+int drawModBankIndexed(TextScreen& scr, int row, const ModRow* rows,
+                       const int* index, int count, int focus_row,
+                       int focused_field, const char* const* mode_labels,
+                       const char* mode_caption);
+
+// Fills `index` with the rows a mode actually shows; returns how many.
+int visibleModRows(const ModRow* rows, int count, uint8_t machine_mode,
+                   int* index);
+
 // Applies left/right to whichever field is focused. Returns true if consumed.
 bool editModRow(const UIEvent& ev, ModRow& row, int field, int mode_count);
 

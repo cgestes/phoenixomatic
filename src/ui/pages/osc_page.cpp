@@ -20,12 +20,9 @@ constexpr int kTuneRow = 0;    // WAVE / DIV / MULT
 constexpr int kVoiceRow = 1;   // DTUNE / LVL
 constexpr int kBankRow0 = 2;   // first attenuverter row
 
-constexpr uint8_t kFields[] = {3, 2, 2, 2, 2, 2, 2, 2};
-constexpr int kRows = static_cast<int>(sizeof(kFields) / sizeof(kFields[0]));
-
 class OscPage : public IPage {
  public:
-  explicit OscPage(PhoenixModel& m) : model_(m) { nav_.configure(kFields, kRows); }
+  explicit OscPage(PhoenixModel& m) : model_(m) { refreshRows(); }
 
   const char* title() const override { return voice_ == 0 ? "OSC-1" : "OSC-2"; }
   int subPageCount() const override { return 2; }
@@ -34,6 +31,7 @@ class OscPage : public IPage {
   const char* subPageDots() const override { return "1 2"; }
 
   void draw(TextScreen& scr) override {
+    refreshRows();
     Osc& o = model_.osc[voice_];
 
     bool tr = nav_.atRow(kTuneRow);
@@ -58,8 +56,8 @@ class OscPage : public IPage {
                bg, "%d", static_cast<int>(o.level * 100.0f));
 
     int focus_row = nav_.row() >= kBankRow0 ? nav_.row() - kBankRow0 : -1;
-    drawModBank(scr, 5, o.mod, kOscModRows, focus_row, nav_.field(),
-                kOscModTypeLabel, "TYPE");
+    drawModBankIndexed(scr, 5, o.mod, bank_index_, bank_count_, focus_row,
+                       nav_.field(), kOscModTypeLabel, "TYPE");
 
     scr.reserve(kScopeCol, kScopeRow, kScopeCols, kScopeRows);
   }
@@ -105,13 +103,11 @@ class OscPage : public IPage {
   }
 
   bool handleKey(const UIEvent& ev) override {
+    refreshRows();
     if (nav_.handleNavKey(ev)) return true;
     Osc& o = model_.osc[voice_];
 
-    if (nav_.row() >= kBankRow0) {
-      return editModRow(ev, o.mod[nav_.row() - kBankRow0], nav_.field(),
-                        MOD_TYPE_COUNT);
-    }
+    if (nav_.row() >= kBankRow0) return editModRow(ev, bankRow(), nav_.field(), MOD_TYPE_COUNT);
 
     if (ev.code != KEY_LEFT && ev.code != KEY_RIGHT) return false;
     int dir = ev.code == KEY_RIGHT ? 1 : -1;
@@ -141,7 +137,7 @@ class OscPage : public IPage {
 
   bool toggleField() override {
     if (nav_.row() < kBankRow0) return false;
-    ModRow& m = model_.osc[voice_].mod[nav_.row() - kBankRow0];
+    ModRow& m = bankRow();
     m.on = !m.on;
     return true;
   }
@@ -149,7 +145,7 @@ class OscPage : public IPage {
   void zeroField() override {
     Osc& o = model_.osc[voice_];
     if (nav_.row() >= kBankRow0) {
-      zeroModRow(o.mod[nav_.row() - kBankRow0]);
+      zeroModRow(bankRow());
       return;
     }
     if (nav_.row() == kTuneRow) {
@@ -169,7 +165,7 @@ class OscPage : public IPage {
   void randomizeField() override {
     Osc& o = model_.osc[voice_];
     if (nav_.row() >= kBankRow0) {
-      ModRow& m = o.mod[nav_.row() - kBankRow0];
+      ModRow& m = bankRow();
       m.amount = model_.randomUnit() * 2.0f - 1.0f;
       m.mode = static_cast<uint8_t>(model_.random() % MOD_TYPE_COUNT);
       return;
@@ -194,7 +190,7 @@ class OscPage : public IPage {
     o.mult = 1;
     o.dtune = 0;
     o.level = 0.0f;
-    for (int i = 0; i < kOscModRows; ++i) zeroModRow(o.mod[i]);
+    for (int i = 0; i < bank_count_; ++i) zeroModRow(o.mod[bank_index_[i]]);
   }
 
   void randomizePage() override {
@@ -204,9 +200,10 @@ class OscPage : public IPage {
     // comparator together.
     o.div = 1 + static_cast<int>(model_.random() % 8u);
     o.mult = 1 + static_cast<int>(model_.random() % 8u);
-    for (int i = 0; i < kOscModRows; ++i) {
-      o.mod[i].amount = model_.randomUnit() * 2.0f - 1.0f;
-      o.mod[i].mode = static_cast<uint8_t>(model_.random() % MOD_TYPE_COUNT);
+    for (int i = 0; i < bank_count_; ++i) {
+      ModRow& m = o.mod[bank_index_[i]];
+      m.amount = model_.randomUnit() * 2.0f - 1.0f;
+      m.mode = static_cast<uint8_t>(model_.random() % MOD_TYPE_COUNT);
     }
   }
 
@@ -215,9 +212,33 @@ class OscPage : public IPage {
   }
 
  private:
+  ModRow& bankRow() {
+    int i = nav_.row() - kBankRow0;
+    if (i < 0) i = 0;
+    if (i >= bank_count_) i = bank_count_ > 0 ? bank_count_ - 1 : 0;
+    return model_.osc[voice_].mod[bank_index_[i]];
+  }
+
+  // The bank only lists rows whose source this mode shows, so the row table
+  // has to be rebuilt whenever the mode changes.
+  void refreshRows() {
+    if (nav_mode_ == model_.machine_mode) return;
+    nav_mode_ = model_.machine_mode;
+    bank_count_ = visibleModRows(model_.osc[voice_].mod, kOscModRows,
+                                 nav_mode_, bank_index_);
+    fields_[kTuneRow] = 3;
+    fields_[kVoiceRow] = 2;
+    for (int i = 0; i < bank_count_; ++i) fields_[kBankRow0 + i] = 2;
+    nav_.configure(fields_, kBankRow0 + bank_count_);
+  }
+
   PhoenixModel& model_;
   RowNav nav_;
   int voice_ = 0;
+  uint8_t fields_[kBankRow0 + kOscModRows] = {};
+  int bank_index_[kOscModRows] = {};
+  int bank_count_ = 0;
+  uint8_t nav_mode_ = 0xFF;
 };
 
 }  // namespace

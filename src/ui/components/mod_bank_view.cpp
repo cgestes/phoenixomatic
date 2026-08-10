@@ -57,6 +57,28 @@ int drawModBank(TextScreen& scr, int row, const ModRow* rows, int count,
   return row + count;
 }
 
+int drawModBankIndexed(TextScreen& scr, int row, const ModRow* rows,
+                       const int* index, int count, int focus_row,
+                       int focused_field, const char* const* mode_labels,
+                       const char* mode_caption) {
+  drawBankHeader(scr, row, mode_caption);
+  ++row;
+  for (int i = 0; i < count; ++i) {
+    drawModRow(scr, row + i, rows[index[i]],
+               i == focus_row ? focused_field : -1, mode_labels);
+  }
+  return row + count;
+}
+
+int visibleModRows(const ModRow* rows, int count, uint8_t machine_mode,
+                   int* index) {
+  int n = 0;
+  for (int i = 0; i < count; ++i) {
+    if (!sourceHidden(rows[i].src, machine_mode)) index[n++] = i;
+  }
+  return n;
+}
+
 uint8_t litSourcesOf(const ModRow* rows, int count) {
   uint8_t mask = 0;
   for (int i = 0; i < count; ++i) {

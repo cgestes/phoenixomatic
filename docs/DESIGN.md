@@ -365,9 +365,24 @@ the ratio between the two oscillators, which is exactly why a pattern you dial i
 `MULT` stays dialled in. Simple ratios give short repeating figures; awkward ones wander for a
 long time before coming back.
 
-In this mode `RATE` divides the incoming clock (1…16) rather than setting a frequency, and `SKEW`
-blends the data bit with feedback from the register's top tap, steering the pattern between short
-and restless. `PICK` chooses which of the three outputs is
+In this mode the knobs change meaning, and the panel relabels them rather than lying:
+
+| Knob | In RUNGLER mode | Shown as |
+|---|---|---|
+| `RATE` | Divides the incoming clock, 1…16. The clock is an oscillator, so there is no frequency to set. | `CLK DIV /n` |
+| `DEPTH` | Scales the output. | `LEVEL` |
+| `SKEW` | Blends the data bit with feedback from the register's top tap. Zero is the classic rungler; up from there lengthens and roughens the pattern. | `FEEDBACK` |
+
+The page also draws the register itself, MSB first, coloured by which output reads which bits —
+`A` for APATHY (bit 7 raw), `I` for INERTIA (bits 3–5), `T` for TORPOR (bits 0–2). Watching the
+bits march explains a rungler faster than any amount of prose about it.
+
+**A thing worth knowing.** At simple ratios the clock samples the data square at a near-integer
+rate, so the register shifts in long runs and spends most of its time at all-zeros or all-ones.
+Measured at `x1` against `x3` with 7 cents of detune: 22 distinct register values, 66% of the
+time at a rail. That is the "simple ratios lock" property doing exactly what it should, and both
+escape routes work — `FEEDBACK` at +30 gives 39 distinct values and 26% rail time, and 40 cents
+of `DTUNE` on OSC-2 drops rail time to 2%. `PICK` chooses which of the three outputs is
 published on the `CHA` bus. The three outputs are always running.
 
 ### 6.3 OSC (1 · 2) — the main performance page

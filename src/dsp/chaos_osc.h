@@ -29,6 +29,9 @@ class ChaosOsc {
   // -1..1, already scaled by depth and offset by skew.
   float out(int index) const { return out_[index < 0 ? 0 : (index > 2 ? 2 : index)]; }
 
+  // The rungler's shift register, so the panel can show it.
+  uint8_t registerBits() const { return rung_shift_; }
+
  private:
   // One chaotic core. Which equations it integrates depends on the mode.
   struct Core {

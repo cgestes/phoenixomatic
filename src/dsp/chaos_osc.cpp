@@ -55,10 +55,7 @@ void ChaosOsc::tickRungler(bool clock_high, bool data_high) {
   rung_prev_clock_ = clock_high;
   if (!rising) return;
 
-  int div = 1 + static_cast<int>(rate_ * 8.0f);
-  if (div < 1) div = 1;
-  if (div > 16) div = 16;
-  if ((++rung_div_count_ % div) != 0) return;
+  if ((++rung_div_count_ % runglerClockDiv(rate_)) != 0) return;
 
   uint8_t bit = data_high ? 1u : 0u;
   // Positive skew mixes in the register's own top bit, which lengthens the

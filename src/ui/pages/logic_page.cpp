@@ -13,12 +13,9 @@ constexpr int kTraceRow = 3;
 constexpr int kTraceCols = 36;
 constexpr int kTraceRows = 3;
 
-// COMP: offset, four attenuverter rows (amount only), level.
-constexpr uint8_t kCompFields[] = {1, 1, 1, 1, 1, 1};
-constexpr int kCompRows = 6;
+// COMP: offset, the attenuverter rows this mode shows, level.
 constexpr int kCompOffsetRow = 0;
 constexpr int kCompBankRow0 = 1;
-constexpr int kCompLevelRow = 5;
 
 // FATE: four channels of six fields, then the two mode selectors.
 constexpr uint8_t kFateFields[] = {6, 6, 6, 6, 2};
@@ -37,11 +34,13 @@ class LogicPage : public IPage {
   int subPage() const override { return sub_; }
   void setSubPage(int i) override {
     sub_ = i % 2;
+    nav_mode_ = 0xFF;   // force a rebuild: the row list differs per sub-page
     applyNav();
   }
   const char* subPageDots() const override { return "C F"; }
 
   void draw(TextScreen& scr) override {
+    applyNav();
     if (sub_ == 0) drawComparator(scr); else drawFate(scr);
   }
 
@@ -75,14 +74,15 @@ class LogicPage : public IPage {
   }
 
   bool handleKey(const UIEvent& ev) override {
+    applyNav();
     if (nav_.handleNavKey(ev)) return true;
     return sub_ == 0 ? editComparator(ev) : editFate(ev);
   }
 
   bool toggleField() override {
     if (sub_ == 0) {
-      if (nav_.row() < kCompBankRow0 || nav_.row() >= kCompLevelRow) return false;
-      ModRow& m = model_.comp.mod[nav_.row() - kCompBankRow0];
+      if (nav_.row() < kCompBankRow0 || nav_.row() >= compLevelRow()) return false;
+      ModRow& m = model_.comp.mod[bank_index_[nav_.row() - kCompBankRow0]];
       m.on = !m.on;
       return true;
     }
@@ -103,8 +103,8 @@ class LogicPage : public IPage {
     if (sub_ == 0) {
       Comparator& c = model_.comp;
       if (nav_.row() == kCompOffsetRow) c.offset = 0.0f;
-      else if (nav_.row() == kCompLevelRow) c.level = 0.0f;
-      else zeroModRow(c.mod[nav_.row() - kCompBankRow0]);
+      else if (nav_.row() == compLevelRow()) c.level = 0.0f;
+      else zeroModRow(c.mod[bank_index_[nav_.row() - kCompBankRow0]]);
       return;
     }
     if (nav_.row() == kFateModeRow) {
@@ -118,8 +118,9 @@ class LogicPage : public IPage {
     if (sub_ == 0) {
       Comparator& c = model_.comp;
       if (nav_.row() == kCompOffsetRow) c.offset = model_.randomUnit() * 2.0f - 1.0f;
-      else if (nav_.row() == kCompLevelRow) c.level = model_.randomUnit();
-      else c.mod[nav_.row() - kCompBankRow0].amount = model_.randomUnit() * 2.0f - 1.0f;
+      else if (nav_.row() == compLevelRow()) c.level = model_.randomUnit();
+      else c.mod[bank_index_[nav_.row() - kCompBankRow0]].amount =
+               model_.randomUnit() * 2.0f - 1.0f;
       return;
     }
     if (nav_.row() == kFateModeRow) {
@@ -135,7 +136,7 @@ class LogicPage : public IPage {
       Comparator& c = model_.comp;
       c.offset = 0.0f;
       c.level = 0.0f;
-      for (int i = 0; i < kCompModRows; ++i) zeroModRow(c.mod[i]);
+      for (int i = 0; i < bank_count_; ++i) zeroModRow(c.mod[bank_index_[i]]);
     } else {
       for (int i = 0; i < kFateChannels; ++i) zeroFate(model_.fate[i]);
       div_mode_ = DIVMODE_DIVIDE;
@@ -147,8 +148,8 @@ class LogicPage : public IPage {
     if (sub_ == 0) {
       Comparator& c = model_.comp;
       c.offset = model_.randomUnit() * 2.0f - 1.0f;
-      for (int i = 0; i < kCompModRows; ++i) {
-        c.mod[i].amount = model_.randomUnit() * 2.0f - 1.0f;
+      for (int i = 0; i < bank_count_; ++i) {
+        c.mod[bank_index_[i]].amount = model_.randomUnit() * 2.0f - 1.0f;
       }
     } else {
       for (int i = 0; i < kFateChannels; ++i) randomFate(model_.fate[i]);
@@ -170,11 +171,25 @@ class LogicPage : public IPage {
   }
 
  private:
+  // COMP's bank only lists rows whose source this mode shows, so the table is
+  // rebuilt whenever the mode or the sub-page changes.
   void applyNav() {
-    if (sub_ == 0) nav_.configure(kCompFields, kCompRows);
-    else nav_.configure(kFateFields, kFateRows);
+    if (nav_mode_ == model_.machine_mode && nav_sub_ == sub_) return;
+    nav_mode_ = model_.machine_mode;
+    nav_sub_ = sub_;
+    if (sub_ == 0) {
+      bank_count_ = visibleModRows(model_.comp.mod, kCompModRows, nav_mode_,
+                                   bank_index_);
+      int rows = kCompBankRow0 + bank_count_ + 1;   // offset + bank + level
+      for (int i = 0; i < rows; ++i) comp_fields_[i] = 1;
+      nav_.configure(comp_fields_, rows);
+    } else {
+      nav_.configure(kFateFields, kFateRows);
+    }
     nav_.setRow(0);
   }
+
+  int compLevelRow() const { return kCompBankRow0 + bank_count_; }
 
   void drawComparator(TextScreen& scr) {
     Comparator& c = model_.comp;
@@ -192,18 +207,20 @@ class LogicPage : public IPage {
     drawFieldF(scr, 9, 7, PEN_COOL, nav_.at(kCompOffsetRow, 0), obg, "%+d",
                static_cast<int>(c.offset * 100.0f));
 
-    for (int i = 0; i < kCompModRows; ++i) {
+    for (int i = 0; i < bank_count_; ++i) {
       int focused = nav_.atRow(kCompBankRow0 + i) ? MOD_FIELD_AMOUNT : -1;
-      drawModRow(scr, 8 + i, c.mod[i], focused, nullptr);
+      drawModRow(scr, 8 + i, c.mod[bank_index_[i]], focused, nullptr);
     }
 
-    bool lrow = nav_.atRow(kCompLevelRow);
+    int level_row = 8 + bank_count_ + 1;
+    bool lrow = nav_.atRow(compLevelRow());
     uint8_t lbg = rowBg(lrow);
-    if (lrow) scr.highlight(1, 12, kScreenCols - 2, PEN_PANEL);
-    scr.text(2, 12, "LEVEL", PEN_DIM, lbg);
-    drawFieldF(scr, 8, 12, c.mute ? PEN_FAINT : PEN_EMBER, nav_.at(kCompLevelRow, 0),
-               lbg, "%d", static_cast<int>(c.level * 100.0f));
-    if (c.mute) scr.text(13, 12, "muted", PEN_FAINT, lbg);
+    if (lrow) scr.highlight(1, level_row, kScreenCols - 2, PEN_PANEL);
+    scr.text(2, level_row, "LEVEL", PEN_DIM, lbg);
+    drawFieldF(scr, 8, level_row, c.mute ? PEN_FAINT : PEN_EMBER,
+               nav_.at(compLevelRow(), 0), lbg, "%d",
+               static_cast<int>(c.level * 100.0f));
+    if (c.mute) scr.text(13, level_row, "muted", PEN_FAINT, lbg);
 
     bool advanced = model_.machine_mode == MODE_ADVANCED;
     scr.text(2, 13, "A>B", PEN_BRIGHT);
@@ -279,8 +296,9 @@ class LogicPage : public IPage {
 
   bool editComparator(const UIEvent& ev) {
     Comparator& c = model_.comp;
-    if (nav_.row() >= kCompBankRow0 && nav_.row() < kCompLevelRow) {
-      return editModRow(ev, c.mod[nav_.row() - kCompBankRow0], MOD_FIELD_AMOUNT, 0);
+    if (nav_.row() >= kCompBankRow0 && nav_.row() < compLevelRow()) {
+      return editModRow(ev, c.mod[bank_index_[nav_.row() - kCompBankRow0]],
+                        MOD_FIELD_AMOUNT, 0);
     }
     if (ev.code != KEY_LEFT && ev.code != KEY_RIGHT) return false;
     float d = (ev.code == KEY_RIGHT ? 1.0f : -1.0f) * (ev.shift ? 0.01f : 0.04f);
@@ -367,6 +385,11 @@ class LogicPage : public IPage {
   int sub_ = 0;
   uint8_t div_mode_ = DIVMODE_DIVIDE;
   uint8_t toss_mode_ = TOSS_TOSS;
+  uint8_t comp_fields_[kCompModRows + 2] = {};
+  int bank_index_[kCompModRows] = {};
+  int bank_count_ = 0;
+  uint8_t nav_mode_ = 0xFF;
+  int nav_sub_ = -1;
   int stashed_mod_src_[kFateChannels] = {SRC_CHA, SRC_CHA, SRC_CHA, SRC_CHA};
 };
 

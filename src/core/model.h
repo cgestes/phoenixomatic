@@ -92,6 +92,14 @@ enum ChaosMode : uint8_t {
 extern const char* const kChaosModeLabel[CHAOS_MODE_COUNT];
 extern const char* const kChaosOutLabel[3];         // TORPOR / INERTIA / APATHY
 
+// In RUNGLER mode RATE stops being a frequency — the clock comes from an
+// oscillator — and becomes a divider on that clock. One mapping, shared by the
+// engine and the page, so the number on screen is the number in use.
+inline int runglerClockDiv(float rate) {
+  int div = 1 + static_cast<int>(rate * 8.0f);
+  return div < 1 ? 1 : (div > 16 ? 16 : div);
+}
+
 struct Chaos {
   uint8_t mode = CHAOS_SLOTH;
   float rate = 0.04f;      // Hz
@@ -101,6 +109,7 @@ struct Chaos {
   int pick = 0;            // which output is published on the bus
   int focus = 0;
   float out[3] = {0, 0, 0};  // live, -1..1
+  uint8_t rung_bits = 0;     // live shift register, for the RUNGLER display
 };
 
 enum OscWave : uint8_t { WAVE_SIN = 0, WAVE_TRI, WAVE_SAW, WAVE_SQR, WAVE_COUNT };
@@ -229,6 +238,14 @@ struct Drum {
 // panel does not show is worse than one that is missing a feature.
 enum MachineMode : uint8_t { MODE_BENJOLIN = 0, MODE_ADVANCED, MACHINE_MODE_COUNT };
 extern const char* const kMachineModeLabel[MACHINE_MODE_COUNT];
+
+// True when a source belongs to a module the mode does not put on the panel.
+// Rows fed by one are not drawn and cannot be reached — a control for a module
+// you cannot see is worse than no control at all.
+inline bool sourceHidden(SourceId s, uint8_t machine_mode) {
+  if (machine_mode != MODE_BENJOLIN) return false;
+  return s == SRC_SQ1 || s == SRC_SQ2 || s == SRC_CHB;
+}
 
 // ---------------------------------------------------------------------------
 // The machine

@@ -231,17 +231,13 @@ void PhoenixModel::tick(float dt) {
 }
 
 void PhoenixModel::applyMachineMode() {
-  // A source belongs to a module that BENJOLIN mode does not show.
-  auto hidden = [](SourceId s) {
-    return s == SRC_SQ1 || s == SRC_SQ2 || s == SRC_CHB;
-  };
   bool benjolin = machine_mode == MODE_BENJOLIN;
 
   auto apply = [&](ModRow* rows, int count) {
     for (int i = 0; i < count; ++i) {
       // The bypass here is imposed by the mode, not chosen by the player, so
       // leaving BENJOLIN restores it rather than leaving a row silently off.
-      if (benjolin && hidden(rows[i].src)) rows[i].on = false;
+      if (sourceHidden(rows[i].src, machine_mode)) rows[i].on = false;
       else if (!benjolin) rows[i].on = true;
     }
   };
