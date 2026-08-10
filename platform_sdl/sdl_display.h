@@ -24,6 +24,7 @@ class SDLDisplay : public GfxBase {
   int height() const override { return h_; }
 
   bool ok() const { return window_ != nullptr; }
+  int scale() const { return scale_; }
 
   // Dumps the panel at 1:1 to a BMP. Used by the `shot` mode to capture every
   // page without a human having to click through them.

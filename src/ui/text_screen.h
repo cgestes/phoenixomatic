@@ -60,6 +60,19 @@ class TextScreen {
   // One patch-bus cell: a 3-character label plus a level bar.
   void busCell(int col, int row, const char* label, float level, bool lit);
 
+  // --- mouse hit map ------------------------------------------------------
+  //
+  // Fields record the cells they occupy as they draw, so a click resolves back
+  // to the (row, field) the page thinks in. Built every frame by the same code
+  // that draws, which is the only way it stays true as layouts move.
+  struct FieldHit {
+    int8_t row = -1;
+    int8_t field = -1;
+    bool valid() const { return row >= 0; }
+  };
+  void markField(int col, int row, int cols, int nav_row, int nav_field);
+  FieldHit hitAtPixel(int px, int py) const;
+
   // --- pixel overlays -----------------------------------------------------
   void reserve(int col, int row, int cols, int rows);
   // Pixel bounds of a cell region, for pages painting overlays.
@@ -92,6 +105,7 @@ class TextScreen {
   Cell cells_[kScreenRows][kScreenCols];
   Cell prev_[kScreenRows][kScreenCols];
   bool reserved_[kScreenRows][kScreenCols] = {};
+  FieldHit hits_[kScreenRows][kScreenCols];
   bool full_repaint_ = true;
   int row_offset_ = 0;
 };

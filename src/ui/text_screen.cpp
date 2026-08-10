@@ -11,6 +11,7 @@ void TextScreen::beginFrame() {
     for (int c = 0; c < kScreenCols; ++c) {
       cells_[r][c] = Cell{' ', PEN_TEXT, PEN_BG};
       reserved_[r][c] = false;
+      hits_[r][c] = FieldHit{};
     }
   }
 }
@@ -119,6 +120,27 @@ void TextScreen::reserve(int col, int row, int cols, int rows) {
       reserved_[row + r][col + c] = true;
     }
   }
+}
+
+void TextScreen::markField(int col, int row, int cols, int nav_row, int nav_field) {
+  row += row_offset_;
+  if (row < 0 || row >= kScreenRows) return;
+  // One cell of pad either side: a two-character value is a hard thing to hit
+  // with a pointer, and the space beside it belongs to nothing else.
+  for (int i = -1; i <= cols; ++i) {
+    int c = col + i;
+    if (c < 0 || c >= kScreenCols) continue;
+    if (hits_[row][c].valid()) continue;   // the first field to claim a cell keeps it
+    hits_[row][c] = FieldHit{static_cast<int8_t>(nav_row),
+                             static_cast<int8_t>(nav_field)};
+  }
+}
+
+TextScreen::FieldHit TextScreen::hitAtPixel(int px, int py) const {
+  int col = px / kCellW;
+  int row = py / kCellH;
+  if (col < 0 || col >= kScreenCols || row < 0 || row >= kScreenRows) return FieldHit{};
+  return hits_[row][col];
 }
 
 void TextScreen::invalidate() { full_repaint_ = true; }

@@ -43,6 +43,9 @@ class DrumPage : public IPage {
     if (sub_ == 0) drawTrig(scr); else drawVoices(scr);
   }
 
+  void setCursor(int row, int field) override { nav_.setCursor(row, field); }
+  int focusedField() const override { return nav_.field(); }
+
   bool handleKey(const UIEvent& in) override {
     UIEvent ev = in;
     // A column pair becomes a left/right on the field it names.
@@ -181,13 +184,13 @@ class DrumPage : public IPage {
       if (rf) scr.highlight(1, row, kScreenCols - 2, PEN_PANEL);
 
       scr.text(2, row, d.name, d.mute ? PEN_FAINT : kDrumPen[i], bg);
-      drawField(scr, 7, row, kGateLabel[d.trig_src], PEN_EMBER, nav_.at(i, 0), bg);
-      drawFieldF(scr, 19, row, PEN_VIOLET, nav_.at(i, 1), bg, "%d%%",
+      drawField(scr, 7, row, i, 0, kGateLabel[d.trig_src], PEN_EMBER, nav_.at(i, 0), bg);
+      drawFieldF(scr, 19, row, i, 1, PEN_VIOLET, nav_.at(i, 1), bg, "%d%%",
                  static_cast<int>(d.chance * 100.0f));
-      drawFieldF(scr, 27, row, PEN_HOT, nav_.at(i, 2), bg, "/%d", d.div);
+      drawFieldF(scr, 27, row, i, 2, PEN_HOT, nav_.at(i, 2), bg, "/%d", d.div);
       // Keep the fader visible when focused; only the number is highlighted.
       scr.bar(32, row, 4, d.level, d.mute ? PEN_FAINT : kDrumPen[i]);
-      drawFieldF(scr, 37, row, d.mute ? PEN_FAINT : PEN_BRIGHT, nav_.at(i, 3), bg,
+      drawFieldF(scr, 37, row, i, 3, d.mute ? PEN_FAINT : PEN_BRIGHT, nav_.at(i, 3), bg,
                  "%d", static_cast<int>(d.level * 100.0f));
     }
 
@@ -220,12 +223,12 @@ class DrumPage : public IPage {
       for (int p = 0; p < 3; ++p) {
         int col = 9 + p * 10;
         scr.text(col, base, kParamName[idx][p], PEN_DIM, bg);
-        drawFieldF(scr, col, base + 1, PEN_BRIGHT, nav_.at(slot, p), bg, "%d", values[p]);
+        drawFieldF(scr, col, base + 1, slot, p, PEN_BRIGHT, nav_.at(slot, p), bg, "%d", values[p]);
       }
       for (int p = 3; p < 5; ++p) {
         int col = 9 + (p - 3) * 14;
         scr.text(col, base + 3, kParamName[idx][p], PEN_DIM, bg);
-        drawFieldF(scr, col + 11, base + 3, PEN_BRIGHT, nav_.at(slot, p), bg, "%d", values[p]);
+        drawFieldF(scr, col + 11, base + 3, slot, p, PEN_BRIGHT, nav_.at(slot, p), bg, "%d", values[p]);
       }
     }
 

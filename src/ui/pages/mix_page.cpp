@@ -38,9 +38,9 @@ class MixPage : public IPage {
       // are actually reading. Only the number takes the field highlight.
       float level = *constLevel(i);
       scr.bar(9, row, 10, level, mute ? PEN_FAINT : pen);
-      drawFieldF(scr, 21, row, mute ? PEN_FAINT : PEN_BRIGHT, nav_.at(i, 0), bg,
+      drawFieldF(scr, 21, row, i, 0, mute ? PEN_FAINT : PEN_BRIGHT, nav_.at(i, 0), bg,
                  "%d", static_cast<int>(level * 100.0f));
-      drawField(scr, 26, row, mute ? "MUTE" : "ON", mute ? PEN_ALERT : PEN_HOT,
+      drawField(scr, 26, row, i, 1, mute ? "MUTE" : "ON", mute ? PEN_ALERT : PEN_HOT,
                 nav_.at(i, 1), bg);
     }
 
@@ -49,17 +49,20 @@ class MixPage : public IPage {
     if (mr) scr.highlight(1, 11, kScreenCols - 2, PEN_PANEL);
     scr.text(2, 11, "MASTER", PEN_BRIGHT, mbg);
     scr.bar(9, 11, 14, model_.master, PEN_EMBER);
-    drawFieldF(scr, 25, 11, PEN_BRIGHT, nav_.at(kMasterRow, 0), mbg, "%d",
+    drawFieldF(scr, 25, 11, kMasterRow, 0, PEN_BRIGHT, nav_.at(kMasterRow, 0), mbg, "%d",
                static_cast<int>(model_.master * 100.0f));
 
     bool orow = nav_.atRow(kOutRow);
     uint8_t obg = rowBg(orow);
     if (orow) scr.highlight(1, 13, kScreenCols - 2, PEN_PANEL);
     scr.text(2, 13, "DRIVE", PEN_DIM, obg);
-    drawFieldF(scr, 8, 13, PEN_BRIGHT, nav_.at(kOutRow, 0), obg, "%d", model_.drive);
+    drawFieldF(scr, 8, 13, kOutRow, 0, PEN_BRIGHT, nav_.at(kOutRow, 0), obg, "%d", model_.drive);
     scr.text(13, 13, "CRUSH", PEN_DIM, obg);
-    drawFieldF(scr, 19, 13, PEN_BRIGHT, nav_.at(kOutRow, 1), obg, "%d", model_.crush);
+    drawFieldF(scr, 19, 13, kOutRow, 1, PEN_BRIGHT, nav_.at(kOutRow, 1), obg, "%d", model_.crush);
   }
+
+  void setCursor(int row, int field) override { nav_.setCursor(row, field); }
+  int focusedField() const override { return nav_.field(); }
 
   bool handleKey(const UIEvent& in) override {
     UIEvent ev = in;

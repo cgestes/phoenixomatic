@@ -14,7 +14,7 @@ void drawBankHeader(TextScreen& scr, int row, const char* mode_caption) {
 }
 
 void drawModRow(TextScreen& scr, int row, const ModRow& mod, int focused_field,
-                const char* const* mode_labels) {
+                const char* const* mode_labels, int nav_row) {
   bool row_focused = focused_field >= 0;
   uint8_t bg = rowBg(row_focused);
   if (row_focused) scr.highlight(1, row, kScreenCols - 2, PEN_PANEL);
@@ -34,25 +34,26 @@ void drawModRow(TextScreen& scr, int row, const ModRow& mod, int focused_field,
               : (value < 0 ? PEN_COOL : PEN_EMBER);
   int len = 0;
   for (const char* p = buf; *p; ++p) ++len;
-  drawField(scr, kBankAmtCol - len + 1, row, buf, pen,
+  drawField(scr, kBankAmtCol - len + 1, row, nav_row, MOD_FIELD_AMOUNT, buf, pen,
             focused_field == MOD_FIELD_AMOUNT, bg);
 
   scr.attenTrack(kBankTrackCol, row, kBankTrackWing, mod.amount, mod.on);
 
   if (mode_labels) {
-    drawField(scr, kBankModeCol, row, mode_labels[mod.mode],
+    drawField(scr, kBankModeCol, row, nav_row, MOD_FIELD_MODE, mode_labels[mod.mode],
               mod.on ? PEN_DIM : PEN_FAINT, focused_field == MOD_FIELD_MODE, bg);
   }
 }
 
 int drawModBank(TextScreen& scr, int row, const ModRow* rows, int count,
                 int focus_row, int focused_field,
-                const char* const* mode_labels, const char* mode_caption) {
+                const char* const* mode_labels, const char* mode_caption,
+                int nav_row0) {
   drawBankHeader(scr, row, mode_caption);
   ++row;
   for (int i = 0; i < count; ++i) {
     drawModRow(scr, row + i, rows[i], i == focus_row ? focused_field : -1,
-               mode_labels);
+               mode_labels, nav_row0 < 0 ? -1 : nav_row0 + i);
   }
   return row + count;
 }
@@ -60,12 +61,13 @@ int drawModBank(TextScreen& scr, int row, const ModRow* rows, int count,
 int drawModBankIndexed(TextScreen& scr, int row, const ModRow* rows,
                        const int* index, int count, int focus_row,
                        int focused_field, const char* const* mode_labels,
-                       const char* mode_caption) {
+                       const char* mode_caption, int nav_row0) {
   drawBankHeader(scr, row, mode_caption);
   ++row;
   for (int i = 0; i < count; ++i) {
     drawModRow(scr, row + i, rows[index[i]],
-               i == focus_row ? focused_field : -1, mode_labels);
+               i == focus_row ? focused_field : -1, mode_labels,
+               nav_row0 < 0 ? -1 : nav_row0 + i);
   }
   return row + count;
 }

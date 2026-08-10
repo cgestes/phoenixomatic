@@ -5,6 +5,7 @@
 #include "../../fonts/phx_glyphs.h"
 #include "../core/model.h"
 #include "components/phoenix_sprite.h"
+#include "components/row_nav.h"
 #include "pages/pages.h"
 
 namespace {
@@ -198,6 +199,44 @@ void PhoenixDisplay::update(float dt) {
   screen_.flush();
   page->drawOverlay(gfx_);
   gfx_.flush();
+}
+
+// The mouse drives the same code the keyboard does: a click moves the cursor,
+// and a drag or a wheel notch synthesises the column-pair key for whichever
+// field the cursor is on. Nothing about editing is duplicated for the pointer.
+void PhoenixDisplay::adjustFocused(int dir, bool fine) {
+  IPage* page = pages_[page_index_].get();
+  int field = page->focusedField();
+  if (field < 0 || field > 7) return;
+  UIEvent ev;
+  ev.key = dir > 0 ? RowNav::kFieldUp[field] : RowNav::kFieldDown[field];
+  ev.shift = fine;
+  page->handleKey(ev);
+}
+
+void PhoenixDisplay::mouseDown(int x, int y) {
+  if (splash_) {
+    dismissSplash();
+    return;
+  }
+  TextScreen::FieldHit hit = screen_.hitAtPixel(x, y);
+  if (!hit.valid()) return;
+  pages_[page_index_]->setCursor(hit.row, hit.field);
+  drag_accum_ = 0;
+}
+
+void PhoenixDisplay::mouseDrag(int dy) {
+  // Up is more. Four pixels a step, so a slow drag is controllable at the
+  // window scales this runs at.
+  drag_accum_ += dy;
+  while (drag_accum_ <= -4) { drag_accum_ += 4; adjustFocused(1, false); }
+  while (drag_accum_ >= 4) { drag_accum_ -= 4; adjustFocused(-1, false); }
+}
+
+void PhoenixDisplay::mouseWheel(int notches) {
+  for (int i = 0; i < (notches < 0 ? -notches : notches); ++i) {
+    adjustFocused(notches > 0 ? 1 : -1, false);
+  }
 }
 
 bool PhoenixDisplay::handleGlobalKey(const UIEvent& ev) {

@@ -73,6 +73,9 @@ class LogicPage : public IPage {
     gfx.fillRect(x0, b_y, w, 1, COLOR_COOL);
   }
 
+  void setCursor(int row, int field) override { nav_.setCursor(row, field); }
+  int focusedField() const override { return nav_.field(); }
+
   bool handleKey(const UIEvent& in) override {
     applyNav();
     UIEvent ev = in;
@@ -208,12 +211,13 @@ class LogicPage : public IPage {
     uint8_t obg = rowBg(orow);
     if (orow) scr.highlight(1, 7, kScreenCols - 2, PEN_PANEL);
     scr.text(2, 7, "OFFSET", PEN_TEXT, obg);
-    drawFieldF(scr, 9, 7, PEN_COOL, nav_.at(kCompOffsetRow, 0), obg, "%+d",
+    drawFieldF(scr, 9, 7, kCompOffsetRow, 0, PEN_COOL, nav_.at(kCompOffsetRow, 0), obg, "%+d",
                static_cast<int>(c.offset * 100.0f));
 
     for (int i = 0; i < bank_count_; ++i) {
       int focused = nav_.atRow(kCompBankRow0 + i) ? MOD_FIELD_AMOUNT : -1;
-      drawModRow(scr, 8 + i, c.mod[bank_index_[i]], focused, nullptr);
+      drawModRow(scr, 8 + i, c.mod[bank_index_[i]], focused, nullptr,
+                 kCompBankRow0 + i);
     }
 
     int level_row = 8 + bank_count_;
@@ -221,7 +225,7 @@ class LogicPage : public IPage {
     uint8_t lbg = rowBg(lrow);
     if (lrow) scr.highlight(1, level_row, kScreenCols - 2, PEN_PANEL);
     scr.text(2, level_row, "LEVEL", PEN_DIM, lbg);
-    drawFieldF(scr, 8, level_row, c.mute ? PEN_FAINT : PEN_EMBER,
+    drawFieldF(scr, 8, level_row, compLevelRow(), 0, c.mute ? PEN_FAINT : PEN_EMBER,
                nav_.at(compLevelRow(), 0), lbg, "%d",
                static_cast<int>(c.level * 100.0f));
     if (c.mute) scr.text(13, level_row, "muted", PEN_FAINT, lbg);
@@ -257,14 +261,14 @@ class LogicPage : public IPage {
       if (rf) scr.highlight(1, row, kScreenCols - 2, PEN_PANEL);
 
       scr.textf(1, row, rf ? PEN_HOT : PEN_BRIGHT, "%d", i + 1);
-      drawField(scr, 4, row, kGateLabel[f.src], PEN_EMBER, nav_.at(i, 0), bg);
-      drawFieldF(scr, 14, row, PEN_HOT, nav_.at(i, 1), bg, "/%d", f.ratio);
-      drawFieldF(scr, 18, row, PEN_FAINT, nav_.at(i, 2), bg, "+%d", f.phase);
-      drawFieldF(scr, 21, row, PEN_VIOLET, nav_.at(i, 3), bg, "%d%%",
+      drawField(scr, 4, row, i, 0, kGateLabel[f.src], PEN_EMBER, nav_.at(i, 0), bg);
+      drawFieldF(scr, 14, row, i, 1, PEN_HOT, nav_.at(i, 1), bg, "/%d", f.ratio);
+      drawFieldF(scr, 18, row, i, 2, PEN_FAINT, nav_.at(i, 2), bg, "+%d", f.phase);
+      drawFieldF(scr, 21, row, i, 3, PEN_VIOLET, nav_.at(i, 3), bg, "%d%%",
                  static_cast<int>(f.prob * 100.0f));
-      drawField(scr, 27, row, f.mod_src >= 0 ? kSourceLabel[f.mod_src] : "---",
+      drawField(scr, 27, row, i, 4, f.mod_src >= 0 ? kSourceLabel[f.mod_src] : "---",
                 f.mod_src >= 0 ? PEN_COOL : PEN_FAINT, nav_.at(i, 4), bg);
-      drawFieldF(scr, 31, row, f.mod_src >= 0 ? PEN_COOL : PEN_FAINT,
+      drawFieldF(scr, 31, row, i, 5, f.mod_src >= 0 ? PEN_COOL : PEN_FAINT,
                  nav_.at(i, 5), bg, "%+d", static_cast<int>(f.mod_amt * 100.0f));
 
       scr.put(35, row, f.div_out ? phx_glyphs::kLedOn : phx_glyphs::kLedOff,
@@ -279,9 +283,10 @@ class LogicPage : public IPage {
     uint8_t mbg = rowBg(mr);
     if (mr) scr.highlight(1, 8, kScreenCols - 2, PEN_PANEL);
     scr.text(2, 8, "DIV MODE", PEN_DIM, mbg);
-    drawField(scr, 11, 8, kDivModeLabel[div_mode_], PEN_HOT, nav_.at(kFateModeRow, 0), mbg);
+    drawField(scr, 11, 8, kFateModeRow, 0, kDivModeLabel[div_mode_], PEN_HOT,
+              nav_.at(kFateModeRow, 0), mbg);
     scr.text(21, 8, "TOSS MODE", PEN_DIM, mbg);
-    drawField(scr, 31, 8, kTossModeLabel[toss_mode_], PEN_HOT, nav_.at(kFateModeRow, 1), mbg);
+    drawField(scr, 31, 8, kFateModeRow, 1, kTossModeLabel[toss_mode_], PEN_HOT, nav_.at(kFateModeRow, 1), mbg);
 
     scr.text(2, 10, "FEEDS", PEN_DIM);
     scr.text(2, 11, "1", PEN_DIM);

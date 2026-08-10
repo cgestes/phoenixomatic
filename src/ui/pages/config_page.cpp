@@ -40,8 +40,7 @@ class ConfigPage : public IPage {
     uint8_t bg = rowBg(rf);
     if (rf) scr.highlight(1, 1, kScreenCols - 2, PEN_PANEL);
     scr.text(2, 1, "MACHINE", PEN_DIM, bg);
-    drawField(scr, 10, 1, kMachineModeLabel[model_.machine_mode], PEN_HOT,
-              nav_.at(kModeRow, 0), bg);
+    drawField(scr, 10, 1, kModeRow, 0, kMachineModeLabel[model_.machine_mode], PEN_HOT, nav_.at(kModeRow, 0), bg);
 
     bool benjolin = model_.machine_mode == MODE_BENJOLIN;
     for (int i = 0; i < kModuleCount; ++i) {
@@ -58,6 +57,9 @@ class ConfigPage : public IPage {
              PEN_DIM);
     scr.text(2, 13, "hidden modules stop modulating too", PEN_FAINT);
   }
+
+  void setCursor(int row, int field) override { nav_.setCursor(row, field); }
+  int focusedField() const override { return nav_.field(); }
 
   bool handleKey(const UIEvent& in) override {
     UIEvent ev = in;

@@ -46,6 +46,9 @@ class ProjectPage : public IPage {
     scr.text(2, 13, "ENTER loads", PEN_FAINT);
   }
 
+  void setCursor(int row, int field) override { nav_.setCursor(row, field); }
+  int focusedField() const override { return nav_.field(); }
+
   bool handleKey(const UIEvent& in) override {
     UIEvent ev = in;
     // A column pair becomes a left/right on the field it names.

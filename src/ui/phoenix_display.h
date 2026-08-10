@@ -19,6 +19,12 @@ class PhoenixDisplay {
   void update(float dt);
   bool handleKey(const UIEvent& ev);
 
+  // Mouse, in panel pixels. Click to put the cursor on a field, drag or wheel
+  // to change it.
+  void mouseDown(int x, int y);
+  void mouseDrag(int dy);
+  void mouseWheel(int notches);
+
   void nextPage();
   void prevPage();
   void dismissSplash();
@@ -39,6 +45,7 @@ class PhoenixDisplay {
   void drawBus();
   void drawSplash();
   bool handleGlobalKey(const UIEvent& ev);
+  void adjustFocused(int dir, bool fine);
 
   IGfx& gfx_;
   PhoenixModel& model_;
@@ -47,4 +54,5 @@ class PhoenixDisplay {
   int page_index_ = 0;
   bool splash_ = true;
   float splash_time_ = 0.0f;
+  int drag_accum_ = 0;
 };

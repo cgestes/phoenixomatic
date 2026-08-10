@@ -38,17 +38,17 @@ class OscPage : public IPage {
     uint8_t tbg = rowBg(tr);
     if (tr) scr.highlight(1, 1, kScreenCols - 2, PEN_PANEL);
     scr.text(1, 1, "WAVE", PEN_DIM, tbg);
-    drawField(scr, 6, 1, kWaveLabel[o.wave], PEN_HOT, nav_.at(kTuneRow, 0), tbg);
+    drawField(scr, 6, 1, kTuneRow, 0, kWaveLabel[o.wave], PEN_HOT, nav_.at(kTuneRow, 0), tbg);
     scr.text(11, 1, "DIV", PEN_DIM, tbg);
-    drawFieldF(scr, 15, 1, PEN_BRIGHT, nav_.at(kTuneRow, 1), tbg, "%d", o.div);
+    drawFieldF(scr, 15, 1, kTuneRow, 1, PEN_BRIGHT, nav_.at(kTuneRow, 1), tbg, "%d", o.div);
     scr.text(19, 1, "MULT", PEN_DIM, tbg);
-    drawFieldF(scr, 24, 1, PEN_BRIGHT, nav_.at(kTuneRow, 2), tbg, "%d", o.mult);
+    drawFieldF(scr, 24, 1, kTuneRow, 2, PEN_BRIGHT, nav_.at(kTuneRow, 2), tbg, "%d", o.mult);
     scr.text(28, 1, "DTUNE", PEN_DIM, tbg);
-    drawFieldF(scr, 34, 1, PEN_COOL, nav_.at(kTuneRow, 3), tbg, "%+d", o.dtune);
+    drawFieldF(scr, 34, 1, kTuneRow, 3, PEN_COOL, nav_.at(kTuneRow, 3), tbg, "%+d", o.dtune);
 
     int focus_row = nav_.row() >= kBankRow0 ? nav_.row() - kBankRow0 : -1;
     drawModBankIndexed(scr, 3, o.mod, bank_index_, bank_count_, focus_row,
-                       nav_.field(), kOscModTypeLabel, "TYPE");
+                       nav_.field(), kOscModTypeLabel, "TYPE", kBankRow0);
 
     scr.reserve(kScopeCol, kScopeRow, kScopeCols, kScopeRows);
   }
@@ -92,6 +92,9 @@ class OscPage : public IPage {
       prev_y = y;
     }
   }
+
+  void setCursor(int row, int field) override { nav_.setCursor(row, field); }
+  int focusedField() const override { return nav_.field(); }
 
   bool handleKey(const UIEvent& in) override {
     refreshRows();

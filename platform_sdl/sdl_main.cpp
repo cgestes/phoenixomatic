@@ -33,6 +33,7 @@ struct App {
   SDL_AudioDeviceID audio = 0;
   uint32_t last_ticks = 0;
   bool running = true;
+  bool dragging = false;
 };
 
 App g_app;
@@ -94,6 +95,19 @@ void frame() {
         default:
           break;
       }
+    } else if (e.type == SDL_MOUSEBUTTONDOWN && e.button.button == SDL_BUTTON_LEFT) {
+      // Window pixels to panel pixels. Emscripten already maps the canvas's
+      // CSS size back to its internal resolution, so the same divide works on
+      // the web.
+      int s = g_app.gfx->scale();
+      g_app.ui->mouseDown(e.button.x / s, e.button.y / s);
+      g_app.dragging = true;
+    } else if (e.type == SDL_MOUSEBUTTONUP && e.button.button == SDL_BUTTON_LEFT) {
+      g_app.dragging = false;
+    } else if (e.type == SDL_MOUSEMOTION && g_app.dragging) {
+      g_app.ui->mouseDrag(e.motion.yrel);
+    } else if (e.type == SDL_MOUSEWHEEL) {
+      g_app.ui->mouseWheel(e.wheel.y);
     } else if (e.type == SDL_KEYDOWN && !e.key.repeat) {
       UIEvent ui;
       if (translate(e.key, ui)) g_app.ui->handleKey(ui);

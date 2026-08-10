@@ -29,21 +29,23 @@ enum ModField : int { MOD_FIELD_AMOUNT = 0, MOD_FIELD_MODE, MOD_FIELD_COUNT };
 
 // One row. `mode_labels` may be null for banks with no mode column.
 // `focused_field` is -1 when the row is not the focused one.
+// `nav_row` is what a click on this row resolves to; -1 to leave it unclickable.
 void drawModRow(TextScreen& scr, int row, const ModRow& mod, int focused_field,
-                const char* const* mode_labels);
+                const char* const* mode_labels, int nav_row = -1);
 
 // Draws header + rows, returns the row after the bank. `focus_row` is the
 // bank-relative index of the focused row, or -1 for none.
 int drawModBank(TextScreen& scr, int row, const ModRow* rows, int count,
                 int focus_row, int focused_field,
-                const char* const* mode_labels, const char* mode_caption);
+                const char* const* mode_labels, const char* mode_caption,
+                int nav_row0 = -1);
 
 // Same, but draws only the rows named in `index` — for modes that hide the
 // modules some rows are fed by.
 int drawModBankIndexed(TextScreen& scr, int row, const ModRow* rows,
                        const int* index, int count, int focus_row,
                        int focused_field, const char* const* mode_labels,
-                       const char* mode_caption);
+                       const char* mode_caption, int nav_row0 = -1);
 
 // Fills `index` with the rows a mode actually shows; returns how many.
 int visibleModRows(const ModRow* rows, int count, uint8_t machine_mode,

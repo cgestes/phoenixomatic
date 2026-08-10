@@ -53,7 +53,7 @@ class HomePage : public IPage {
     scr.textf(6, 8, PEN_BRIGHT, "%.0fHz", static_cast<double>(model_.comp_hz));
     bool rf = nav_.atRow(0);
     scr.text(15, 8, "RATE", PEN_DIM, rowBg(rf));
-    drawFieldF(scr, 20, 8, PEN_HOT, nav_.at(0, 0), rowBg(rf), "%+.2f",
+    drawFieldF(scr, 20, 8, 0, 0, PEN_HOT, nav_.at(0, 0), rowBg(rf), "%+.2f",
                static_cast<double>(model_.rate_offset));
     scr.text(26, 8, "RUN", PEN_DIM);
     scr.put(30, 8, model_.playing ? phx_glyphs::kLedOn : phx_glyphs::kLedOff,
@@ -107,6 +107,9 @@ class HomePage : public IPage {
       prev = y;
     }
   }
+
+  void setCursor(int row, int field) override { nav_.setCursor(row, field); }
+  int focusedField() const override { return nav_.field(); }
 
   bool handleKey(const UIEvent& in) override {
     UIEvent ev = in;

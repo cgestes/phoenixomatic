@@ -41,6 +41,12 @@ class RowNav {
     clamp();
   }
 
+  void setCursor(int r, int f) {
+    row_ = r;
+    field_ = f;
+    clamp();
+  }
+
   // The eight keyboard columns, top key raises and bottom key lowers.
   static constexpr const char* kFieldUp = "asdfghjk";
   static constexpr const char* kFieldDown = "zxcvbnm,";
@@ -133,8 +139,12 @@ class RowNav {
 
 inline uint8_t rowBg(bool row_focused) { return row_focused ? PEN_PANEL : PEN_BG; }
 
-inline void drawField(TextScreen& scr, int col, int row, const char* text,
-                      uint8_t pen, bool focused, uint8_t bg) {
+// `nav_row` / `nav_field` are what a click on this text resolves back to.
+inline void drawField(TextScreen& scr, int col, int row, int nav_row, int nav_field,
+                      const char* text, uint8_t pen, bool focused, uint8_t bg) {
+  int len = 0;
+  for (const char* p = text; p && *p; ++p) ++len;
+  scr.markField(col, row, len, nav_row, nav_field);
   if (focused) {
     scr.text(col, row, text, PEN_BG, PEN_HOT);
   } else {
@@ -142,12 +152,12 @@ inline void drawField(TextScreen& scr, int col, int row, const char* text,
   }
 }
 
-inline void drawFieldF(TextScreen& scr, int col, int row, uint8_t pen,
-                       bool focused, uint8_t bg, const char* fmt, ...) {
+inline void drawFieldF(TextScreen& scr, int col, int row, int nav_row, int nav_field,
+                       uint8_t pen, bool focused, uint8_t bg, const char* fmt, ...) {
   char buf[kScreenCols + 1];
   va_list args;
   va_start(args, fmt);
   vsnprintf(buf, sizeof(buf), fmt, args);
   va_end(args);
-  drawField(scr, col, row, buf, pen, focused, bg);
+  drawField(scr, col, row, nav_row, nav_field, buf, pen, focused, bg);
 }

@@ -42,10 +42,10 @@ class ChaosPage : public IPage {
     uint8_t mbg = rowBg(mr);
     if (mr) scr.highlight(1, 1, kScreenCols - 2, PEN_PANEL);
     scr.text(2, 1, "MODE", PEN_DIM, mbg);
-    drawField(scr, 8, 1, kChaosModeLabel[c.mode], PEN_HOT, nav_.at(kModeRow, 0), mbg);
+    drawField(scr, 8, 1, kModeRow, 0, kChaosModeLabel[c.mode], PEN_HOT, nav_.at(kModeRow, 0), mbg);
     scr.text(21, 1, "FREEZE", PEN_DIM, mbg);
-    drawField(scr, 28, 1, c.freeze ? "ON" : "OFF", c.freeze ? PEN_ALERT : PEN_FAINT,
-              nav_.at(kModeRow, 1), mbg);
+    drawField(scr, 28, 1, kModeRow, 1, c.freeze ? "ON" : "OFF",
+              c.freeze ? PEN_ALERT : PEN_FAINT, nav_.at(kModeRow, 1), mbg);
 
     bool sr = nav_.atRow(kShapeRow);
     uint8_t sbg = rowBg(sr);
@@ -72,7 +72,7 @@ class ChaosPage : public IPage {
       } else {
         snprintf(buf, sizeof(buf), "%+d", static_cast<int>(c.skew * 100.0f));
       }
-      drawField(scr, col, 4, buf, PEN_COOL, nav_.at(kShapeRow, i), sbg);
+      drawField(scr, col, 4, kShapeRow, i, buf, PEN_COOL, nav_.at(kShapeRow, i), sbg);
     }
 
     // The register only exists in RUNGLER mode; the history of the picked
@@ -110,7 +110,7 @@ class ChaosPage : public IPage {
     uint8_t pbg = rowBg(pr);
     if (pr) scr.highlight(1, 5, kScreenCols - 2, PEN_PANEL);
     scr.text(2, 5, "PICK", PEN_DIM, pbg);
-    drawField(scr, 7, 5, kChaosOutLabel[c.pick], PEN_HOT, nav_.at(kPickRow, 0), pbg);
+    drawField(scr, 7, 5, kPickRow, 0, kChaosOutLabel[c.pick], PEN_HOT, nav_.at(kPickRow, 0), pbg);
 
     // Only list destinations this mode actually has. Both oscillators carry a
     // row for each chaos core, so a single core feeds the pair.
@@ -157,6 +157,9 @@ class ChaosPage : public IPage {
       prev = y;
     }
   }
+
+  void setCursor(int row, int field) override { nav_.setCursor(row, field); }
+  int focusedField() const override { return nav_.field(); }
 
   bool handleKey(const UIEvent& in) override {
     UIEvent ev = in;

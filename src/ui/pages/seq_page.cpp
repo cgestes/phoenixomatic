@@ -44,8 +44,11 @@ class SeqPage : public IPage {
 
     int focus_row = nav_.row() >= kBankRow0 ? nav_.row() - kBankRow0 : -1;
     drawModBank(scr, kScrBank, s.mod, kSeqModRows, focus_row, nav_.field(),
-                kSeqDestLabel, "DEST");
+                kSeqDestLabel, "DEST", kBankRow0);
   }
+
+  void setCursor(int row, int field) override { nav_.setCursor(row, field); }
+  int focusedField() const override { return nav_.field(); }
 
   bool handleKey(const UIEvent& in) override {
     UIEvent ev = in;
@@ -218,11 +221,11 @@ class SeqPage : public IPage {
         scr.put(col, kScrBarTop, phx_glyphs::bar(lvl > 7 ? lvl - 7 : 0),
                 lvl > 7 ? pen : PEN_FAINT);
         scr.put(col, kScrBarTop + 1, phx_glyphs::bar(lvl > 7 ? 7 : lvl), pen);
-        drawFieldF(scr, col, kScrNote, here ? PEN_BRIGHT : PEN_TEXT, cursor,
-                   PEN_BG, "%d", notes[i]);
+        drawFieldF(scr, col, kScrNote, kStepRow, i, here ? PEN_BRIGHT : PEN_TEXT,
+                   cursor, PEN_BG, "%d", notes[i]);
       } else {
         scr.put(col, kScrBarTop + 1, phx_glyphs::kBlockDim, PEN_FAINT);
-        drawField(scr, col, kScrNote, "--", PEN_FAINT, cursor, PEN_BG);
+        drawField(scr, col, kScrNote, kStepRow, i, "--", PEN_FAINT, cursor, PEN_BG);
       }
       if (here) scr.put(col, kScrHead, phx_glyphs::kTriUp, PEN_HOT);
     }
@@ -234,13 +237,12 @@ class SeqPage : public IPage {
     if (rf) scr.highlight(1, kScrGate, kScreenCols - 2, PEN_PANEL);
 
     scr.text(1, kScrGate, "GATE", PEN_DIM, bg);
-    drawField(scr, 6, kScrGate, kGateLabel[s.clock_src], PEN_HOT,
+    drawField(scr, 6, kScrGate, kGateRow, 0, kGateLabel[s.clock_src], PEN_HOT,
               nav_.at(kGateRow, 0), bg);
-    drawFieldF(scr, 17, kScrGate, PEN_HOT, nav_.at(kGateRow, 1), bg, "/%d", s.div);
-    drawField(scr, 21, kScrGate, kSeqDirLabel[s.dir], PEN_HOT,
-              nav_.at(kGateRow, 2), bg);
-    drawFieldF(scr, 27, kScrGate, PEN_HOT, nav_.at(kGateRow, 3), bg, "%doct", s.range);
-    drawFieldF(scr, 34, kScrGate, PEN_VIOLET, nav_.at(kGateRow, 4), bg, "%d%%",
+    drawFieldF(scr, 17, kScrGate, kGateRow, 1, PEN_HOT, nav_.at(kGateRow, 1), bg, "/%d", s.div);
+    drawField(scr, 21, kScrGate, kGateRow, 2, kSeqDirLabel[s.dir], PEN_HOT, nav_.at(kGateRow, 2), bg);
+    drawFieldF(scr, 27, kScrGate, kGateRow, 3, PEN_HOT, nav_.at(kGateRow, 3), bg, "%doct", s.range);
+    drawFieldF(scr, 34, kScrGate, kGateRow, 4, PEN_VIOLET, nav_.at(kGateRow, 4), bg, "%d%%",
                static_cast<int>(s.chance * 100.0f));
   }
 
