@@ -29,6 +29,7 @@ The third decision is the one that defines the instrument. See §3.
 | 2 | Oscillator | 2 | SIN / TRI / SAW / SQR, tuned as a **ratio** against C3, with a 5-slot modulation bank each |
 | 3 | Step sequencer | 8 steps × 2 | Clock div/mult + a 5-row modulation bank each |
 | 4 | Comparator | 1 | A vs B + modulated offset. Outputs A>B, A<B gates **and** audio |
+| 5 | Filter | 1 | Resonant multimode (LP/BP/HP), fed by the comparator's pulse train and swept by the rungler. The Benjolin's voice. |
 | 5 | Gate channel — **FATE** | 4 | Divider **then** coin toss, in series. Three taps each |
 | 6 | Drum voice | 4 | KIK, SNR, HH, OH — each with trigger source, chance, divider |
 
@@ -262,6 +263,7 @@ run indicator, and `[< 6/15 >]` — the arrows being the keys that move it.
 | 3 | OSC | 1 · 2 |
 | 4 | SEQ | 1 · 2 |
 | 5 | LOGIC | COMP · FATE |
+| 6 | FILTER | — |
 | 6 | DRUM | TRIG · KIK+SNR · HH+OH |
 | 7 | MIX | — |
 | 8 | CONFIG | — |
@@ -412,6 +414,27 @@ is true of a one-bit output by construction and therefore says nothing. A meter 
 time — so the panel measures it rather than leaving it to be eyeballed. At the shipped defaults
 it reads 22%. The history samples on a fixed 0.25 s interval, not per frame, so the window is the
 same whether the panel runs at 25fps on the Cardputer or 60 in a browser.
+
+### The filter
+
+The comparator's PWM through a **resonant multimode filter**, with the rungler on its cutoff. This
+is the part that makes the machine sound like a Benjolin rather than two oscillators and a rhythm:
+the PWM is a square whose width is modulated by everything upstream, and a resonant filter swept
+by the rungler turns that into a voice.
+
+Topology-preserving state-variable (Simper form) — stable while the cutoff is modulated hard,
+which it will be, and LP, BP and HP fall out of one structure. Resonance runs to self-oscillation:
+the damping term reaches near zero and a soft clip inside the loop decides the amplitude rather
+than the filter running away.
+
+`IN` selects what it filters — `PWM` as the original has it, either oscillator, or both. Cutoff
+and resonance are both CV destinations, so the bank's `DEST` column chooses per row which it
+drives. Defaults put `CHAOS-A` (the rungler) at +55 on cutoff and `OSC-2` at +20, the Benjolin's
+own arrangement.
+
+Measured: cutoff at the bottom of its range passes 2032 rms of the pulse train against 6869 at the
+top, resonance at 100 sustains 5714 with no input at all, and the default rungler sweep sits at
+4213.
 
 **Why the two rungler depths differ.** The rungler feeds both oscillators, and the depths must
 not be equal. Modulating both by the same amount shifts them together and leaves their *ratio*
