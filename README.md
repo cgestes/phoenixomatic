@@ -7,8 +7,14 @@ Two chaos oscillators, two oscillators, two eight-step sequencers, a comparator,
 of fate and four drums — all permanently wired to each other. **You play it by turning
 attenuverters, not by patching.**
 
-> Status: **stub UI**. Every page is drawn for real against a fake state model that animates.
-> It makes no sound yet. See [docs/DESIGN.md](docs/DESIGN.md) for the full plan.
+### ▶ [Play it in the browser](https://cgestes.github.io/phoenixomatic/)
+
+No install, no patch cables. Published from `main` on every push.
+
+> Status: **it makes sound.** The full engine is running — chaos cores, the rungler, two
+> oscillators with nine modulation types, a comparator time base, a resonant filter, sequencers,
+> fate and four drum voices, on desktop and web from the same C++. The Cardputer build compiles
+> but has never been flashed. See [docs/DESIGN.md](docs/DESIGN.md) for how it all fits together.
 
 ## Building
 
