@@ -45,6 +45,7 @@ class OscPage : public IPage {
     drawFieldF(scr, 24, 1, kTuneRow, 2, PEN_BRIGHT, nav_.at(kTuneRow, 2), tbg, "%d", o.mult);
     scr.text(28, 1, "DTUNE", PEN_DIM, tbg);
     drawFieldF(scr, 34, 1, kTuneRow, 3, PEN_COOL, nav_.at(kTuneRow, 3), tbg, "%+d", o.dtune);
+    if (o.mute) scr.text(1, 2, "muted", PEN_FAINT);
 
     int focus_row = nav_.row() >= kBankRow0 ? nav_.row() - kBankRow0 : -1;
     drawModBankIndexed(scr, 3, o.mod, bank_index_, bank_count_, focus_row,
@@ -124,7 +125,12 @@ class OscPage : public IPage {
   }
 
   bool toggleField() override {
-    if (nav_.row() < kBankRow0) return false;
+    // Above the bank, SPACE mutes the voice — the same rule the filter page
+    // follows, so the key means "silence this module" everywhere it can.
+    if (nav_.row() < kBankRow0) {
+      model_.osc[voice_].mute = !model_.osc[voice_].mute;
+      return true;
+    }
     ModRow& m = bankRow();
     m.on = !m.on;
     return true;

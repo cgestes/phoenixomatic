@@ -190,7 +190,9 @@ class ChaosPage : public IPage {
   }
 
   bool toggleField() override {
-    if (nav_.row() != kModeRow || nav_.field() != 1) return false;
+    // A modulator has no level to mute, so freeze is its equivalent: the whole
+    // row does it, not just the FREEZE field, to match OSC and FILTER.
+    if (nav_.row() != kModeRow) return false;
     Chaos& c = model_.chaos[which_];
     c.freeze = !c.freeze;
     return true;

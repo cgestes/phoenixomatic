@@ -85,7 +85,11 @@ class LogicPage : public IPage {
 
   bool toggleField() override {
     if (sub_ == 0) {
-      if (nav_.row() < kCompBankRow0 || nav_.row() >= compLevelRow()) return false;
+      // Offset and level rows mute the comparator, the same as OSC and FILTER.
+      if (nav_.row() < kCompBankRow0 || nav_.row() >= compLevelRow()) {
+        model_.comp.mute = !model_.comp.mute;
+        return true;
+      }
       ModRow& m = model_.comp.mod[bank_index_[nav_.row() - kCompBankRow0]];
       m.on = !m.on;
       return true;
