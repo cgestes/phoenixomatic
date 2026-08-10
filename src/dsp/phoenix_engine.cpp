@@ -208,7 +208,7 @@ void PhoenixEngine::render(int16_t* out, size_t frames) {
     // --- sequencer CV ------------------------------------------------------
     for (int v = 0; v < 2; ++v) {
       const Seq& s = model_.seq[v];
-      int8_t note = s.note[seq_step_[v] & (kSeqSteps - 1)];
+      int8_t note = s.notes()[seq_step_[v] & (kSeqSteps - 1)];
       float target = note < 0 ? seq_cv_[v]
                               : noteToBus(note) * (static_cast<float>(s.range) / 2.0f);
       // Rows aimed at CV sum straight into the output, which is what makes an

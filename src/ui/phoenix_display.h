@@ -26,8 +26,14 @@ class PhoenixDisplay {
   // Force a full repaint. Needed when the window system throws away what we
   // drew — expose, resize, a lost WebGL context.
   void invalidate() { screen_.invalidate(); }
+  // Flat position across every page and sub-page, which is what [ and ] walk.
+  int screenIndex() const;
+  int screenCount() const;
 
  private:
+  // Width of the white name plate, sized to the longest page title.
+  static constexpr int kTitleWidth = 18;
+
   void drawHeader();
   void drawBus();
   void drawSplash();

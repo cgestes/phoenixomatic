@@ -28,15 +28,43 @@ PhoenixDisplay::PhoenixDisplay(IGfx& gfx, PhoenixModel& model)
 
 PhoenixDisplay::~PhoenixDisplay() = default;
 
+// [ and ] walk every screen in the machine, sub-pages included, so there is
+// one flat sequence rather than two axes to remember.
 void PhoenixDisplay::nextPage() {
-  page_index_ = (page_index_ + 1) % static_cast<int>(pages_.size());
+  IPage* page = pages_[page_index_].get();
+  if (page->subPage() + 1 < page->subPageCount()) {
+    page->setSubPage(page->subPage() + 1);
+  } else {
+    page->setSubPage(0);
+    page_index_ = (page_index_ + 1) % static_cast<int>(pages_.size());
+    pages_[page_index_]->setSubPage(0);
+  }
   screen_.invalidate();
 }
 
 void PhoenixDisplay::prevPage() {
-  int n = static_cast<int>(pages_.size());
-  page_index_ = (page_index_ + n - 1) % n;
+  IPage* page = pages_[page_index_].get();
+  if (page->subPage() > 0) {
+    page->setSubPage(page->subPage() - 1);
+  } else {
+    int n = static_cast<int>(pages_.size());
+    page_index_ = (page_index_ + n - 1) % n;
+    IPage* prev = pages_[page_index_].get();
+    prev->setSubPage(prev->subPageCount() - 1);
+  }
   screen_.invalidate();
+}
+
+int PhoenixDisplay::screenCount() const {
+  int total = 0;
+  for (const auto& p : pages_) total += p->subPageCount();
+  return total;
+}
+
+int PhoenixDisplay::screenIndex() const {
+  int index = 0;
+  for (int i = 0; i < page_index_; ++i) index += pages_[i]->subPageCount();
+  return index + pages_[page_index_]->subPage();
 }
 
 void PhoenixDisplay::dismissSplash() {
@@ -46,38 +74,35 @@ void PhoenixDisplay::dismissSplash() {
 }
 
 void PhoenixDisplay::drawHeader() {
-  screen_.fillRow(kHeaderRow, PEN_TEXT, PEN_PANEL);
-  screen_.put(0, kHeaderRow, model_.playing ? phx_glyphs::kTriRight : '=',
-              model_.playing ? PEN_EMBER : PEN_DIM, PEN_PANEL);
-  char buf[16];
-  // There is no clock to display, so show how fast the comparator is actually
-  // flipping — a readout, not a setting. Precision follows the value.
-  float hz = model_.comp_hz;
-  if (hz < 10.0f) snprintf(buf, sizeof(buf), "%.2f", static_cast<double>(hz));
-  else            snprintf(buf, sizeof(buf), "%4.0f", static_cast<double>(hz));
-  screen_.text(1, kHeaderRow, buf, PEN_BRIGHT, PEN_PANEL);
-
   IPage* page = pages_[page_index_].get();
-  screen_.text(6, kHeaderRow, page->title(), PEN_BRIGHT, PEN_PANEL);
+  screen_.fillRow(kHeaderRow, PEN_TEXT, PEN_BG);
+
+  // The page name sits in a solid white plate, which is the one piece of the
+  // panel that should be readable from across a room.
+  screen_.fill(0, kHeaderRow, kTitleWidth, ' ', PEN_BG, PEN_BRIGHT);
+  screen_.text(1, kHeaderRow, page->title(), PEN_BG, PEN_BRIGHT);
 
   if (const char* dots = page->subPageDots()) {
-    // Mark the active sub-page by lighting its character.
-    int col = 27;
+    int col = kTitleWidth + 1;
     int idx = 0;
     for (const char* p = dots; *p; ++p, ++col) {
-      bool marker = (*p != ' ' && *p != '\xB7' && *p != '.');
+      bool marker = (*p != ' ');
       uint8_t pen = PEN_DIM;
       if (marker) {
         pen = (idx == page->subPage()) ? PEN_HOT : PEN_FAINT;
         ++idx;
       }
-      screen_.put(col, kHeaderRow, static_cast<uint8_t>(*p), pen, PEN_PANEL);
+      screen_.put(col, kHeaderRow, static_cast<uint8_t>(*p), pen);
     }
   }
 
-  snprintf(buf, sizeof(buf), "%d/%d", page_index_ + 1,
-           static_cast<int>(pages_.size()));
-  screen_.textRight(38, kHeaderRow, buf, PEN_DIM);
+  screen_.put(26, kHeaderRow, model_.playing ? phx_glyphs::kTriRight : '=',
+              model_.playing ? PEN_EMBER : PEN_DIM);
+
+  // [< 5/15 >] — the arrows are the keys that move it.
+  char buf[24];
+  snprintf(buf, sizeof(buf), "[< %d/%d >]", screenIndex() + 1, screenCount());
+  screen_.textRight(kScreenCols - 1, kHeaderRow, buf, PEN_BRIGHT);
 }
 
 void PhoenixDisplay::drawBus() {

@@ -71,8 +71,30 @@ PhoenixModel::PhoenixModel() {
   seq[0].mod[2].amount = -0.18f;
   seq[0].clock_src = GATE_FATE1_DIV;
   seq[1].clock_src = GATE_CMP_LT;
-  const int8_t seq2_notes[kSeqSteps] = {31, -1, 43, 43, 26, 55, -1, 38};
-  for (int i = 0; i < kSeqSteps; ++i) seq[1].note[i] = seq2_notes[i];
+  // Every slot starts with something playable: the designed pattern, then
+  // deterministic variations of it. An empty bank would just make the machine
+  // go quiet when you go looking, which teaches nothing.
+  const int8_t seed_notes[2][kSeqSteps] = {
+    {48, 36, 61, -1, 50, 67, 41, 58},
+    {31, -1, 43, 43, 26, 55, -1, 38},
+  };
+  for (int v = 0; v < 2; ++v) {
+    for (int b = 0; b < kSeqBanks; ++b) {
+      for (int p = 0; p < kSeqPatterns; ++p) {
+        for (int i = 0; i < kSeqSteps; ++i) {
+          // Rotate by the pattern index, transpose by the bank, and thin the
+          // later patterns out with rests so they are not all the same density.
+          int src = (i + p) % kSeqSteps;
+          int8_t n = seed_notes[v][src];
+          if (n >= 0) {
+            n = static_cast<int8_t>(n + b * 3 - 3);
+            if (((i * 7 + p * 5 + b) % 11) < p / 3) n = -1;
+          }
+          seq[v].pattern[b][p][i] = n;
+        }
+      }
+    }
+  }
 
   // --- comparator offset bank: both sequencers, both chaos oscillators.
   const char* comp_names[kCompModRows] = { "SEQ-1", "SEQ-2", "CHAOS-A", "CHAOS-B" };
@@ -185,12 +207,13 @@ void PhoenixModel::scramble(int page_index) {
         }
       }
       break;
-    case 3:  // SEQ
+    case 3:  // SEQ — only the pattern you are looking at
       for (int v = 0; v < 2; ++v) {
+        int8_t* notes = seq[v].editNotes();
         for (int i = 0; i < kSeqSteps; ++i) {
-          seq[v].note[i] = (rng() % 5u) == 0
-                               ? static_cast<int8_t>(-1)
-                               : static_cast<int8_t>(28 + rng() % 40u);
+          notes[i] = (rng() % 5u) == 0
+                         ? static_cast<int8_t>(-1)
+                         : static_cast<int8_t>(28 + rng() % 40u);
         }
       }
       break;

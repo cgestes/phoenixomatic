@@ -88,13 +88,22 @@ struct Osc {
 
 inline constexpr int kSeqSteps = 8;
 inline constexpr int kSeqModRows = 5;
+inline constexpr int kSeqPatterns = 8;
+inline constexpr int kSeqBanks = 4;
 
 enum SeqDir : uint8_t { DIR_FWD = 0, DIR_REV, DIR_PEND, DIR_RAND, DIR_COUNT };
 extern const char* const kSeqDirLabel[DIR_COUNT];
 extern const char* const kDivMultLabel[7];          // /4 /2 x1 x2 x3 x4 x8
 
 struct Seq {
-  int8_t note[kSeqSteps] = {48, 36, 61, -1, 50, 67, 41, 58};  // -1 = rest
+  // Eight patterns in each of four banks. -1 is a rest.
+  int8_t pattern[kSeqBanks][kSeqPatterns][kSeqSteps] = {};
+  int bank = 0;
+  int pat = 0;
+
+  const int8_t* notes() const { return pattern[bank][pat]; }
+  int8_t* editNotes() { return pattern[bank][pat]; }
+
   int step = 0;
   uint8_t clock_src = GATE_CMP_GT;
   int div_mult = 2;        // index into kDivMultLabel, 2 == x1
