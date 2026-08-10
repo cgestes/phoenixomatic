@@ -271,9 +271,12 @@ class SeqPage : public IPage {
       case 1: s.div = clampRatioTerm(s.div + dir * (fine ? 8 : 1)); break;
       case 2: s.dir = static_cast<uint8_t>((s.dir + DIR_COUNT + dir) % DIR_COUNT); break;
       case 3:
-        s.range += dir;
-        if (s.range < 1) s.range = 1;
-        if (s.range > 5) s.range = 5;
+        {
+          int i = seqRangeIndex(s.range) + dir;
+          if (i < 0) i = 0;
+          if (i >= kSeqRangeCount) i = kSeqRangeCount - 1;
+          s.range = kSeqRangeOct[i];
+        }
         break;
       default:
         s.chance += static_cast<float>(dir) * (fine ? 0.01f : 0.05f);
@@ -311,7 +314,7 @@ class SeqPage : public IPage {
       case 0: s.clock_src = static_cast<uint8_t>(model_.random() % GATE_COUNT); break;
       case 1: s.div = randomRatioTerm(model_.randomUnit()); break;
       case 2: s.dir = static_cast<uint8_t>(model_.random() % DIR_COUNT); break;
-      case 3: s.range = 1 + static_cast<int>(model_.random() % 5u); break;
+      case 3: s.range = kSeqRangeOct[model_.random() % kSeqRangeCount]; break;
       default: s.chance = 0.4f + model_.randomUnit() * 0.6f; break;
     }
   }

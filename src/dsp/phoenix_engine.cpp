@@ -47,6 +47,10 @@ constexpr float kFilterModOctaves = 5.0f;
 // 0…100 onto -1…+1. The halves are exact, so at RANGE 2 — the default — the
 // full width of the step scale lands on the bus with nothing clamped off
 // either end, and RANGE is a straight scaler either side of that.
+// Runaway guard only: the widest RANGE reaches 10, and five mod rows at full
+// travel can add five more.
+constexpr float kSeqCvLimit = 16.0f;
+
 inline float noteToBus(int8_t note) {
   return (static_cast<float>(note) - static_cast<float>(kSeqNoteMid)) /
          (static_cast<float>(kSeqNoteMax - kSeqNoteMin) * 0.5f);
@@ -258,8 +262,15 @@ void PhoenixEngine::render(int16_t* out, size_t frames) {
       } else {
         seq_cv_[v] = target;
       }
-      seq_cv_[v] = clamp1(seq_cv_[v]);
-      model_.seq[v].out = seq_cv_[v] * 0.5f + 0.5f;
+      // Deliberately not clamped to the bus rail. RANGE is a gain, and
+      // pinning it at 1 made every setting above 2 identical — the same fault
+      // the step scale had. A wide sequencer CV is the point of the control;
+      // the attenuverter at the far end decides what it becomes.
+      if (seq_cv_[v] > kSeqCvLimit) seq_cv_[v] = kSeqCvLimit;
+      if (seq_cv_[v] < -kSeqCvLimit) seq_cv_[v] = -kSeqCvLimit;
+      // The readout stays normalised, so the bar shows the pattern's shape
+      // rather than pinning as soon as RANGE opens up.
+      model_.seq[v].out = clamp1(noteToBus(note)) * 0.5f + 0.5f;
     }
 
     // --- oscillators -------------------------------------------------------

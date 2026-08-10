@@ -203,6 +203,20 @@ inline constexpr int8_t kSeqNoteMid = 50;
 inline constexpr int8_t kSeqNoteMin = 0;
 inline constexpr int8_t kSeqNoteMax = 100;
 
+// RANGE is how hard the sequencer drives the bus, in octaves at an exp-FM row
+// with the attenuverter wide open. Not a continuous 1..n: past 5 the useful
+// values are far apart, and stepping 1,2,3…20 one at a time to reach the top
+// is a crawl through settings nobody picks.
+inline constexpr uint8_t kSeqRangeOct[] = {1, 2, 3, 4, 5, 8, 10, 15, 20};
+inline constexpr int kSeqRangeCount = 9;
+
+inline int seqRangeIndex(int oct) {
+  for (int i = 0; i < kSeqRangeCount; ++i) {
+    if (kSeqRangeOct[i] >= oct) return i;
+  }
+  return kSeqRangeCount - 1;
+}
+
 inline constexpr int kSeqSteps = 8;
 inline constexpr int kSeqModRows = 5;
 inline constexpr int kSeqPatterns = 8;

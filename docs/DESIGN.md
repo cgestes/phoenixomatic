@@ -283,10 +283,31 @@ Measured, with modulation off:
 | 75 | +0.250 | +0.500 | +1.000 (clamped) |
 | 100 | +0.500 | **+1.000** | +1.000 (clamped) |
 
-The halves are exact, so at the default range the full width of the scale lands
-on the bus with nothing dead at either end, and `RANGE` is a straight scaler
-either side of that. Wider ranges clamp the extremes, which is what asking for
-five octaves out of eight steps means.
+The halves are exact, so at `RANGE 2` the full width of the scale lands on the
+bus at exactly ±1.
+
+`RANGE` picks from a list — **1, 2, 3, 4, 5, 8, 10, 15, 20 oct** — rather than
+counting up one at a time: past 5 the useful values are far apart, and crawling
+1…20 through settings nobody picks is not a control. It is the gain the
+sequencer drives the bus with, in octaves at an exp-FM row with the attenuverter
+wide open.
+
+The sequencer's CV is deliberately **not clamped to the ±1 bus rail**. Pinning
+it there made every setting above `RANGE 2` identical — the same fault the step
+scale had, one layer down. A wide sequencer CV is the whole point of the
+control; the attenuverter at the far end decides what it becomes. A runaway
+guard sits at ±16 (the widest range reaches 10, and five mod rows at full
+travel can add five more), and the on-screen step bars read the *normalised*
+value so they show the pattern's shape instead of pinning as soon as `RANGE`
+opens up.
+
+One honest limit: the oscillator caps exponential FM at ±8 octaves, which is
+already past Nyquist from C3, so with an attenuverter **fully open** `8`, `10`,
+`15` and `20` all arrive at the same place. They separate as soon as the
+attenuverter comes down, which is how the control is meant to be used —
+at amount `0.3` they give 2.4, 3.0, 4.5 and 6.0 octaves. Destinations with
+their own depth (the filter's 5 octaves, linear FM, comparator width and drive)
+never meet that cap at all.
 
 The step grid starts at column 2 rather than 3 because `100` is three
 characters wide and the eighth step would otherwise be clipped by the screen
