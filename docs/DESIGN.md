@@ -685,10 +685,26 @@ just cycle. The rule is that a press moves the number on screen by an amount you
 looking at it, which is also why a field showing a quantised view of a finer value has to be
 edited in the units it displays.
 
-**One interaction model, everywhere.** `↑`/`↓` move between rows, `TAB` cycles the fields within
-the focused row, `←`/`→` change the focused field. `RowNav` owns that cursor for every page; a
-page only declares how many fields each of its rows has and what a field means. No page invents
-its own key handling, so nothing has to be relearned screen to screen.
+**One interaction model, everywhere.** `↑`/`↓` move between rows, `←`/`→` move between the fields
+of that row, and eight keyboard column pairs raise or lower a field directly:
+
+```
+ A  S  D  F  G  H  J  K     raise field 1 … 8
+ Z  X  C  V  B  N  M  ,     lower  field 1 … 8
+```
+
+Touching a pair also moves the cursor to that field, so `O`, `R` and `SPACE` act on whatever you
+last reached for. Cursor movement and value change are deliberately separate keys: if `←`/`→` did
+both jobs there would be no way to select a field without editing it, and `O`/`R`/`SPACE` would
+have nothing to aim at.
+
+That claims every letter on the keyboard, so no global shortcut may live on one. The two that did
+became fields instead — the global rate is a row on HOME, freeze is a field on CHAOS — which is
+where they were already reachable anyway.
+
+`RowNav` owns the cursor for every page; a page only declares how many fields each of its rows has
+and what a field means. No page invents its own key handling, so nothing has to be relearned
+screen to screen.
 
 The focused row gets a panel background and the focused field is inverted — the same treatment as
 the header name plate and the pattern slots, so "this is what left/right will change" always
