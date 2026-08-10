@@ -48,10 +48,10 @@ Open `phoenixomatic.ino` in the Arduino IDE with the M5Stack board support insta
 | `←` `→` | sweep the focused attenuverter or value (hold `SHIFT` for fine, or for the second parameter on a row) |
 | `T` | cycle the mod type / destination on the focused row |
 | `0` | recentre the focused attenuverter |
-| `TAB` | cycle the row's selector (clock source, waveform, trigger source) |
+| `TAB` | cycle the row's selector (gate source, waveform, trigger source) |
 | `F` | freeze both chaos oscillators |
 | `R` | scramble — randomise the current page |
-| `K` `L` | tempo −5 / +5 |
+| `K` `L` | global rate — sweeps both oscillators, and so the tempo with them |
 | `-` `=` | master level |
 | `1`–`7` | mute (page dependent) |
 
@@ -63,7 +63,8 @@ display.h / .cpp           IGfx: fill, pixel, 6x8 cell blit, line
 fonts/                     5x7 ASCII + the custom block/LED/bar glyphs
 cardputer_display.*        M5Cardputer backend
 platform_sdl/              desktop + wasm backend, Makefile, web shell
-src/core/model.*           all state, no audio
+src/core/model.*           all state; the engine writes its live fields
+src/dsp/                   chaos cores, oscillators, drums, the engine
 src/ui/text_screen.*       the 40x16 cell grid with dirty tracking
 src/ui/phoenix_display.*   page host, header, patch-bus footer, splash
 src/ui/components/         attenuverter bank, the bird

@@ -3,11 +3,11 @@
 #include <cmath>
 
 const char* const kSourceLabel[SRC_COUNT] = {
-  "CHA", "CHB", "OS1", "OS2", "SQ1", "SQ2", "CMP", "CLK"
+  "CHA", "CHB", "OS1", "OS2", "SQ1", "SQ2", "CMP", "FTE"
 };
 
 const char* const kGateLabel[GATE_COUNT] = {
-  "CLK", "CMP A>B", "CMP A<B",
+  "CMP A>B", "CMP A<B",
   "FATE-1\x87", "FATE-1 A", "FATE-1 B",
   "FATE-2\x87", "FATE-2 A", "FATE-2 B",
   "FATE-3\x87", "FATE-3 A", "FATE-3 B",
@@ -23,11 +23,6 @@ const char* const kSeqDirLabel[DIR_COUNT] = { "FWD", "REV", "PEND", "RAND" };
 const char* const kDivMultLabel[7] = { "/4", "/2", "x1", "x2", "x3", "x4", "x8" };
 const char* const kDivModeLabel[DIVMODE_COUNT] = { "DIVIDE", "EUCLID" };
 const char* const kTossModeLabel[TOSS_MODE_COUNT] = { "TOSS", "LATCH" };
-
-namespace {
-// Chaos output rates, in decades apart, which is what makes a Sloth a Sloth.
-constexpr float kChaosOutRate[3] = { 1.0f, 4.3f, 17.0f };
-}  // namespace
 
 PhoenixModel::PhoenixModel() {
   // --- oscillator banks: chaos, own sequencer, the other oscillator, the
@@ -75,7 +70,7 @@ PhoenixModel::PhoenixModel() {
   seq[0].mod[0].amount = 0.40f;
   seq[0].mod[2].amount = -0.18f;
   seq[0].clock_src = GATE_FATE1_DIV;
-  seq[1].clock_src = GATE_CLK;
+  seq[1].clock_src = GATE_CMP_LT;
   const int8_t seq2_notes[kSeqSteps] = {31, -1, 43, 43, 26, 55, -1, 38};
   for (int i = 0; i < kSeqSteps; ++i) seq[1].note[i] = seq2_notes[i];
 
@@ -93,7 +88,7 @@ PhoenixModel::PhoenixModel() {
   fate[0] = FateChannel{GATE_CMP_GT, 2,  0, 0.50f, SRC_CHA,  0.30f};
   fate[1] = FateChannel{GATE_CMP_GT, 3,  1, 0.75f, -1,       0.00f};
   fate[2] = FateChannel{GATE_CMP_LT, 5,  0, 0.25f, SRC_SQ2, -0.12f};
-  fate[3] = FateChannel{GATE_CLK,    16, 0, 0.90f, -1,       0.00f};
+  fate[3] = FateChannel{GATE_CMP_LT, 16, 0, 0.90f, -1,       0.00f};
 
   // --- drums
   const char* drum_names[kDrumVoices] = { "KIK", "SNR", "HH", "OH" };
@@ -136,165 +131,17 @@ float PhoenixModel::busLevel(SourceId id) const {
     case SRC_SQ1: return seq[0].out;
     case SRC_SQ2: return seq[1].out;
     case SRC_CMP: return comp.a_gt_b ? 1.0f : 0.05f;
-    case SRC_CLK: return clock_led;
+    case SRC_FTE: return fate_led;
     default: return 0.0f;
   }
 }
 
-void PhoenixModel::tickChaos(float dt) {
-  for (int c = 0; c < 2; ++c) {
-    Chaos& ch = chaos[c];
-    if (ch.freeze) continue;
-    for (int o = 0; o < 3; ++o) {
-      // Two detuned sines per output read as aperiodic over a short look.
-      float base = ch.rate * kChaosOutRate[o] * 6.2831853f;
-      float t = static_cast<float>(time);
-      float v = std::sin(t * base + static_cast<float>(o) * 1.7f +
-                         static_cast<float>(c) * 0.9f) * 0.65f +
-                std::sin(t * base * 1.618f + static_cast<float>(o)) * 0.35f;
-      ch.out[o] = v * ch.depth + ch.skew * 0.2f;
-      if (ch.out[o] > 1.0f) ch.out[o] = 1.0f;
-      if (ch.out[o] < -1.0f) ch.out[o] = -1.0f;
-    }
-  }
-  (void)dt;
-}
-
-void PhoenixModel::tickOsc(float dt) {
-  for (int v = 0; v < 2; ++v) {
-    Osc& o = osc[v];
-    // Fake pitch: base + whatever the DC-coupled rows are contributing.
-    float pitch = 2.0f + static_cast<float>(o.tune) * 0.15f + static_cast<float>(v) * 1.3f;
-    for (int i = 0; i < kOscModRows; ++i) {
-      if (o.mod[i].mode == MOD_FM_DC) {
-        pitch += o.mod[i].amount * busLevel(o.mod[i].src) * 3.0f;
-      }
-    }
-    if (pitch < 0.2f) pitch = 0.2f;
-    o.phase += dt * pitch;
-    if (o.phase > 1.0f) o.phase -= std::floor(o.phase);
-    float p = o.phase * 6.2831853f;
-    switch (o.wave) {
-      case WAVE_SIN: o.out = std::sin(p); break;
-      case WAVE_TRI: o.out = 4.0f * std::fabs(o.phase - 0.5f) - 1.0f; break;
-      case WAVE_SAW: o.out = o.phase * 2.0f - 1.0f; break;
-      default:       o.out = o.phase < 0.5f ? 1.0f : -1.0f; break;
-    }
-    // AM rows scale the output, which is what makes them read as ring mod.
-    for (int i = 0; i < kOscModRows; ++i) {
-      if (o.mod[i].mode == MOD_AM && o.mod[i].amount != 0.0f) {
-        float m = busLevel(o.mod[i].src) * 2.0f - 1.0f;
-        o.out *= 1.0f - o.mod[i].amount * m * 0.5f;
-      }
-    }
-  }
-}
-
-void PhoenixModel::tickClock(float dt) {
-  if (!playing) {
-    clock_led = 0.0f;
-    return;
-  }
-  float step_len = 60.0f / bpm / 4.0f;  // 16ths
-  step_phase += dt / step_len;
-  clock_led = step_phase < 0.35f ? 1.0f : 0.05f;
-
-  while (step_phase >= 1.0f) {
-    step_phase -= 1.0f;
-    ++step_counter;
-
-    // Sequencers advance, subject to their chance.
-    for (int v = 0; v < 2; ++v) {
-      Seq& s = seq[v];
-      float chance = s.chance;
-      for (int i = 0; i < kSeqModRows; ++i) {
-        if (s.mod[i].mode == DEST_CHANCE) {
-          chance += s.mod[i].amount * (busLevel(s.mod[i].src) - 0.5f);
-        }
-      }
-      bool advance = (rng() % 1000u) < static_cast<uint32_t>(chance * 1000.0f);
-      if (advance) {
-        switch (s.dir) {
-          case DIR_REV:  s.step = (s.step + kSeqSteps - 1) % kSeqSteps; break;
-          case DIR_RAND: s.step = static_cast<int>(rng() % kSeqSteps); break;
-          default:       s.step = (s.step + 1) % kSeqSteps; break;
-        }
-      }
-      int8_t n = s.note[s.step];
-      s.out = n < 0 ? 0.0f : static_cast<float>(n - 24) / 48.0f;
-    }
-
-    // Comparator: oscillator A against oscillator B plus the modulated offset.
-    comp.a = osc[0].out;
-    float off = comp.offset;
-    for (int i = 0; i < kCompModRows; ++i) {
-      off += comp.mod[i].amount * (busLevel(comp.mod[i].src) - 0.5f) * 2.0f;
-    }
-    comp.b = osc[1].out + off;
-    comp.a_gt_b = comp.a > comp.b;
-
-    // Fate: divide, then decide.
-    for (int i = 0; i < kFateChannels; ++i) {
-      FateChannel& f = fate[i];
-      bool src_fired = false;
-      switch (f.src) {
-        case GATE_CLK:    src_fired = true; break;
-        case GATE_CMP_GT: src_fired = comp.a_gt_b; break;
-        case GATE_CMP_LT: src_fired = !comp.a_gt_b; break;
-        default:          src_fired = (step_counter % 2) == 0; break;
-      }
-      f.div_out = false;
-      f.a_out = false;
-      f.b_out = false;
-      if (!src_fired) continue;
-      ++f.count;
-      int ratio = f.ratio > 0 ? f.ratio : 1;
-      if ((f.count % ratio) != (f.phase % ratio)) continue;
-      f.div_out = true;
-      float prob = f.prob;
-      if (f.mod_src >= 0) {
-        prob += f.mod_amt * (busLevel(static_cast<SourceId>(f.mod_src)) - 0.5f);
-      }
-      bool heads = (rng() % 1000u) < static_cast<uint32_t>(prob * 1000.0f);
-      f.a_out = heads;
-      f.b_out = !heads;
-    }
-
-    // Drums follow their trigger source, their own divider and their chance.
-    for (int i = 0; i < kDrumVoices; ++i) {
-      Drum& d = drum[i];
-      bool fired = false;
-      if (d.trig_src == GATE_CLK) {
-        fired = true;
-      } else if (d.trig_src == GATE_CMP_GT) {
-        fired = comp.a_gt_b;
-      } else if (d.trig_src == GATE_CMP_LT) {
-        fired = !comp.a_gt_b;
-      } else {
-        int ch = (d.trig_src - GATE_FATE1_DIV) / 3;
-        int tap = (d.trig_src - GATE_FATE1_DIV) % 3;
-        if (ch >= 0 && ch < kFateChannels) {
-          fired = tap == 0 ? fate[ch].div_out
-                : tap == 1 ? fate[ch].a_out
-                           : fate[ch].b_out;
-        }
-      }
-      int div = d.div > 0 ? d.div : 1;
-      if (fired && (step_counter % div) != 0) fired = false;
-      if (fired && (rng() % 1000u) >= static_cast<uint32_t>(d.chance * 1000.0f)) {
-        fired = false;
-      }
-      d.live = fired && !d.mute;
-    }
-  }
-}
-
+// The engine owns every live field on the model — chaos outputs, oscillator
+// levels, sequencer steps, comparator gates, fate LEDs, drum hits. This only
+// keeps wall-clock time for the UI's own animation.
 void PhoenixModel::tick(float dt) {
-  if (dt > 0.1f) dt = 0.1f;  // don't let a stalled frame jump the sequence
+  if (dt > 0.1f) dt = 0.1f;
   time += dt;
-  tickChaos(dt);
-  tickOsc(dt);
-  tickClock(dt);
 }
 
 void PhoenixModel::togglePlay() {
@@ -304,10 +151,12 @@ void PhoenixModel::togglePlay() {
   }
 }
 
-void PhoenixModel::adjustBpm(int delta) {
-  bpm += static_cast<float>(delta) * 5.0f;
-  if (bpm < 40.0f) bpm = 40.0f;
-  if (bpm > 240.0f) bpm = 240.0f;
+void PhoenixModel::adjustRate(int delta) {
+  // Twelfths of an octave: fine enough to tune, coarse enough that holding the
+  // key sweeps from a slow tick to a scream in a couple of seconds.
+  rate_offset += static_cast<float>(delta) / 12.0f;
+  if (rate_offset < -7.0f) rate_offset = -7.0f;
+  if (rate_offset > 6.0f) rate_offset = 6.0f;
 }
 
 void PhoenixModel::adjustMaster(int delta) {

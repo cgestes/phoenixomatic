@@ -65,7 +65,7 @@ class MixPage : public IPage {
     return false;
   }
 
-  uint8_t litSources() const override { return srcBit(SRC_CLK) | srcBit(SRC_CMP); }
+  uint8_t litSources() const override { return srcBit(SRC_CMP); }
 
  private:
   // Strips are OSC-1, OSC-2, COMP, then the four drums.

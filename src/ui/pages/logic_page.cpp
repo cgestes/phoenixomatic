@@ -72,7 +72,7 @@ class LogicPage : public IPage {
       uint8_t mask = litSourcesOf(model_.comp.mod, kCompModRows);
       return mask | srcBit(SRC_OS1) | srcBit(SRC_OS2) | srcBit(SRC_CMP);
     }
-    uint8_t mask = srcBit(SRC_CLK) | srcBit(SRC_CMP);
+    uint8_t mask = srcBit(SRC_FTE) | srcBit(SRC_CMP);
     for (int i = 0; i < kFateChannels; ++i) {
       if (model_.fate[i].mod_src >= 0 && model_.fate[i].mod_amt != 0.0f) {
         mask |= srcBit(model_.fate[i].mod_src);

@@ -76,7 +76,7 @@ class HelpPage : public IPage {
       {"TAB",    "cycle the selector"},
       {"F",      "freeze chaos"},
       {"R",      "scramble this page"},
-      {"K L",    "tempo -5 / +5"},
+      {"K L",    "clock rate down / up"},
       {"- =",    "master level"},
     };
     constexpr int kCount = static_cast<int>(sizeof(kRows) / sizeof(kRows[0]));

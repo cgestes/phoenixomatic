@@ -34,7 +34,7 @@ class DrumPage : public IPage {
     return handleVoiceKey(ev, sub_ == 1 ? 0 : 2);
   }
 
-  uint8_t litSources() const override { return srcBit(SRC_CLK) | srcBit(SRC_CMP); }
+  uint8_t litSources() const override { return srcBit(SRC_FTE) | srcBit(SRC_CMP); }
 
  private:
   void drawTrig(TextScreen& scr) {

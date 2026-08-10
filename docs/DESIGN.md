@@ -138,11 +138,15 @@ SEQ2's bank mirrors it, starting with `SEQ-1`.
 
 ### 3.5 The patch bus footer
 
-A strip present on **every** page, showing all eight CV/gate sources live:
+A strip present on **every** page, showing all eight sources live:
 
 ```
-CHA▆ CHB▂ OS1▇ OS2▃ SQ1▅ SQ2▁ CMP▆ CLK●
+CHA▆ CHB▂ OS1▇ OS2▃ SQ1▅ SQ2▁ CMP▆ FTE▄
 ```
+
+There is no clock among them — see §3.7. The eighth slot reports whether the
+rhythm section is firing at all, which is the nearest thing this machine has to
+a transport light.
 
 Each cell animates in real time. A cell is **lit in ember** when that source has a non-zero
 attenuverter on the page you're currently looking at — so you can always see what is feeding
@@ -152,16 +156,38 @@ what without leaving the page.
 
 ```
 CHAOS-A ──▶ OSC1 pitch  (FM-DC +50)     COMP A>B ──▶ FATE-1, FATE-2
-CHAOS-B ──▶ OSC2 pitch  (FM-DC +50)     COMP A<B ──▶ FATE-3
-SEQ-1   ──▶ OSC1 pitch  (FM-DC +100)    CLK      ──▶ FATE-4
-SEQ-2   ──▶ OSC2 pitch  (FM-DC +100)
-CHAOS-A ──▶ SEQ1 chance (+22)           FATE-1 A ──▶ KIK
-CHAOS-B ──▶ SEQ2 chance (+22)           FATE-2 B ──▶ SNR
-OSC1    ──▶ COMP A                      FATE-4 ÷ ──▶ HH
-OSC2    ──▶ COMP B                      FATE-4 A ──▶ OH
-SEQ-1   ──▶ COMP offset (+40)           FATE-1 ÷ ──▶ SEQ-1 clock
-CLK     ──▶ SEQ-2 clock
+CHAOS-B ──▶ OSC2 pitch  (FM-DC +50)     COMP A<B ──▶ FATE-3, FATE-4
+SEQ-1   ──▶ OSC1 pitch  (FM-DC +100)
+SEQ-2   ──▶ OSC2 pitch  (FM-DC +100)    FATE-1 A ──▶ KIK
+CHAOS-A ──▶ SEQ1 chance (+22)           FATE-2 B ──▶ SNR
+CHAOS-B ──▶ SEQ2 chance (+22)           FATE-4 ÷ ──▶ HH
+OSC1    ──▶ COMP A                      FATE-4 A ──▶ OH
+OSC2    ──▶ COMP B                      FATE-1 ÷ ──▶ SEQ-1 gate
+SEQ-1   ──▶ COMP offset (+40)           COMP A<B ──▶ SEQ-2 gate
 ```
+
+### 3.7 There is no clock
+
+The two oscillators run, the comparator compares them, and **its edges are the
+only time base the instrument has**. Every sequencer advance, every coin toss,
+every drum hit hangs off `A>B` or `A<B`. Nothing is scheduled.
+
+That is why the comparator is a module with its own page rather than a hidden
+utility, and it is what makes the machine a benjolin rather than a groovebox
+with a chaos section bolted on:
+
+- The rhythm is a *consequence* of the tuning. Two oscillators an octave apart
+  give a steady tick; detune them and the pattern breathes; move one with
+  CHAOS-A and it stumbles.
+- There is no tempo to set — only a rate to observe. The header shows the
+  comparator's measured edge rate in Hz, as a readout.
+- `K` / `L` sweep both oscillators together, which is the one control that
+  moves the whole machine between sequencer and scream. At the bottom the
+  comparator ticks a few times a second; at the top it is an audio-rate square
+  and the "drums" become a texture.
+- Sequencer `DIV/MULT` below 1x skips incoming edges. Above 1x there is nothing
+  to multiply against, so it passes through — going faster means turning the
+  oscillators up, which is the honest answer.
 
 ---
 
@@ -462,7 +488,7 @@ localStorage on web; help page listing the keymap.
 | `TAB` `SHIFT+TAB` | Move focus |
 | `↑` `↓` | Move between rows / controls |
 | `←` `→` | Adjust focused control |
-| `K` `L` | BPM −5 / +5 |
+| `K` `L` | Global rate — sweeps both oscillators, and therefore the tempo |
 | `-` `=` | Master volume |
 | `ESC` | Page help |
 | `ENTER` | Confirm / toggle / reset |
@@ -573,7 +599,7 @@ phoenixocore/
 | **M2** | Components | `attenuverter_row`, `mod_bank_view`, `combo_box`, `bar_meter`, `gate_led`, `step_grid`, `scope` |
 | **M3** | Fake screens | Every page drawn for real against `PhoenixModel` with animated fake values — **done** |
 | **M4** | Ships | wasm build + web shell (written, unverified — needs Docker running), `.ino` written but not yet flashed, scene save/load still to do |
-| **M5** | Noise | Real DSP behind the same model. It screams. |
+| **M5** | Noise | Real DSP behind the same model — **done for the base**: chaos cores, oscillators with all four mod types, comparator time base, fate, four drum voices, audio on desktop and web. |
 
 M0–M3 landed. What is left in M4: run `make wasm` with Docker up, flash the `.ino` and check the
 panel size and key mapping on real hardware, then wire scene storage. M5 is the real work and

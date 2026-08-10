@@ -1,4 +1,5 @@
 // Desktop and web entry point. The same UI the Cardputer runs, in a window.
+#include <cmath>
 #include <cstdio>
 #include <cstdlib>
 
@@ -13,6 +14,8 @@
 #endif
 
 #include "../src/core/model.h"
+#include "../src/dsp/audio_config.h"
+#include "../src/dsp/phoenix_engine.h"
 #include "../src/ui/phoenix_display.h"
 #include "sdl_display.h"
 
@@ -26,11 +29,25 @@ struct App {
   SDLDisplay* gfx = nullptr;
   PhoenixModel* model = nullptr;
   PhoenixDisplay* ui = nullptr;
+  PhoenixEngine* engine = nullptr;
+  SDL_AudioDeviceID audio = 0;
   uint32_t last_ticks = 0;
   bool running = true;
 };
 
 App g_app;
+
+// Audio thread. Nothing here allocates or locks.
+void audioCallback(void* userdata, Uint8* stream, int len) {
+  auto* engine = static_cast<PhoenixEngine*>(userdata);
+  auto* out = reinterpret_cast<int16_t*>(stream);
+  size_t frames = static_cast<size_t>(len) / sizeof(int16_t);
+  if (engine) {
+    engine->render(out, frames);
+  } else {
+    SDL_memset(stream, 0, static_cast<size_t>(len));
+  }
+}
 
 // Maps an SDL key event onto the Cardputer's much smaller keyboard.
 bool translate(const SDL_KeyboardEvent& key, UIEvent& out) {
@@ -110,10 +127,30 @@ void emFrame() {
 // `phoenixomatic shot <dir>` walks every page and sub-page and writes a BMP of
 // each, so the whole UI can be reviewed without clicking through it.
 int captureAll(SDLDisplay& gfx, PhoenixModel& model, PhoenixDisplay& ui,
-               const char* dir) {
+               PhoenixEngine& engine, const char* dir) {
   ui.dismissSplash();
-  // Let the fake state settle so the screens aren't all at zero.
-  for (int i = 0; i < 90; ++i) ui.update(1.0f / 30.0f);
+
+  // The engine is the only thing that moves state now, so drive it directly
+  // instead of waiting on an audio device. One second of audio, and a peak /
+  // RMS report so "it renders" and "it makes a sound" are separate claims.
+  int16_t buf[kBlockSize];
+  double sum_sq = 0.0;
+  int peak = 0;
+  size_t total = 0;
+  for (int b = 0; b < kSampleRate / static_cast<int>(kBlockSize); ++b) {
+    engine.render(buf, kBlockSize);
+    for (size_t i = 0; i < kBlockSize; ++i) {
+      int v = buf[i] < 0 ? -buf[i] : buf[i];
+      if (v > peak) peak = v;
+      sum_sq += static_cast<double>(buf[i]) * buf[i];
+      ++total;
+    }
+  }
+  double rms = total ? std::sqrt(sum_sq / static_cast<double>(total)) : 0.0;
+  printf("phoenixomatic: 1s render — peak %d (%.1f%% FS), rms %.0f, comp %.0f Hz\n",
+         peak, 100.0 * peak / 32767.0, rms, static_cast<double>(model.comp_hz));
+
+  for (int i = 0; i < 4; ++i) ui.update(1.0f / 30.0f);
 
   char path[512];
   int shots = 0;
@@ -127,6 +164,8 @@ int captureAll(SDLDisplay& gfx, PhoenixModel& model, PhoenixDisplay& ui,
       ev.code = KEY_DOWN;
       ev.ctrl = true;
       if (s > 0) ui.handleKey(ev);
+      // Advance the machine between shots so the screens aren't identical.
+      engine.render(buf, kBlockSize);
       for (int i = 0; i < 4; ++i) ui.update(1.0f / 30.0f);
       snprintf(path, sizeof(path), "%s/page%d_%d.bmp", dir, p + 1, s + 1);
       if (gfx.saveBmp(path)) ++shots;
@@ -149,7 +188,7 @@ int main(int argc, char** argv) {
     if (s >= 1 && s <= 8) scale = s;
   }
 
-  if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS) != 0) {
+  if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS | SDL_INIT_AUDIO) != 0) {
     fprintf(stderr, "phoenixomatic: SDL_Init failed: %s\n", SDL_GetError());
     return 1;
   }
@@ -163,14 +202,34 @@ int main(int argc, char** argv) {
 
   PhoenixModel model;
   PhoenixDisplay ui(gfx, model);
+  PhoenixEngine engine(model, static_cast<float>(kSampleRate));
 
+  // Screenshot mode stays silent — it runs faster than real time.
+  if (!shot_mode) {
+    SDL_AudioSpec want{};
+    want.freq = kSampleRate;
+    want.format = AUDIO_S16SYS;
+    want.channels = 1;
+    want.samples = static_cast<Uint16>(kBlockSize);
+    want.callback = audioCallback;
+    want.userdata = &engine;
+    SDL_AudioSpec have{};
+    g_app.audio = SDL_OpenAudioDevice(nullptr, 0, &want, &have, 0);
+    if (g_app.audio == 0) {
+      fprintf(stderr, "phoenixomatic: no audio (%s) — running silent\n", SDL_GetError());
+    } else {
+      SDL_PauseAudioDevice(g_app.audio, 0);
+    }
+  }
+
+  g_app.engine = &engine;
   g_app.gfx = &gfx;
   g_app.model = &model;
   g_app.ui = &ui;
   g_app.last_ticks = SDL_GetTicks();
 
   if (shot_mode) {
-    int rc = captureAll(gfx, model, ui, argv[2]);
+    int rc = captureAll(gfx, model, ui, engine, argv[2]);
     SDL_Quit();
     return rc;
   }
@@ -184,6 +243,7 @@ int main(int argc, char** argv) {
   }
 #endif
 
+  if (g_app.audio) SDL_CloseAudioDevice(g_app.audio);
   SDL_Quit();
   return 0;
 }

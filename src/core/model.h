@@ -1,8 +1,7 @@
-// All phoenixomatic state, with no audio behind it yet.
+// All phoenixomatic state.
 //
-// Everything the UI draws comes from here. In this build `tick()` fills the
-// live values with plausible motion so the pages can be judged; when the DSP
-// lands it writes the same fields and nothing in the UI changes.
+// Everything the UI draws comes from here, and everything the engine computes
+// is written back into here. The UI never talks to the DSP directly.
 #pragma once
 
 #include <cstdint>
@@ -12,8 +11,10 @@
 // ---------------------------------------------------------------------------
 
 // The eight signals on the patch bus, shown in the footer of every page.
+// There is no clock among them: the comparator's edges are the only time base
+// this machine has, which is the whole benjolin idea.
 enum SourceId : uint8_t {
-  SRC_CHA = 0, SRC_CHB, SRC_OS1, SRC_OS2, SRC_SQ1, SRC_SQ2, SRC_CMP, SRC_CLK,
+  SRC_CHA = 0, SRC_CHB, SRC_OS1, SRC_OS2, SRC_SQ1, SRC_SQ2, SRC_CMP, SRC_FTE,
   SRC_COUNT
 };
 extern const char* const kSourceLabel[SRC_COUNT];   // "CHA", "CHB", ...
@@ -21,7 +22,7 @@ extern const char* const kSourceLabel[SRC_COUNT];   // "CHA", "CHB", ...
 // Gates can only come from one place, so gate destinations pick from this list
 // rather than carrying an attenuverter bank.
 enum GateSource : uint8_t {
-  GATE_CLK = 0, GATE_CMP_GT, GATE_CMP_LT,
+  GATE_CMP_GT = 0, GATE_CMP_LT,
   GATE_FATE1_DIV, GATE_FATE1_A, GATE_FATE1_B,
   GATE_FATE2_DIV, GATE_FATE2_A, GATE_FATE2_B,
   GATE_FATE3_DIV, GATE_FATE3_A, GATE_FATE3_B,
@@ -95,7 +96,7 @@ extern const char* const kDivMultLabel[7];          // /4 /2 x1 x2 x3 x4 x8
 struct Seq {
   int8_t note[kSeqSteps] = {48, 36, 61, -1, 50, 67, 41, 58};  // -1 = rest
   int step = 0;
-  uint8_t clock_src = GATE_CLK;
+  uint8_t clock_src = GATE_CMP_GT;
   int div_mult = 2;        // index into kDivMultLabel, 2 == x1
   uint8_t dir = DIR_FWD;
   int range = 2;           // octaves
@@ -162,11 +163,13 @@ class PhoenixModel {
  public:
   PhoenixModel();
 
-  // Advance the fake state. `dt` in seconds.
+  // Advances UI wall-clock only; the engine owns every live field.
   void tick(float dt);
 
   void togglePlay();
-  void adjustBpm(int delta);
+  // No clock to set. This sweeps both oscillators together, which is the one
+  // control that moves the whole machine between sequencer and scream.
+  void adjustRate(int delta);
   void adjustMaster(int delta);
   void scramble(int page_index);   // [R] — randomise the current page
 
@@ -180,23 +183,22 @@ class PhoenixModel {
   FateChannel fate[kFateChannels];
   Drum drum[kDrumVoices];
 
-  float bpm = 120.0f;
-  float swing = 0.12f;
+  // Global pitch offset in octaves, applied to both oscillators. Down here the
+  // comparator ticks like a sequencer; up there it screams.
+  float rate_offset = -3.0f;
   float master = 0.74f;
-  int drive = 22;
+  int drive = 8;   // leaves the drums room to punch through
   int crush = 0;
   bool playing = true;
 
-  // Transport phase, 0..1 within the current 16th.
-  float step_phase = 0.0f;
-  int step_counter = 0;
-  float clock_led = 0.0f;
+  // Measured, not set: how often the comparator is actually flipping. This is
+  // the only "tempo" the machine has, and it is a readout.
+  float comp_hz = 0.0f;
+  int step_counter = 0;     // comparator edges since start
+  float fate_led = 0.0f;    // any fate channel firing, for the bus strip
   double time = 0.0;
 
  private:
-  void tickChaos(float dt);
-  void tickOsc(float dt);
-  void tickClock(float dt);
   uint32_t rng();
 
   uint32_t rng_state_ = 0x1BADB002u;

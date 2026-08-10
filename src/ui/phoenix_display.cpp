@@ -50,7 +50,11 @@ void PhoenixDisplay::drawHeader() {
   screen_.put(0, kHeaderRow, model_.playing ? phx_glyphs::kTriRight : '=',
               model_.playing ? PEN_EMBER : PEN_DIM, PEN_PANEL);
   char buf[16];
-  snprintf(buf, sizeof(buf), "%3d", static_cast<int>(model_.bpm));
+  // There is no clock to display, so show how fast the comparator is actually
+  // flipping — a readout, not a setting. Precision follows the value.
+  float hz = model_.comp_hz;
+  if (hz < 10.0f) snprintf(buf, sizeof(buf), "%.2f", static_cast<double>(hz));
+  else            snprintf(buf, sizeof(buf), "%4.0f", static_cast<double>(hz));
   screen_.text(1, kHeaderRow, buf, PEN_BRIGHT, PEN_PANEL);
 
   IPage* page = pages_[page_index_].get();
@@ -134,8 +138,8 @@ bool PhoenixDisplay::handleGlobalKey(const UIEvent& ev) {
   }
   if (ev.key == '[') { prevPage(); return true; }
   if (ev.key == ']') { nextPage(); return true; }
-  if (ev.key == 'k') { model_.adjustBpm(-1); return true; }
-  if (ev.key == 'l') { model_.adjustBpm(1); return true; }
+  if (ev.key == 'k') { model_.adjustRate(-1); return true; }
+  if (ev.key == 'l') { model_.adjustRate(1); return true; }
   if (ev.key == '-') { model_.adjustMaster(-1); return true; }
   if (ev.key == '=') { model_.adjustMaster(1); return true; }
   if (ev.key == 'r') { model_.scramble(page_index_); return true; }

@@ -23,6 +23,10 @@ TARGET := phoenixomatic
 SOURCES := \
   ../display.cpp \
   ../src/core/model.cpp \
+  ../src/dsp/chaos_osc.cpp \
+  ../src/dsp/osc.cpp \
+  ../src/dsp/drum_voices.cpp \
+  ../src/dsp/phoenix_engine.cpp \
   ../src/ui/text_screen.cpp \
   ../src/ui/phoenix_display.cpp \
   ../src/ui/components/mod_bank_view.cpp \

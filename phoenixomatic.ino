@@ -1,11 +1,15 @@
 // phoenixomatic — M5Stack Cardputer ADV entry point.
 //
-// Same UI code as the desktop and web builds; only the display backend and the
-// keyboard translation live here. No audio yet.
+// Same UI and engine code as the desktop and web builds; only the display
+// backend, the keyboard translation and the audio task live here.
 #include <M5Cardputer.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
 
 #include "cardputer_display.h"
 #include "src/core/model.h"
+#include "src/dsp/audio_config.h"
+#include "src/dsp/phoenix_engine.h"
 #include "src/ui/phoenix_display.h"
 
 namespace {
@@ -13,6 +17,9 @@ namespace {
 CardputerDisplay g_display;
 PhoenixModel g_model;
 PhoenixDisplay* g_ui = nullptr;
+PhoenixEngine* g_engine = nullptr;
+TaskHandle_t g_audio_task = nullptr;
+int16_t g_audio_buf[kBlockSize];
 
 unsigned long g_last_ms = 0;
 
@@ -120,6 +127,21 @@ void pollKeyboard() {
   }
 }
 
+// Audio runs on its own core so a slow panel repaint cannot stall the sound.
+void audioTask(void*) {
+  for (;;) {
+    while (M5Cardputer.Speaker.isPlaying()) {
+      vTaskDelay(1 / portTICK_PERIOD_MS);
+    }
+    if (g_engine) {
+      g_engine->render(g_audio_buf, kBlockSize);
+      M5Cardputer.Speaker.playRaw(g_audio_buf, kBlockSize, kSampleRate, false);
+    } else {
+      vTaskDelay(5 / portTICK_PERIOD_MS);
+    }
+  }
+}
+
 }  // namespace
 
 void setup() {
@@ -130,6 +152,13 @@ void setup() {
   g_display.clear(IGfxColor(0x0A0B0D));
 
   g_ui = new PhoenixDisplay(g_display, g_model);
+  g_engine = new PhoenixEngine(g_model, static_cast<float>(kSampleRate));
+
+  M5Cardputer.Speaker.begin();
+  M5Cardputer.Speaker.setVolume(160);
+  xTaskCreatePinnedToCore(audioTask, "phx_audio", 8192, nullptr, 2,
+                          &g_audio_task, 0);
+
   g_last_ms = millis();
 }
 

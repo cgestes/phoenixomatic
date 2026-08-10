@@ -37,16 +37,17 @@ class HomePage : public IPage {
     }
     energy /= 6.0f;
     heat_ = energy;
-    flap_ = model_.playing && model_.step_phase < 0.5f;
+    // No clock to flap to, so the bird follows the comparator.
+    flap_ = model_.playing && model_.comp.a_gt_b;
     scr.reserve(kBirdCol, kBirdRow, 5, 3);
 
     scr.text(21, 1, "OUT", PEN_DIM);
     scr.reserve(kScopeCol, kScopeRow, kScopeCols, kScopeRows);
 
-    scr.text(2, 8, "CLK", PEN_DIM);
-    scr.textf(6, 8, PEN_BRIGHT, "%.1f", static_cast<double>(model_.bpm));
-    scr.text(14, 8, "SWING", PEN_DIM);
-    scr.textf(20, 8, PEN_BRIGHT, "%d%%", static_cast<int>(model_.swing * 100.0f));
+    scr.text(2, 8, "CMP", PEN_DIM);
+    scr.textf(6, 8, PEN_BRIGHT, "%.0fHz", static_cast<double>(model_.comp_hz));
+    scr.text(15, 8, "RATE", PEN_DIM);
+    scr.textf(20, 8, PEN_HOT, "%+.2f", static_cast<double>(model_.rate_offset));
     scr.text(26, 8, "RUN", PEN_DIM);
     scr.put(30, 8, model_.playing ? phx_glyphs::kLedOn : phx_glyphs::kLedOff,
             model_.playing ? PEN_HOT : PEN_FAINT);
@@ -100,7 +101,7 @@ class HomePage : public IPage {
     }
   }
 
-  uint8_t litSources() const override { return srcBit(SRC_CLK); }
+  uint8_t litSources() const override { return srcBit(SRC_CMP) | srcBit(SRC_FTE); }
 
  private:
   PhoenixModel& model_;
