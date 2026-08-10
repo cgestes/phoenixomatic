@@ -105,9 +105,11 @@ void frame() {
     } else if (e.type == SDL_MOUSEBUTTONUP && e.button.button == SDL_BUTTON_LEFT) {
       g_app.dragging = false;
     } else if (e.type == SDL_MOUSEMOTION && g_app.dragging) {
-      g_app.ui->mouseDrag(e.motion.yrel);
+      bool shift = (SDL_GetModState() & KMOD_SHIFT) != 0;
+      g_app.ui->mouseDrag(e.motion.yrel, shift);
     } else if (e.type == SDL_MOUSEWHEEL) {
-      g_app.ui->mouseWheel(e.wheel.y);
+      bool shift = (SDL_GetModState() & KMOD_SHIFT) != 0;
+      g_app.ui->mouseWheel(e.wheel.y, shift);
     } else if (e.type == SDL_KEYDOWN && !e.key.repeat) {
       UIEvent ui;
       if (translate(e.key, ui)) g_app.ui->handleKey(ui);

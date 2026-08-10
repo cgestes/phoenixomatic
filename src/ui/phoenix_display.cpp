@@ -268,17 +268,31 @@ void PhoenixDisplay::mouseDown(int x, int y) {
   drag_accum_ = 0;
 }
 
-void PhoenixDisplay::mouseDrag(int dy) {
-  // Up is more. Four pixels a step, so a slow drag is controllable at the
-  // window scales this runs at.
+// A drag or a notch is exactly one keypress, SHIFT included — the pointer must
+// not invent step sizes of its own. It cannot even ask for "finer" generically:
+// SHIFT means the small step on a percentage and the *large* one on a whole
+// number like DIV, where 1 is already as fine as it goes. Treating SHIFT as
+// "gentle" made MULT jump eight at a time.
+//
+// Gentleness therefore comes from distance, not from step size: ten pixels of
+// travel per press, so a drag crosses a range deliberately rather than at a
+// twitch.
+void PhoenixDisplay::mouseDrag(int dy, bool shift) {
+  constexpr int kPixelsPerStep = 10;
   drag_accum_ += dy;
-  while (drag_accum_ <= -4) { drag_accum_ += 4; adjustFocused(1, false); }
-  while (drag_accum_ >= 4) { drag_accum_ -= 4; adjustFocused(-1, false); }
+  while (drag_accum_ <= -kPixelsPerStep) {
+    drag_accum_ += kPixelsPerStep;
+    adjustFocused(1, shift);
+  }
+  while (drag_accum_ >= kPixelsPerStep) {
+    drag_accum_ -= kPixelsPerStep;
+    adjustFocused(-1, shift);
+  }
 }
 
-void PhoenixDisplay::mouseWheel(int notches) {
+void PhoenixDisplay::mouseWheel(int notches, bool shift) {
   for (int i = 0; i < (notches < 0 ? -notches : notches); ++i) {
-    adjustFocused(notches > 0 ? 1 : -1, false);
+    adjustFocused(notches > 0 ? 1 : -1, shift);
   }
 }
 

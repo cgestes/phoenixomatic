@@ -22,8 +22,8 @@ class PhoenixDisplay {
   // Mouse, in panel pixels. Click to put the cursor on a field, drag or wheel
   // to change it.
   void mouseDown(int x, int y);
-  void mouseDrag(int dy);
-  void mouseWheel(int notches);
+  void mouseDrag(int dy, bool shift);
+  void mouseWheel(int notches, bool shift);
 
   void nextPage();
   void prevPage();
