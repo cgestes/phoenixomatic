@@ -702,6 +702,19 @@ That claims every letter on the keyboard, so no global shortcut may live on one.
 became fields instead — the global rate is a row on HOME, freeze is a field on CHAOS — which is
 where they were already reachable anyway.
 
+**Mouse, on desktop and web.** Click a value to put the cursor on it, then drag up and down or use
+the wheel to change it. The pointer drives the same code the keyboard does: a drag or a wheel notch
+synthesises the column-pair key for whichever field the cursor is on, so step sizes, clamping,
+detents and the `XOR` position on `FEEDBACK` all behave identically whichever you use, and none of
+it exists twice.
+
+Hit-testing works because a field registers the cells it occupies *as it draws*, from the same
+`(row, field)` pair it tests for focus — one call site, so the hit map cannot drift from the
+layout when a page moves something. Each field claims a cell of padding either side, since a
+two-character value is hard to hit with a pointer and the space beside it belongs to nothing else.
+
+The Cardputer has no pointer, so the on-screen help lists keys only.
+
 `RowNav` owns the cursor for every page; a page only declares how many fields each of its rows has
 and what a field means. No page invents its own key handling, so nothing has to be relearned
 screen to screen.
