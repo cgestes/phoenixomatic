@@ -87,12 +87,13 @@ class ChaosPage : public IPage {
       // claim about time and a bar only ever shows the present.
       scr.reserve(kPlotCol, kPlotRow, kPlotCols, kPlotRows);
       pushHistory(c.out[c.pick]);
-      // How much of the window the output spent pinned at the top or bottom of
-      // its range rather than using the middle — the number that says whether
-      // the rungler is lively or stuck. Spelled out: "EXT" was my shorthand,
-      // and nobody else had a reason to know it.
-      scr.text(kPlotCol, kPlotRow - 1, "AT ENDS", PEN_DIM);
-      scr.textf(kPlotCol + 8, kPlotRow - 1, PEN_COOL, "%d%%", extremesPercent());
+      // APATHY is bit 7 read raw — a one-bit pulse, so it is always at an end
+      // and "AT ENDS 100%" tells you nothing. Ask a pulse about its duty and a
+      // stepped CV about its range: same slot, right question for each.
+      bool pulse = c.pick == 2;
+      scr.text(kPlotCol, kPlotRow - 1, pulse ? "DUTY" : "AT ENDS", PEN_DIM);
+      scr.textf(kPlotCol + (pulse ? 5 : 8), kPlotRow - 1, PEN_COOL, "%d%%",
+                pulse ? dutyPercent() : extremesPercent());
     }
 
     // The three outputs, with the picked one marked.
@@ -103,7 +104,10 @@ class ChaosPage : public IPage {
               picked ? PEN_HOT : PEN_FAINT);
       scr.text(3, row, kChaosOutLabel[o], picked ? PEN_BRIGHT : PEN_DIM);
       scr.bar(11, row, 8, (c.out[o] + 1.0f) * 0.5f, PEN_COOL);
-      scr.textf(20, row, PEN_COOL, "%+.2f", static_cast<double>(c.out[o]));
+      // APATHY is a pulse, not a stepped CV. Say so on the row, or its meter
+      // slamming between the rails reads as breakage.
+      if (rung && o == 2) scr.text(20, row, "PULSE", PEN_FAINT);
+      else scr.textf(20, row, PEN_COOL, "%+.2f", static_cast<double>(c.out[o]));
     }
 
     bool pr = nav_.atRow(kPickRow);
@@ -279,6 +283,16 @@ class ChaosPage : public IPage {
     hist_[hist_pos_] = v;
     hist_pos_ = (hist_pos_ + 1) % kHistory;
     if (hist_fill_ < kHistory) ++hist_fill_;
+  }
+
+  // Share of the window a one-bit output spent high.
+  int dutyPercent() const {
+    if (hist_fill_ <= 0) return 0;
+    int n = 0;
+    for (int i = 0; i < hist_fill_; ++i) {
+      if (hist_[i] > 0.0f) ++n;
+    }
+    return n * 100 / hist_fill_;
   }
 
   int extremesPercent() const {
