@@ -49,7 +49,8 @@ PhoenixModel::PhoenixModel() {
       osc[v].mod[i].src = osc_srcs[v][i];
     }
     // CHAOS-A drives both oscillators by default, so the machine behaves the
-    // same whether or not the second chaos core is on the panel.
+    // same whether or not the second chaos core is on the panel. The depths
+    // are deliberately unequal — see below.
     osc[v].mod[0].amount = 0.50f;  osc[v].mod[0].mode = MOD_FM_EXP;   // CHAOS-A
     osc[v].mod[1].amount = 0.00f;  osc[v].mod[1].mode = MOD_FM_EXP;   // CHAOS-B
     osc[v].mod[2].amount = 1.00f;  osc[v].mod[2].mode = MOD_FM_EXP;   // SEQ
@@ -159,6 +160,15 @@ PhoenixModel::PhoenixModel() {
   for (int i = 0; i < kDrumVoices; ++i) drum[i].mute = true;
 
   applyMachineMode();
+
+  // The rungler feeds both oscillators, and the two depths must differ or the
+  // loop is dead. Modulating both by the same amount shifts them together and
+  // leaves their *ratio* untouched — and the ratio is the only thing that
+  // decides how the clock samples the data, so the register can never break
+  // its own pattern. Measured on the 3-bit tap: equal depths put 75% of the
+  // output at the extremes; +50 against -35 puts 7% there and spreads the
+  // rest across all eight levels.
+  osc[1].mod[0].amount = -0.35f;
 
   // FEEDBACK at its origin, so the default rungler is the classic one and
   // turning the knob up is audibly a change.
