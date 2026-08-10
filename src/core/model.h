@@ -95,9 +95,19 @@ extern const char* const kChaosOutLabel[3];         // TORPOR / INERTIA / APATHY
 // In RUNGLER mode RATE stops being a frequency — the clock comes from an
 // oscillator — and becomes a divider on that clock. One mapping, shared by the
 // engine and the page, so the number on screen is the number in use.
+inline constexpr int kRunglerMaxDiv = 16;
+
 inline int runglerClockDiv(float rate) {
   int div = 1 + static_cast<int>(rate * 8.0f);
-  return div < 1 ? 1 : (div > 16 ? 16 : div);
+  return div < 1 ? 1 : (div > kRunglerMaxDiv ? kRunglerMaxDiv : div);
+}
+
+// The inverse, so the panel can step the divider as the whole number it shows
+// instead of nudging the underlying rate 1/13th of a step at a time.
+inline float runglerRateForDiv(int div) {
+  if (div < 1) div = 1;
+  if (div > kRunglerMaxDiv) div = kRunglerMaxDiv;
+  return static_cast<float>(div - 1) / 8.0f + 0.01f;
 }
 
 struct Chaos {

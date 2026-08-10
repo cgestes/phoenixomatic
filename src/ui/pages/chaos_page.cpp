@@ -142,7 +142,10 @@ class ChaosPage : public IPage {
       case kShapeRow:
         // Rate has no true zero — a stopped chaos core is just frozen — so it
         // goes to the slowest it will run.
-        if (nav_.field() == 0) c.rate = 0.005f;
+        // Zero for a divider is 1, its origin.
+        if (nav_.field() == 0) {
+          c.rate = c.mode == CHAOS_RUNGLER ? runglerRateForDiv(1) : 0.005f;
+        }
         else if (nav_.field() == 1) c.depth = 0.0f;
         else c.skew = 0.0f;
         break;
@@ -158,7 +161,11 @@ class ChaosPage : public IPage {
         else c.freeze = (model_.random() & 1u) != 0;
         break;
       case kShapeRow:
-        if (nav_.field() == 0) c.rate = 0.01f + model_.randomUnit() * 0.4f;
+        if (nav_.field() == 0) {
+          c.rate = c.mode == CHAOS_RUNGLER
+                       ? runglerRateForDiv(1 + static_cast<int>(model_.random() % kRunglerMaxDiv))
+                       : 0.01f + model_.randomUnit() * 0.4f;
+        }
         else if (nav_.field() == 1) c.depth = 0.3f + model_.randomUnit() * 0.7f;
         else c.skew = model_.randomUnit() * 2.0f - 1.0f;
         break;
@@ -217,6 +224,12 @@ class ChaosPage : public IPage {
     float d = static_cast<float>(dir) * (fine ? 0.25f : 1.0f);
     switch (nav_.field()) {
       case 0:
+        if (c.mode == CHAOS_RUNGLER) {
+          // The field shows a whole-number divider, so it steps by one. Moving
+          // the underlying rate instead took thirteen presses per step.
+          c.rate = runglerRateForDiv(runglerClockDiv(c.rate) + dir);
+          break;
+        }
         c.rate += d * 0.01f;
         if (c.rate < 0.005f) c.rate = 0.005f;
         if (c.rate > 2.0f) c.rate = 2.0f;
