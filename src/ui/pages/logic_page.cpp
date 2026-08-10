@@ -236,8 +236,8 @@ class LogicPage : public IPage {
     bool orow = nav_.atRow(kCompOffsetRow);
     uint8_t obg = rowBg(orow);
     if (orow) scr.highlight(1, 7, kScreenCols - 2, PEN_PANEL);
-    scr.text(2, 7, "WIDTH", PEN_TEXT, obg);
-    drawFieldF(scr, 8, 7, kCompOffsetRow, 0, PEN_COOL, nav_.at(kCompOffsetRow, 0), obg, "%+d",
+    scr.text(2, 7, "OFFSET", PEN_TEXT, obg);
+    drawFieldF(scr, 9, 7, kCompOffsetRow, 0, PEN_COOL, nav_.at(kCompOffsetRow, 0), obg, "%+d",
                static_cast<int>(c.offset * 100.0f));
     scr.text(18, 7, "OUT", PEN_TEXT, obg);
     drawField(scr, 22, 7, kCompOffsetRow, 1, kCompShapeLabel[c.shape], PEN_HOT,

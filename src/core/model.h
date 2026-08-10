@@ -309,10 +309,14 @@ inline bool compShapeUsesDrive(uint8_t shape) {
          shape == CSHAPE_FOLD || shape == CSHAPE_RECT;
 }
 
-// Where a comparator attenuverter row lands. WIDTH is the pulse width — the
-// classic one, moving B under A. DRIVE feeds the shaper, which is where the
-// rungler earns its keep: fold depth swept by the register is the sound.
-enum CompDest : uint8_t { CDEST_WIDTH = 0, CDEST_DRIVE, CDEST_COUNT };
+// Where a comparator attenuverter row lands. OFFSET is the classic one,
+// moving B under A — pulse width, and therefore the rhythm. DRIVE feeds the
+// shaper, which is where the rungler earns its keep: fold depth swept by the
+// register is the sound.
+//
+// Named for the field it lands on rather than for what it does to the sound:
+// the row and the control it drives have to answer to the same word.
+enum CompDest : uint8_t { CDEST_OFFSET = 0, CDEST_DRIVE, CDEST_COUNT };
 extern const char* const kCompDestLabel[CDEST_COUNT];
 
 struct Comparator {

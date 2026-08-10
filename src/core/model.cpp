@@ -32,7 +32,7 @@ const char* const kFilterInputLabel[FILT_IN_COUNT] = { "PWM", "OSC-1", "OSC-2", 
 
 const char* const kCompShapeLabel[CSHAPE_COUNT] = {
     "PWM", "LIM", "CLIP", "FOLD", "RECT", "MIN", "MAX" };
-const char* const kCompDestLabel[CDEST_COUNT] = { "WIDTH", "DRIVE" };
+const char* const kCompDestLabel[CDEST_COUNT] = { "OFFSET", "DRIVE" };
 
 const char* const kNoteName[12] = { "C",  "C#", "D",  "D#", "E",  "F",
                                     "F#", "G",  "G#", "A",  "A#", "B" };

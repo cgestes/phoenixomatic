@@ -182,7 +182,7 @@ destination with two entries:
 
 | Dest | Lands on |
 |---|---|
-| `WIDTH` | The offset under B — pulse width, and therefore the rhythm. |
+| `OFFSET` | The offset under B — pulse width, and therefore the rhythm. |
 | `DRIVE` | The output shaper. Timbre only; see 3.3a. |
 
 `CHAOS-A → DRIVE` on `FOLD` is the pairing worth reaching for first: the register sweeps the fold
