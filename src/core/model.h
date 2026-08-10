@@ -120,7 +120,9 @@ inline constexpr int clampRatioTerm(int v) {
   return v < 1 ? 1 : (v > kRatioMax ? kRatioMax : v);
 }
 
-inline constexpr int kOscModRows = 5;
+// Both chaos oscillators reach both audio oscillators, so a single chaos
+// source can drive the pair — which is what BENJOLIN mode leans on.
+inline constexpr int kOscModRows = 6;
 
 struct Osc {
   uint8_t wave = WAVE_TRI;
@@ -215,6 +217,20 @@ struct Drum {
 };
 
 // ---------------------------------------------------------------------------
+// Machine modes
+// ---------------------------------------------------------------------------
+
+// BENJOLIN is the classic instrument: two oscillators, one rungler, one
+// comparator, and nothing else. ADVANCED opens the sequencers, the second
+// chaos oscillator, the fate channels and the drums.
+//
+// The mode hides pages, and it also bypasses any modulation fed by a module
+// you can no longer see — an instrument that is being driven by something the
+// panel does not show is worse than one that is missing a feature.
+enum MachineMode : uint8_t { MODE_BENJOLIN = 0, MODE_ADVANCED, MACHINE_MODE_COUNT };
+extern const char* const kMachineModeLabel[MACHINE_MODE_COUNT];
+
+// ---------------------------------------------------------------------------
 // The machine
 // ---------------------------------------------------------------------------
 
@@ -241,6 +257,9 @@ class PhoenixModel {
   uint32_t random();
   float randomUnit();
 
+  // Enforces whatever the current mode implies. Safe to call repeatedly.
+  void applyMachineMode();
+
   void togglePlay();
   // No clock to set. This sweeps both oscillators together, which is the one
   // control that moves the whole machine between sequencer and scream.
@@ -260,6 +279,7 @@ class PhoenixModel {
 
   // Global pitch offset in octaves, applied to both oscillators. Down here the
   // comparator ticks like a sequencer; up there it screams.
+  uint8_t machine_mode = MODE_BENJOLIN;
   float rate_offset = -3.0f;
   float master = 0.74f;
   int drive = 8;   // leaves the drums room to punch through

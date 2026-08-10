@@ -38,6 +38,7 @@ SOURCES := \
   ../src/ui/pages/logic_page.cpp \
   ../src/ui/pages/drum_page.cpp \
   ../src/ui/pages/mix_page.cpp \
+  ../src/ui/pages/config_page.cpp \
   ../src/ui/pages/project_page.cpp \
   sdl_display.cpp \
   sdl_main.cpp

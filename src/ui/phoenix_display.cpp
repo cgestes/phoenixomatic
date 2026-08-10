@@ -22,21 +22,29 @@ PhoenixDisplay::PhoenixDisplay(IGfx& gfx, PhoenixModel& model)
   pages_.push_back(makeLogicPage(model));
   pages_.push_back(makeDrumPage(model));
   pages_.push_back(makeMixPage(model));
+  pages_.push_back(makeConfigPage(model));
   pages_.push_back(makeProjectPage(model));
   pages_.push_back(makeHelpPage(model));
 }
 
 PhoenixDisplay::~PhoenixDisplay() = default;
 
-// [ and ] walk every screen in the machine, sub-pages included, so there is
-// one flat sequence rather than two axes to remember.
+bool PhoenixDisplay::available(int index) const {
+  return pages_[index]->availableIn(model_.machine_mode);
+}
+
+// [ and ] walk every screen the current machine mode offers, sub-pages
+// included, so there is one flat sequence rather than two axes to remember.
 void PhoenixDisplay::nextPage() {
   IPage* page = pages_[page_index_].get();
   if (page->subPage() + 1 < page->subPageCount()) {
     page->setSubPage(page->subPage() + 1);
   } else {
     page->setSubPage(0);
-    page_index_ = (page_index_ + 1) % static_cast<int>(pages_.size());
+    int n = static_cast<int>(pages_.size());
+    do {
+      page_index_ = (page_index_ + 1) % n;
+    } while (!available(page_index_));
     pages_[page_index_]->setSubPage(0);
   }
   screen_.invalidate();
@@ -48,7 +56,9 @@ void PhoenixDisplay::prevPage() {
     page->setSubPage(page->subPage() - 1);
   } else {
     int n = static_cast<int>(pages_.size());
-    page_index_ = (page_index_ + n - 1) % n;
+    do {
+      page_index_ = (page_index_ + n - 1) % n;
+    } while (!available(page_index_));
     IPage* prev = pages_[page_index_].get();
     prev->setSubPage(prev->subPageCount() - 1);
   }
@@ -57,13 +67,17 @@ void PhoenixDisplay::prevPage() {
 
 int PhoenixDisplay::screenCount() const {
   int total = 0;
-  for (const auto& p : pages_) total += p->subPageCount();
+  for (int i = 0; i < static_cast<int>(pages_.size()); ++i) {
+    if (available(i)) total += pages_[i]->subPageCount();
+  }
   return total;
 }
 
 int PhoenixDisplay::screenIndex() const {
   int index = 0;
-  for (int i = 0; i < page_index_; ++i) index += pages_[i]->subPageCount();
+  for (int i = 0; i < page_index_; ++i) {
+    if (available(i)) index += pages_[i]->subPageCount();
+  }
   return index + pages_[page_index_]->subPage();
 }
 
@@ -82,7 +96,10 @@ void PhoenixDisplay::drawHeader() {
   screen_.fill(0, kHeaderRow, kTitleWidth, ' ', PEN_BG, PEN_BRIGHT);
   screen_.text(1, kHeaderRow, page->title(), PEN_BG, PEN_BRIGHT);
 
-  if (const char* dots = page->subPageDots()) {
+  // Only mark sub-pages that exist. A mode can collapse a page to one screen,
+  // and showing a marker you cannot reach advertises a door that is not there.
+  const char* dots = page->subPageDots();
+  if (dots && page->subPageCount() > 1) {
     int col = kTitleWidth + 1;
     int idx = 0;
     for (const char* p = dots; *p; ++p, ++col) {
@@ -124,6 +141,22 @@ void PhoenixDisplay::drawSplash() {
 
 void PhoenixDisplay::update(float dt) {
   model_.tick(dt);
+
+  // A mode change can pull the page out from under you, or shorten it.
+  if (!available(page_index_)) {
+    int n = static_cast<int>(pages_.size());
+    do {
+      page_index_ = (page_index_ + 1) % n;
+    } while (!available(page_index_));
+    pages_[page_index_]->setSubPage(0);
+    screen_.invalidate();
+  }
+  IPage* current = pages_[page_index_].get();
+  if (current->subPage() >= current->subPageCount()) {
+    current->setSubPage(current->subPageCount() - 1);
+    screen_.invalidate();
+  }
+
   screen_.beginFrame();
 
   if (splash_) {

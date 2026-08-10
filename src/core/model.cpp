@@ -19,6 +19,8 @@ const char* const kOscModTypeLabel[MOD_TYPE_COUNT] = {
   "FM-EXP", "FM-AC", "FM-LIN", "FM-TZ", "PM", "AM", "AM+5", "AM-RE", "RM"
 };
 const char* const kSeqDestLabel[DEST_COUNT] = { "CV", "CHANCE", "SLEW", "LEN" };
+const char* const kMachineModeLabel[MACHINE_MODE_COUNT] = { "BENJOLIN", "ADVANCED" };
+
 const char* const kChaosModeLabel[CHAOS_MODE_COUNT] = {
   "SLOTH", "LORENZ", "ROSSLER", "RND", "RUNGLER"
 };
@@ -34,23 +36,26 @@ PhoenixModel::PhoenixModel() {
   // --- oscillator banks: chaos, own sequencer, the other oscillator, the
   // comparator, and self-feedback. This is the default normalling.
   const char* osc_names[2][kOscModRows] = {
-    { "CHAOS-A", "SEQ-1", "OSC-2", "COMP", "FDBK" },
-    { "CHAOS-B", "SEQ-2", "OSC-1", "COMP", "FDBK" },
+    { "CHAOS-A", "CHAOS-B", "SEQ-1", "OSC-2", "COMP", "FDBK" },
+    { "CHAOS-A", "CHAOS-B", "SEQ-2", "OSC-1", "COMP", "FDBK" },
   };
   const SourceId osc_srcs[2][kOscModRows] = {
-    { SRC_CHA, SRC_SQ1, SRC_OS2, SRC_CMP, SRC_OS1 },
-    { SRC_CHB, SRC_SQ2, SRC_OS1, SRC_CMP, SRC_OS2 },
+    { SRC_CHA, SRC_CHB, SRC_SQ1, SRC_OS2, SRC_CMP, SRC_OS1 },
+    { SRC_CHA, SRC_CHB, SRC_SQ2, SRC_OS1, SRC_CMP, SRC_OS2 },
   };
   for (int v = 0; v < 2; ++v) {
     for (int i = 0; i < kOscModRows; ++i) {
       osc[v].mod[i].name = osc_names[v][i];
       osc[v].mod[i].src = osc_srcs[v][i];
     }
-    osc[v].mod[0].amount = 0.50f;  osc[v].mod[0].mode = MOD_FM_EXP;
-    osc[v].mod[1].amount = 1.00f;  osc[v].mod[1].mode = MOD_FM_EXP;
-    osc[v].mod[2].amount = 0.00f;  osc[v].mod[2].mode = MOD_FM_AC;
-    osc[v].mod[3].amount = 0.00f;  osc[v].mod[3].mode = MOD_PM;
-    osc[v].mod[4].amount = 0.00f;  osc[v].mod[4].mode = MOD_PM;
+    // CHAOS-A drives both oscillators by default, so the machine behaves the
+    // same whether or not the second chaos core is on the panel.
+    osc[v].mod[0].amount = 0.50f;  osc[v].mod[0].mode = MOD_FM_EXP;   // CHAOS-A
+    osc[v].mod[1].amount = 0.00f;  osc[v].mod[1].mode = MOD_FM_EXP;   // CHAOS-B
+    osc[v].mod[2].amount = 1.00f;  osc[v].mod[2].mode = MOD_FM_EXP;   // SEQ
+    osc[v].mod[3].amount = 0.00f;  osc[v].mod[3].mode = MOD_FM_AC;    // other osc
+    osc[v].mod[4].amount = 0.00f;  osc[v].mod[4].mode = MOD_PM;       // COMP
+    osc[v].mod[5].amount = 0.00f;  osc[v].mod[5].mode = MOD_PM;       // FDBK
   }
   // x1 against x3 is a twelfth: close enough to lock, far enough that the
   // comparator has something to say. A few cents of detune keep it moving.
@@ -147,6 +152,8 @@ PhoenixModel::PhoenixModel() {
   comp.mute = true;
   for (int i = 0; i < kDrumVoices; ++i) drum[i].mute = true;
 
+  applyMachineMode();
+
   chaos[1].rate = 0.07f;
   chaos[1].depth = 0.55f;
   chaos[1].skew = 0.20f;
@@ -221,6 +228,32 @@ float PhoenixModel::busLevel(SourceId id) const {
 void PhoenixModel::tick(float dt) {
   if (dt > 0.1f) dt = 0.1f;
   time += dt;
+}
+
+void PhoenixModel::applyMachineMode() {
+  // A source belongs to a module that BENJOLIN mode does not show.
+  auto hidden = [](SourceId s) {
+    return s == SRC_SQ1 || s == SRC_SQ2 || s == SRC_CHB;
+  };
+  bool benjolin = machine_mode == MODE_BENJOLIN;
+
+  auto apply = [&](ModRow* rows, int count) {
+    for (int i = 0; i < count; ++i) {
+      // The bypass here is imposed by the mode, not chosen by the player, so
+      // leaving BENJOLIN restores it rather than leaving a row silently off.
+      if (benjolin && hidden(rows[i].src)) rows[i].on = false;
+      else if (!benjolin) rows[i].on = true;
+    }
+  };
+  for (int v = 0; v < 2; ++v) apply(osc[v].mod, kOscModRows);
+  apply(comp.mod, kCompModRows);
+
+  if (!benjolin) return;
+
+  // One chaos oscillator, and it is the rungler.
+  chaos[0].mode = CHAOS_RUNGLER;
+  // The drums have no page to reach them from, so they do not get to sound.
+  for (int i = 0; i < kDrumVoices; ++i) drum[i].mute = true;
 }
 
 void PhoenixModel::togglePlay() {

@@ -30,7 +30,10 @@ class LogicPage : public IPage {
   explicit LogicPage(PhoenixModel& m) : model_(m) { applyNav(); }
 
   const char* title() const override { return sub_ == 0 ? "COMPARATOR" : "FATE"; }
-  int subPageCount() const override { return 2; }
+  // Benjolin has no fate channels, so LOGIC is just the comparator.
+  int subPageCount() const override {
+    return model_.machine_mode == MODE_ADVANCED ? 2 : 1;
+  }
   int subPage() const override { return sub_; }
   void setSubPage(int i) override {
     sub_ = i % 2;
@@ -202,14 +205,19 @@ class LogicPage : public IPage {
                lbg, "%d", static_cast<int>(c.level * 100.0f));
     if (c.mute) scr.text(13, 12, "muted", PEN_FAINT, lbg);
 
+    bool advanced = model_.machine_mode == MODE_ADVANCED;
     scr.text(2, 13, "A>B", PEN_BRIGHT);
     scr.put(6, 13, c.a_gt_b ? phx_glyphs::kLedOn : phx_glyphs::kLedOff,
             c.a_gt_b ? PEN_HOT : PEN_FAINT);
-    scr.text(8, 13, "FATE-1,2", PEN_DIM);
     scr.text(19, 13, "A<B", PEN_BRIGHT);
     scr.put(23, 13, c.a_gt_b ? phx_glyphs::kLedOff : phx_glyphs::kLedOn,
             c.a_gt_b ? PEN_FAINT : PEN_HOT);
-    scr.text(25, 13, "FATE-3,4", PEN_DIM);
+    // Naming destinations this mode does not have would advertise doors that
+    // are not there.
+    if (advanced) {
+      scr.text(8, 13, "FATE-1,2", PEN_DIM);
+      scr.text(25, 13, "FATE-3,4", PEN_DIM);
+    }
   }
 
   void drawFate(TextScreen& scr) {

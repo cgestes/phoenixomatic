@@ -34,6 +34,12 @@ class IPage {
 
   virtual const char* title() const = 0;
 
+  // Pages that only exist in the fuller machine say so here.
+  virtual bool availableIn(uint8_t machine_mode) const {
+    (void)machine_mode;
+    return true;
+  }
+
   // Sub-pages are stepped with CTRL+UP/DOWN and shown as dots in the header.
   virtual int subPageCount() const { return 1; }
   virtual int subPage() const { return 0; }

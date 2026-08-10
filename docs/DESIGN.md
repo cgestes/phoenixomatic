@@ -264,8 +264,28 @@ run indicator, and `[< 6/15 >]` — the arrows being the keys that move it.
 | 5 | LOGIC | COMP · FATE |
 | 6 | DRUM | TRIG · KIK+SNR · HH+OH |
 | 7 | MIX | — |
-| 8 | PROJECT | — |
-| 9 | HELP | — |
+| 8 | CONFIG | — |
+| 9 | PROJECT | — |
+| 10 | HELP | — |
+
+### 5.1 Machine modes
+
+CONFIG carries one control: how much machine you want.
+
+| Mode | On the panel |
+|---|---|
+| `BENJOLIN` | OSC-1, OSC-2, CHAOS-A as the rungler, the comparator, MIX. Nine screens. |
+| `ADVANCED` | All of it — the second chaos oscillator, both sequencers, the four fate channels, the four drums. Sixteen screens. |
+
+Hiding a page is not enough on its own. BENJOLIN also **bypasses any modulation row fed by a
+module it has hidden**, because an instrument being driven by something the panel does not show
+is worse than one that is missing a feature — you would be hearing a change you cannot find. The
+bypass is imposed by the mode rather than chosen by the player, so leaving BENJOLIN restores
+those rows rather than leaving them silently off.
+
+Both oscillators carry rows for **both** chaos oscillators, and `CHAOS-A` drives both by default.
+That is what lets BENJOLIN hide the second core without the machine behaving differently: with
+one chaos oscillator, it feeds the pair.
 
 Grouping COMP → FATE as sub-pages of LOGIC means stepping sub-pages walks the signal chain in
 order, and keeps the top-level count at nine (same as miniacid). Merging the dividers into FATE

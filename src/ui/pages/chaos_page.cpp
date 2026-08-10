@@ -19,7 +19,10 @@ class ChaosPage : public IPage {
   explicit ChaosPage(PhoenixModel& m) : model_(m) { nav_.configure(kFields, kRows); }
 
   const char* title() const override { return which_ == 0 ? "CHAOS-A" : "CHAOS-B"; }
-  int subPageCount() const override { return 2; }
+  // Benjolin has one chaos oscillator, so there is no B to step to.
+  int subPageCount() const override {
+    return model_.machine_mode == MODE_ADVANCED ? 2 : 1;
+  }
   int subPage() const override { return which_; }
   void setSubPage(int i) override { which_ = i & 1; }
   const char* subPageDots() const override { return "A B"; }
@@ -72,16 +75,15 @@ class ChaosPage : public IPage {
     scr.text(2, 10, "PICK", PEN_DIM, pbg);
     drawField(scr, 7, 10, kChaosOutLabel[c.pick], PEN_HOT, nav_.at(kPickRow, 0), pbg);
 
+    // Only list destinations this mode actually has. Both oscillators carry a
+    // row for each chaos core, so a single core feeds the pair.
     scr.text(2, 12, "FEEDS", PEN_DIM);
-    if (which_ == 0) {
-      scr.text(8, 12, "OSC1", PEN_EMBER);
-      scr.text(13, 12, "SEQ1", PEN_EMBER);
-      scr.text(18, 12, "COMP", PEN_EMBER);
-      scr.text(23, 12, "FATE-1", PEN_EMBER);
-    } else {
-      scr.text(8, 12, "OSC2", PEN_EMBER);
-      scr.text(13, 12, "SEQ2", PEN_EMBER);
-      scr.text(18, 12, "COMP", PEN_EMBER);
+    int col = scr.text(8, 12, "OSC1", PEN_EMBER) + 1;
+    col = scr.text(col, 12, "OSC2", PEN_EMBER) + 1;
+    col = scr.text(col, 12, "COMP", PEN_EMBER) + 1;
+    if (model_.machine_mode == MODE_ADVANCED) {
+      col = scr.text(col, 12, which_ == 0 ? "SEQ1" : "SEQ2", PEN_EMBER) + 1;
+      if (which_ == 0) scr.text(col, 12, "FATE", PEN_EMBER);
     }
   }
 

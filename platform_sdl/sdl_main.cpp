@@ -154,23 +154,19 @@ int captureAll(SDLDisplay& gfx, PhoenixModel& model, PhoenixDisplay& ui,
 
   char path[512];
   int shots = 0;
-  const int page_count = 9;
-  for (int p = 0; p < page_count; ++p) {
-    while (ui.pageIndex() != p) ui.nextPage();
-    // Sub-page count is private to the page, so just try a few and stop when
-    // the header stops changing.
-    for (int s = 0; s < 3; ++s) {
-      UIEvent ev;
-      ev.code = KEY_DOWN;
-      ev.ctrl = true;
-      if (s > 0) ui.handleKey(ev);
-      // Advance the machine between shots so the screens aren't identical.
-      engine.render(buf, kBlockSize);
-      for (int i = 0; i < 4; ++i) ui.update(1.0f / 30.0f);
-      snprintf(path, sizeof(path), "%s/page%d_%d.bmp", dir, p + 1, s + 1);
-      if (gfx.saveBmp(path)) ++shots;
-    }
+  // Walk the flat screen list rather than hunting for page indices: a mode can
+  // hide a page entirely, and looking for one that is not in the walk spins
+  // forever.
+  int screens = ui.screenCount();
+  for (int i = 0; i < screens; ++i) {
+    // Advance the machine between shots so the screens are not identical.
+    engine.render(buf, kBlockSize);
+    for (int f = 0; f < 4; ++f) ui.update(1.0f / 30.0f);
+    snprintf(path, sizeof(path), "%s/screen%02d.bmp", dir, i + 1);
+    if (gfx.saveBmp(path)) ++shots;
+    ui.nextPage();
   }
+
   snprintf(path, sizeof(path), "%s/splash.bmp", dir);
   (void)model;
   printf("phoenixomatic: wrote %d screenshots to %s\n", shots, dir);

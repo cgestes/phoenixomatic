@@ -12,7 +12,7 @@
 namespace {
 
 constexpr int kScopeCol = 2;
-constexpr int kScopeRow = 11;
+constexpr int kScopeRow = 12;
 constexpr int kScopeCols = 36;
 constexpr int kScopeRows = 3;
 
@@ -20,7 +20,7 @@ constexpr int kTuneRow = 0;    // WAVE / DIV / MULT
 constexpr int kVoiceRow = 1;   // DTUNE / LVL
 constexpr int kBankRow0 = 2;   // first attenuverter row
 
-constexpr uint8_t kFields[] = {3, 2, 2, 2, 2, 2, 2};
+constexpr uint8_t kFields[] = {3, 2, 2, 2, 2, 2, 2, 2};
 constexpr int kRows = static_cast<int>(sizeof(kFields) / sizeof(kFields[0]));
 
 class OscPage : public IPage {
@@ -48,15 +48,17 @@ class OscPage : public IPage {
 
     bool vr = nav_.atRow(kVoiceRow);
     uint8_t bg = rowBg(vr);
-    if (vr) scr.highlight(1, 2, kScreenCols - 2, PEN_PANEL);
-    scr.text(1, 2, "DTUNE", PEN_DIM, bg);
-    drawFieldF(scr, 7, 2, PEN_COOL, nav_.at(kVoiceRow, 0), bg, "%+dc", o.dtune);
-    scr.text(24, 2, "LVL", PEN_DIM, bg);
-    drawFieldF(scr, 29, 2, o.mute ? PEN_FAINT : PEN_BRIGHT, nav_.at(kVoiceRow, 1),
+    if (vr) scr.highlight(1, 3, kScreenCols - 2, PEN_PANEL);
+    // A blank row between the two tuning lines: they carry different kinds of
+    // decision and ran together without it.
+    scr.text(1, 3, "DTUNE", PEN_DIM, bg);
+    drawFieldF(scr, 7, 3, PEN_COOL, nav_.at(kVoiceRow, 0), bg, "%+dc", o.dtune);
+    scr.text(24, 3, "LVL", PEN_DIM, bg);
+    drawFieldF(scr, 29, 3, o.mute ? PEN_FAINT : PEN_BRIGHT, nav_.at(kVoiceRow, 1),
                bg, "%d", static_cast<int>(o.level * 100.0f));
 
     int focus_row = nav_.row() >= kBankRow0 ? nav_.row() - kBankRow0 : -1;
-    drawModBank(scr, 4, o.mod, kOscModRows, focus_row, nav_.field(),
+    drawModBank(scr, 5, o.mod, kOscModRows, focus_row, nav_.field(),
                 kOscModTypeLabel, "TYPE");
 
     scr.reserve(kScopeCol, kScopeRow, kScopeCols, kScopeRows);

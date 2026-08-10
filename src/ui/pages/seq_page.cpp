@@ -30,6 +30,7 @@ class SeqPage : public IPage {
   explicit SeqPage(PhoenixModel& m) : model_(m) { nav_.configure(kFields, kRows); }
 
   const char* title() const override { return which_ == 0 ? "SEQ-1" : "SEQ-2"; }
+  bool availableIn(uint8_t mode) const override { return mode == MODE_ADVANCED; }
   int subPageCount() const override { return 2; }
   int subPage() const override { return which_; }
   void setSubPage(int i) override { which_ = i & 1; }

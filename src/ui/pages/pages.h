@@ -14,5 +14,6 @@ std::unique_ptr<IPage> makeSeqPage(PhoenixModel& m);
 std::unique_ptr<IPage> makeLogicPage(PhoenixModel& m);
 std::unique_ptr<IPage> makeDrumPage(PhoenixModel& m);
 std::unique_ptr<IPage> makeMixPage(PhoenixModel& m);
+std::unique_ptr<IPage> makeConfigPage(PhoenixModel& m);
 std::unique_ptr<IPage> makeProjectPage(PhoenixModel& m);
 std::unique_ptr<IPage> makeHelpPage(PhoenixModel& m);

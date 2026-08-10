@@ -30,6 +30,7 @@ class DrumPage : public IPage {
       default: return "DRUMS \x88 HH+OH";
     }
   }
+  bool availableIn(uint8_t mode) const override { return mode == MODE_ADVANCED; }
   int subPageCount() const override { return 3; }
   int subPage() const override { return sub_; }
   void setSubPage(int i) override {

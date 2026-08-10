@@ -34,6 +34,7 @@ class PhoenixDisplay {
   // Width of the white name plate, sized to the longest page title.
   static constexpr int kTitleWidth = 18;
 
+  bool available(int index) const;
   void drawHeader();
   void drawBus();
   void drawSplash();
