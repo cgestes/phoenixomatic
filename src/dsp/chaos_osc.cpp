@@ -50,16 +50,16 @@ void ChaosOsc::reset() {
 //   CHANCE how often a new bit is let in, the Turing Machine's control. At 0
 //          the bit leaving the end is recycled and the figure repeats forever;
 //          at 100 every clock takes fresh data from the other oscillator.
-void ChaosOsc::tickRungler(bool clock_high, bool data_high) {
+bool ChaosOsc::tickRungler(bool clock_high, bool data_high) {
   // At the fast end both edges of the square clock the register, which is the
   // one speed no divider can reach: twice the oscillator, without retuning it.
   bool edge = rung_div_ == kRunglerDoubleSpeed
                   ? clock_high != rung_prev_clock_
                   : clock_high && !rung_prev_clock_;
   rung_prev_clock_ = clock_high;
-  if (!edge) return;
+  if (!edge) return false;
 
-  if (rung_div_ > 1 && (++rung_div_count_ % rung_div_) != 0) return;
+  if (rung_div_ > 1 && (++rung_div_count_ % rung_div_) != 0) return false;
 
   const int n = rung_steps_;
   const uint32_t mask = n >= 32 ? 0xFFFFFFFFu : ((1u << n) - 1u);
@@ -97,6 +97,7 @@ void ChaosOsc::tickRungler(bool clock_high, bool data_high) {
   out_[0] = torpor;
   out_[1] = inertia;
   out_[2] = apathy;
+  return true;
 }
 
 void ChaosOsc::setMode(uint8_t mode) {

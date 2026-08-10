@@ -13,6 +13,8 @@ const char* const kGateLabel[GATE_COUNT] = {
   "FATE-2\x87", "FATE-2 A", "FATE-2 B",
   "FATE-3\x87", "FATE-3 A", "FATE-3 B",
   "FATE-4\x87", "FATE-4 A", "FATE-4 B",
+  "OSC-1", "OSC-2",
+  "RUNG-A", "RUNG-B",
 };
 
 const char* const kOscModTypeLabel[MOD_TYPE_COUNT] = {

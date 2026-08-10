@@ -71,9 +71,13 @@ class DrumPage : public IPage {
           if (d.chance > 1.0f) d.chance = 1.0f;
           break;
         case 2:
-          d.div += dir;
+          // SHIFT doubles rather than adding a bigger constant: 1024 is ten
+          // presses away that way and a thousand the other, and doubling is
+          // how you actually move between drum divisions.
+          if (ev.shift) d.div = dir > 0 ? d.div * 2 : d.div / 2;
+          else d.div += dir;
           if (d.div < 1) d.div = 1;
-          if (d.div > 16) d.div = 16;
+          if (d.div > kDrumMaxDiv) d.div = kDrumMaxDiv;
           break;
         default:
           d.level += static_cast<float>(dir) * (ev.shift ? 0.01f : 0.05f);
@@ -117,7 +121,7 @@ class DrumPage : public IPage {
       switch (nav_.field()) {
         case 0: d.trig_src = static_cast<uint8_t>(model_.random() % GATE_COUNT); break;
         case 1: d.chance = model_.randomUnit(); break;
-        case 2: d.div = randomRatioTerm(model_.randomUnit(), 16); break;
+        case 2: d.div = randomRatioTerm(model_.randomUnit(), kDrumMaxDiv); break;
         default: d.level = 0.3f + model_.randomUnit() * 0.7f; break;
       }
       return;
@@ -151,7 +155,7 @@ class DrumPage : public IPage {
         Drum& d = model_.drum[i];
         d.trig_src = static_cast<uint8_t>(model_.random() % GATE_COUNT);
         d.chance = model_.randomUnit();
-        d.div = randomRatioTerm(model_.randomUnit(), 16);
+        d.div = randomRatioTerm(model_.randomUnit(), kDrumMaxDiv);
       }
       return;
     }
@@ -179,7 +183,7 @@ class DrumPage : public IPage {
     scr.text(7, 1, "TRIG SRC", PEN_DIM);
     scr.text(19, 1, "CHANCE", PEN_DIM);
     scr.text(27, 1, "DIV", PEN_DIM);
-    scr.text(32, 1, "LVL", PEN_DIM);
+    scr.text(33, 1, "LVL", PEN_DIM);
 
     for (int i = 0; i < kDrumVoices; ++i) {
       Drum& d = model_.drum[i];
@@ -192,10 +196,14 @@ class DrumPage : public IPage {
       drawField(scr, 7, row, i, 0, kGateLabel[d.trig_src], PEN_EMBER, nav_.at(i, 0), bg);
       drawFieldF(scr, 19, row, i, 1, PEN_VIOLET, nav_.at(i, 1), bg, "%d%%",
                  static_cast<int>(d.chance * 100.0f));
+      // The row needs div(5) gap bar(3) gap value(3) from column 27, which
+      // is exactly the 13 columns left — so the meter gives up a cell
+      // rather than either gap, since a number touching a bar reads as one
+      // token.
       drawFieldF(scr, 27, row, i, 2, PEN_HOT, nav_.at(i, 2), bg, "/%d", d.div);
       // Keep the fader visible when focused; only the number is highlighted.
-      scr.markField(32, row, 4, i, 3);
-      scr.bar(32, row, 4, d.level, d.mute ? PEN_FAINT : kDrumPen[i]);
+      scr.markField(33, row, 3, i, 3);
+      scr.bar(33, row, 3, d.level, d.mute ? PEN_FAINT : kDrumPen[i]);
       drawFieldF(scr, 37, row, i, 3, d.mute ? PEN_FAINT : PEN_BRIGHT, nav_.at(i, 3), bg,
                  "%d", static_cast<int>(d.level * 100.0f));
     }

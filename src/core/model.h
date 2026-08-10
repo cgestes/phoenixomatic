@@ -28,6 +28,10 @@ enum GateSource : uint8_t {
   GATE_FATE2_DIV, GATE_FATE2_A, GATE_FATE2_B,
   GATE_FATE3_DIV, GATE_FATE3_A, GATE_FATE3_B,
   GATE_FATE4_DIV, GATE_FATE4_A, GATE_FATE4_B,
+  // Appended rather than slotted in beside the comparator, so the numbers
+  // already stored against every trigger keep meaning what they meant.
+  GATE_OSC1, GATE_OSC2,        // rising edge of each oscillator's square
+  GATE_RUNG_A, GATE_RUNG_B,    // one pulse per shift of that rungler
   GATE_COUNT
 };
 extern const char* const kGateLabel[GATE_COUNT];    // "CLK", "CMP A>B", ...
@@ -388,11 +392,16 @@ struct FilterState {
 
 inline constexpr int kDrumVoices = 4;
 
+// Drum dividers run far past the sequencer's, because a drum is often the
+// slowest thing in the patch: with the comparator as the only clock, a kick
+// once every few bars means dividing an audio-rate edge by hundreds.
+inline constexpr int kDrumMaxDiv = 1024;
+
 struct Drum {
   const char* name = "";
   uint8_t trig_src = GATE_FATE1_A;
   float chance = 1.0f;
-  int div = 1;
+  int div = 1;              // 1..kDrumMaxDiv
   float level = 0.8f;
   bool mute = false;
   bool live = false;       // fired on this step

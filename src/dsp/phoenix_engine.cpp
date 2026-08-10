@@ -124,6 +124,10 @@ bool PhoenixEngine::gateEdge(uint8_t gate_src) const {
   switch (gate_src) {
     case GATE_CMP_GT: return gt_edge_;
     case GATE_CMP_LT: return lt_edge_;
+    case GATE_OSC1:   return osc_edge_[0];
+    case GATE_OSC2:   return osc_edge_[1];
+    case GATE_RUNG_A: return rung_edge_[0];
+    case GATE_RUNG_B: return rung_edge_[1];
     default: break;
   }
   int idx = static_cast<int>(gate_src) - GATE_FATE1_DIV;
@@ -295,18 +299,32 @@ void PhoenixEngine::render(int16_t* out, size_t frames) {
       if (!o.mute) voice += s * o.level * 0.34f;
     }
 
+    // Rising edge of each oscillator's square — the zero crossing, whatever
+    // wave is selected, so the trigger does not vanish when you change shape.
+    for (int v = 0; v < 2; ++v) {
+      bool high = osc_[v].value() > 0.0f;
+      osc_edge_[v] = high && !osc_prev_[v];
+      osc_prev_[v] = high;
+    }
+
     // --- runglers ----------------------------------------------------------
     // Each chaos core in RUNGLER mode is clocked by one oscillator and fed by
     // the other, mirrored, so A and B are different runglers rather than two
     // copies of one. Every sample: an audio-rate clock has edges inside the
     // chaos stride.
+    // Cleared every sample: a rungler that is frozen or in another mode has no
+    // clock to offer, and a stale edge here would fire a drum forever.
+    rung_edge_[0] = false;
+    rung_edge_[1] = false;
     if (model_.chaos[0].mode == CHAOS_RUNGLER && !model_.chaos[0].freeze) {
-      chaos_[0].tickRungler(osc_[0].value() > 0.0f, osc_[1].value() > 0.0f);
+      rung_edge_[0] =
+          chaos_[0].tickRungler(osc_[0].value() > 0.0f, osc_[1].value() > 0.0f);
       for (int o = 0; o < 3; ++o) model_.chaos[0].out[o] = chaos_[0].out(o);
       model_.chaos[0].rung_bits = chaos_[0].registerBits();
     }
     if (model_.chaos[1].mode == CHAOS_RUNGLER && !model_.chaos[1].freeze) {
-      chaos_[1].tickRungler(osc_[1].value() > 0.0f, osc_[0].value() > 0.0f);
+      rung_edge_[1] =
+          chaos_[1].tickRungler(osc_[1].value() > 0.0f, osc_[0].value() > 0.0f);
       for (int o = 0; o < 3; ++o) model_.chaos[1].out[o] = chaos_[1].out(o);
       model_.chaos[1].rung_bits = chaos_[1].registerBits();
     }

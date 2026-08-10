@@ -33,6 +33,36 @@ The third decision is the one that defines the instrument. See §3.
 | 5 | Gate channel — **FATE** | 4 | Divider **then** coin toss, in series. Three taps each |
 | 6 | Drum voice | 4 | KIK, SNR, HH, OH — each with trigger source, chance, divider |
 
+### 2.0a Gate sources
+
+Anything that fires can clock anything that counts. The list, in enum order:
+
+| Source | Fires on |
+|---|---|
+| `CMP A>B` / `CMP A<B` | the comparator's two edges — the machine's only real time base |
+| `FATE-n ÷ / A / B` | each fate channel's divider and its two coin-toss taps |
+| `OSC-1` / `OSC-2` | the rising edge of that oscillator's square — the zero crossing, whatever wave is selected, so the trigger survives a change of shape |
+| `RUNG-A` / `RUNG-B` | one pulse per shift of that rungler, so `CLK DIV` and `x2` shape the trigger rate too |
+
+Measured with modulation off, gates per second against the computed tuning:
+
+| Source | `/1` | `/2` | `/4` | expected `/1` |
+|---|---|---|---|---|
+| `OSC-1` | 33 | 16 | 8 | 32.7 Hz |
+| `OSC-2` | 2136 | 1068 | 534 | 2135.7 Hz |
+| `RUNG-A` | 33 | 16 | 8 | clocked by OSC-1 |
+| `RUNG-B` | 2136 | 1068 | 534 | clocked by OSC-2 |
+
+The oscillator and rungler entries are **appended** to the enum rather than slotted in beside the
+comparator, so every trigger already stored keeps meaning what it meant.
+
+**Drum dividers run to 1024**, far past the sequencer's 64. With the comparator as the only clock
+a drum is often the slowest thing in the patch — a kick every few bars means dividing an
+audio-rate edge by hundreds. `SHIFT` doubles rather than adding a larger constant: 1024 is ten
+presses away that way and a thousand the other, and doubling is how you actually move between
+drum divisions. Verified against a 2136 Hz source over 30 seconds: `/256` → 250 hits, `/512` →
+125, `/1024` → 62.
+
 ### 2.1 Why FATE is one module and not two
 
 Clock dividers only ever existed to feed the sequencers and the drums, and the default wiring was
@@ -46,7 +76,8 @@ SRC ──▶ ÷N (phase) ──┬──▶ ÷ tap  (divided clock, pre-toss)
 ```
 
 Nothing is lost, because all three taps stay addressable: `FATE-1÷`, `FATE-1A`, `FATE-1B`. That is
-12 gate outputs, plus raw `CLK` and the comparator's two gates, against 6 gate destinations
+12 gate outputs, plus the comparator's two gates, the two oscillators, the two rungler clocks,
+against 6 gate destinations
 (2 sequencer clocks + 4 drums).
 
 Name candidates considered: **FATE** (chosen — four characters, and it is literally what the

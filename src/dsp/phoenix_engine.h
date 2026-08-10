@@ -63,6 +63,9 @@ class PhoenixEngine {
   bool comp_gt_ = false;
   bool comp_gt_prev_ = false;
   bool gt_edge_ = false;
+  bool osc_edge_[2] = {false, false};
+  bool osc_prev_[2] = {false, false};
+  bool rung_edge_[2] = {false, false};
   bool lt_edge_ = false;
   float comp_out_ = 0.0f;
   // Samples since the last rising edge. Measuring the gap resolves a 4 Hz

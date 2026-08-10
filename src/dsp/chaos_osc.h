@@ -24,7 +24,9 @@ class ChaosOsc {
   // RUNGLER mode only, and it must be called *every* sample: the clock is an
   // oscillator, and at audio rate its edges fall inside the chaos stride.
   // `clock_high` is one oscillator's square, `data_high` the other's.
-  void tickRungler(bool clock_high, bool data_high);
+// Returns true on the sample the register actually shifted, so the shift can
+  // be used as a clock elsewhere.
+  bool tickRungler(bool clock_high, bool data_high);
 
   void reset();
 
