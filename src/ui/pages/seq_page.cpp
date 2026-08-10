@@ -113,7 +113,7 @@ class SeqPage : public IPage {
         s.editNotes()[nav_.field()] = -1;   // a step's zero is a rest
         break;
       case kGateRow: zeroGate(s); break;
-      default: zeroModRow(s.mod[nav_.row() - kBankRow0]); break;
+      default: zeroModField(s.mod[nav_.row() - kBankRow0], nav_.field()); break;
     }
   }
 
@@ -130,8 +130,11 @@ class SeqPage : public IPage {
       case kGateRow: randomGate(s); break;
       default: {
         ModRow& m = s.mod[nav_.row() - kBankRow0];
-        m.amount = model_.randomUnit() * 2.0f - 1.0f;
-        m.mode = static_cast<uint8_t>(model_.random() % DEST_COUNT);
+        if (nav_.field() == MOD_FIELD_MODE) {
+          m.mode = static_cast<uint8_t>(model_.random() % DEST_COUNT);
+        } else {
+          m.amount = model_.randomUnit() * 2.0f - 1.0f;
+        }
         break;
       }
     }

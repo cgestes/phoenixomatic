@@ -104,7 +104,8 @@ class LogicPage : public IPage {
       Comparator& c = model_.comp;
       if (nav_.row() == kCompOffsetRow) c.offset = 0.0f;
       else if (nav_.row() == compLevelRow()) c.level = 0.0f;
-      else zeroModRow(c.mod[bank_index_[nav_.row() - kCompBankRow0]]);
+      else zeroModField(c.mod[bank_index_[nav_.row() - kCompBankRow0]],
+                        MOD_FIELD_AMOUNT);
       return;
     }
     if (nav_.row() == kFateModeRow) {

@@ -52,11 +52,19 @@ int visibleModRows(const ModRow* rows, int count, uint8_t machine_mode,
 // Applies left/right to whichever field is focused. Returns true if consumed.
 bool editModRow(const UIEvent& ev, ModRow& row, int field, int mode_count);
 
-// Zero: amount to nothing, mode back to its first entry, bypass cleared.
+// The whole row — for SHIFT+O, which zeroes a page.
 inline void zeroModRow(ModRow& row) {
   row.amount = 0.0f;
   row.mode = 0;
   row.on = true;
+}
+
+// Just the field under the cursor — for O and R, which act on one value. A row
+// carries two independent decisions, and touching both would make the cursor
+// position a lie.
+inline void zeroModField(ModRow& row, int field) {
+  if (field == MOD_FIELD_MODE) row.mode = 0;
+  else row.amount = 0.0f;
 }
 
 // Bus sources this bank is currently doing something with.

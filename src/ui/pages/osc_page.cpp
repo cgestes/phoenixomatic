@@ -145,7 +145,7 @@ class OscPage : public IPage {
   void zeroField() override {
     Osc& o = model_.osc[voice_];
     if (nav_.row() >= kBankRow0) {
-      zeroModRow(bankRow());
+      zeroModField(bankRow(), nav_.field());
       return;
     }
     if (nav_.row() == kTuneRow) {
@@ -166,8 +166,11 @@ class OscPage : public IPage {
     Osc& o = model_.osc[voice_];
     if (nav_.row() >= kBankRow0) {
       ModRow& m = bankRow();
-      m.amount = model_.randomUnit() * 2.0f - 1.0f;
-      m.mode = static_cast<uint8_t>(model_.random() % MOD_TYPE_COUNT);
+      if (nav_.field() == MOD_FIELD_MODE) {
+        m.mode = static_cast<uint8_t>(model_.random() % MOD_TYPE_COUNT);
+      } else {
+        m.amount = model_.randomUnit() * 2.0f - 1.0f;
+      }
       return;
     }
     if (nav_.row() == kTuneRow) {
