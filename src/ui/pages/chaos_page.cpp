@@ -14,6 +14,14 @@ constexpr int kPickRow = 2;   // PICK
 constexpr uint8_t kFields[] = {2, 3, 1};
 constexpr int kRows = 3;
 
+// The history plot sits to the right of the three output meters.
+constexpr int kPlotCol = 26;
+constexpr int kPlotRow = 6;
+constexpr int kPlotCols = 14;
+constexpr int kPlotRows = 3;
+constexpr int kHistory = kPlotCols * kCellW;
+constexpr double kSampleSeconds = 0.25;   // 84 samples -> a 21 second window
+
 class ChaosPage : public IPage {
  public:
   explicit ChaosPage(PhoenixModel& m) : model_(m) { nav_.configure(kFields, kRows); }
@@ -73,7 +81,16 @@ class ChaosPage : public IPage {
       drawField(scr, col, 4, buf, PEN_COOL, nav_.at(kShapeRow, i), sbg);
     }
 
-    if (rung) drawRegister(scr, c);
+    if (rung) {
+      drawRegister(scr, c);
+      // A history of the picked tap, because "it sits at the extremes" is a
+      // claim about time and a bar only ever shows the present.
+      scr.reserve(kPlotCol, kPlotRow, kPlotCols, kPlotRows);
+      pushHistory(c.out[c.pick]);
+      // Answer the question the plot raises, rather than making it eyeballed.
+      scr.text(kPlotCol, kPlotRow - 1, "EXT", PEN_DIM);
+      scr.textf(kPlotCol + 4, kPlotRow - 1, PEN_COOL, "%d%%", extremesPercent());
+    }
 
     // The three outputs, with the picked one marked.
     for (int o = 0; o < 3; ++o) {
@@ -82,8 +99,8 @@ class ChaosPage : public IPage {
       scr.put(1, row, picked ? phx_glyphs::kTriRight : ' ',
               picked ? PEN_HOT : PEN_FAINT);
       scr.text(3, row, kChaosOutLabel[o], picked ? PEN_BRIGHT : PEN_DIM);
-      scr.bar(12, row, 10, (c.out[o] + 1.0f) * 0.5f, PEN_COOL);
-      scr.textf(24, row, PEN_COOL, "%+.2f", static_cast<double>(c.out[o]));
+      scr.bar(11, row, 8, (c.out[o] + 1.0f) * 0.5f, PEN_COOL);
+      scr.textf(20, row, PEN_COOL, "%+.2f", static_cast<double>(c.out[o]));
     }
 
     bool pr = nav_.atRow(kPickRow);
@@ -102,6 +119,38 @@ class ChaosPage : public IPage {
     if (model_.machine_mode == MODE_ADVANCED) {
       col = scr.text(col, frow, which_ == 0 ? "SEQ1" : "SEQ2", PEN_EMBER) + 1;
       if (which_ == 0) scr.text(col, frow, "FATE", PEN_EMBER);
+    }
+  }
+
+  void drawOverlay(IGfx& gfx) override {
+    if (model_.chaos[which_].mode != CHAOS_RUNGLER) return;
+    int x0 = TextScreen::pixelX(kPlotCol);
+    int y0 = TextScreen::pixelY(kPlotRow);
+    int w = kPlotCols * kCellW;
+    int h = kPlotRows * kCellH;
+    int mid = y0 + h / 2;
+    int span = h / 2 - 1;
+
+    // Rails and centre, so time spent hard on or hard off is obvious.
+    gfx.fillRect(x0, y0, w, 1, COLOR_RULE);
+    gfx.fillRect(x0, y0 + h - 1, w, 1, COLOR_RULE);
+    gfx.fillRect(x0, mid, w, 1, COLOR_RULE);
+
+    int prev = mid;
+    for (int x = 0; x < w && x < kHistory; ++x) {
+      float v = hist_[(hist_pos_ + x) % kHistory];
+      int y = mid - static_cast<int>(v * static_cast<float>(span));
+      if (y < y0) y = y0;
+      if (y > y0 + h - 1) y = y0 + h - 1;
+      // Stepped, not interpolated: the value really does jump.
+      if (x > 0 && y != prev) {
+        int lo = y < prev ? y : prev;
+        int hi = y < prev ? prev : y;
+        gfx.fillRect(x0 + x, lo, 1, hi - lo + 1, COLOR_COOL);
+      } else {
+        gfx.drawPixel(x0 + x, y, COLOR_COOL);
+      }
+      prev = y;
     }
   }
 
@@ -197,27 +246,46 @@ class ChaosPage : public IPage {
   }
 
  private:
-  // The shift register itself, MSB first, coloured by which output reads it.
-  // A rungler is easier to understand watching the bits march than from any
-  // amount of prose about it.
+  // The shift register, MSB first, with the tap each bit belongs to written
+  // directly underneath: A - I I I T T T. A legend off to one side made you
+  // work out which bits were which; this does not.
   void drawRegister(TextScreen& scr, const Chaos& c) {
-    scr.text(2, 12, "REG", PEN_DIM);
+    scr.text(2, 11, "REG", PEN_DIM);
     for (int b = 7; b >= 0; --b) {
       int col = 7 + (7 - b) * 2;
       bool set = (c.rung_bits >> b) & 1u;
+      char tap;
       uint8_t pen;
-      if (b == 7) pen = PEN_HOT;              // APATHY reads this bit raw
-      else if (b >= 3 && b <= 5) pen = PEN_VIOLET;   // INERTIA
-      else if (b <= 2) pen = PEN_COOL;        // TORPOR
-      else pen = PEN_FAINT;                   // bit 6 is not tapped
-      scr.put(col, 12, set ? phx_glyphs::kBlock : phx_glyphs::kBlockDim,
+      if (b == 7)                 { tap = 'A'; pen = PEN_HOT; }
+      else if (b >= 3 && b <= 5)  { tap = 'I'; pen = PEN_VIOLET; }
+      else if (b <= 2)            { tap = 'T'; pen = PEN_COOL; }
+      else                        { tap = '-'; pen = PEN_FAINT; }
+      scr.put(col, 11, set ? phx_glyphs::kBlock : phx_glyphs::kBlockDim,
               set ? pen : PEN_FAINT);
+      scr.put(col, 12, static_cast<uint8_t>(tap), pen == PEN_FAINT ? PEN_FAINT : pen);
     }
-    // Which tap belongs to which output.
-    scr.text(25, 12, "A", PEN_HOT);
-    scr.text(27, 12, "I", PEN_VIOLET);
-    scr.text(29, 12, "T", PEN_COOL);
-    scr.text(31, 12, "taps", PEN_FAINT);
+  }
+
+  // Sampled on a fixed interval rather than once per frame, so the window is
+  // the same 21 seconds whether the panel is running at 25fps or 60. Per-frame
+  // sampling gave barely a second of history — nowhere near enough to judge
+  // how long the output sits at a rail.
+  void pushHistory(float v) {
+    if (model_.time - last_sample_ < kSampleSeconds) return;
+    last_sample_ = model_.time;
+    hist_[hist_pos_] = v;
+    hist_pos_ = (hist_pos_ + 1) % kHistory;
+    if (hist_fill_ < kHistory) ++hist_fill_;
+  }
+
+  int extremesPercent() const {
+    if (hist_fill_ <= 0) return 0;
+    int n = 0;
+    for (int i = 0; i < hist_fill_; ++i) {
+      float v = hist_[i] < 0 ? -hist_[i] : hist_[i];
+      if (v > 0.6f) ++n;   // the two outer levels of the 3-bit DAC
+    }
+    return n * 100 / hist_fill_;
   }
 
   void editShape(Chaos& c, int dir, bool fine) {
@@ -250,6 +318,10 @@ class ChaosPage : public IPage {
   PhoenixModel& model_;
   RowNav nav_;
   int which_ = 0;
+  float hist_[kHistory] = {};
+  int hist_pos_ = 0;
+  int hist_fill_ = 0;
+  double last_sample_ = 0.0;
 };
 
 }  // namespace

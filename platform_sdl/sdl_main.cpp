@@ -159,9 +159,15 @@ int captureAll(SDLDisplay& gfx, PhoenixModel& model, PhoenixDisplay& ui,
   // forever.
   int screens = ui.screenCount();
   for (int i = 0; i < screens; ++i) {
-    // Advance the machine between shots so the screens are not identical.
-    engine.render(buf, kBlockSize);
-    for (int f = 0; f < 4; ++f) ui.update(1.0f / 30.0f);
+    // Interleave audio and UI frames: pages with a history overlay sample it
+    // once per draw, so a screenshot taken after a single render shows an
+    // empty plot rather than the machine running.
+    // ~25 s of machine time per screen, so history overlays have something to
+    // show. Cheap: the engine renders far faster than real time.
+    for (int f = 0; f < 750; ++f) {
+      engine.render(buf, kBlockSize);
+      ui.update(1.0f / 30.0f);
+    }
     snprintf(path, sizeof(path), "%s/screen%02d.bmp", dir, i + 1);
     if (gfx.saveBmp(path)) ++shots;
     ui.nextPage();
