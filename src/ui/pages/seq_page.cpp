@@ -81,11 +81,11 @@ class SeqPage : public IPage {
         // From a rest the first press lands on middle, rather than crawling up
         // from nothing.
         if (n < 0) {
-          n = 48;
+          n = kSeqNoteMid;
         } else {
           n = static_cast<int8_t>(n + dir * (ev.shift ? 12 : 1));
-          if (n < 12) n = 12;
-          if (n > 96) n = 96;
+          if (n < kSeqNoteMin) n = kSeqNoteMin;
+          if (n > kSeqNoteMax) n = kSeqNoteMax;
         }
         return true;
       }
@@ -107,7 +107,7 @@ class SeqPage : public IPage {
     if (nav_.row() == kStepRow) {
       // A step is on or it is a rest; SPACE is the natural key for that.
       int8_t& n = s.editNotes()[nav_.field()];
-      n = n < 0 ? 48 : -1;
+      n = n < 0 ? kSeqNoteMid : -1;
       return true;
     }
     return false;
@@ -213,7 +213,9 @@ class SeqPage : public IPage {
     const int8_t* notes = s.notes();
     bool rf = nav_.atRow(kStepRow);
     for (int i = 0; i < kSeqSteps; ++i) {
-      int col = 3 + i * 5;
+      // Two, not three: a signed value is three characters wide, and the last
+      // step starting at 38 would have its final digit clipped off the edge.
+      int col = 2 + i * 5;
       bool on = notes[i] >= 0;
       bool here = i == s.step;
       bool cursor = rf && nav_.field() == i;
@@ -225,15 +227,21 @@ class SeqPage : public IPage {
       if (on) {
         // Two cells give the pattern enough vertical presence to read as a
         // shape rather than a row of specks.
-        float v = static_cast<float>(notes[i] - 24) / 48.0f;
+        // The whole 12..96 span, not just the middle of it: mapping 24..72
+        // left the bottom and top thirds drawing an identical bar while the
+        // number kept moving, which is what makes the floor look like a bug.
+        float v = static_cast<float>(notes[i] - kSeqNoteMin) /
+                  static_cast<float>(kSeqNoteMax - kSeqNoteMin);
         if (v < 0.0f) v = 0.0f;
         if (v > 1.0f) v = 1.0f;
         int lvl = static_cast<int>(v * 14.0f + 0.5f);
         scr.put(col, kScrBarTop, phx_glyphs::bar(lvl > 7 ? lvl - 7 : 0),
                 lvl > 7 ? pen : PEN_FAINT);
         scr.put(col, kScrBarTop + 1, phx_glyphs::bar(lvl > 7 ? 7 : lvl), pen);
+        // Signed against the centre. An absolute 12..96 gave no hint that 48
+        // was the middle or that 12 was the end of the scale.
         drawFieldF(scr, col, kScrNote, kStepRow, i, here ? PEN_BRIGHT : PEN_TEXT,
-                   cursor, PEN_BG, "%d", notes[i]);
+                   cursor, PEN_BG, "%+d", notes[i] - kSeqNoteMid);
       } else {
         scr.put(col, kScrBarTop + 1, phx_glyphs::kBlockDim, PEN_FAINT);
         drawField(scr, col, kScrNote, kStepRow, i, "--", PEN_FAINT, cursor, PEN_BG);

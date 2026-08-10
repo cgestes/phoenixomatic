@@ -195,6 +195,13 @@ struct Osc {
   float phase = 0.0f;
 };
 
+// A step's value, stored absolute but shown signed against the centre. The
+// span is symmetric on purpose — at RANGE 1 the whole of it reaches the bus,
+// and at wider ranges the ends clamp, which is what the scaling is for.
+inline constexpr int8_t kSeqNoteMid = 48;
+inline constexpr int8_t kSeqNoteMin = 12;
+inline constexpr int8_t kSeqNoteMax = 96;
+
 inline constexpr int kSeqSteps = 8;
 inline constexpr int kSeqModRows = 5;
 inline constexpr int kSeqPatterns = 8;
@@ -227,8 +234,42 @@ struct Seq {
 
 inline constexpr int kCompModRows = 4;
 
+// What the comparator sends to the mixer. The *comparison* is always the same
+// hard question — is A above B — because its edges are the machine's only
+// clock, and a tone control has no business changing the rhythm. These shape
+// only what comes out of the audio jack, so you can hunt for a sound without
+// losing the pattern you found.
+//
+// PWM is the original: sign(A-B), one bit, all edge. The rest trade some of
+// that edge for something the filter can bite into.
+enum CompShape : uint8_t {
+  CSHAPE_PWM = 0,   // sign(d)          the hard square, as the Benjolin has it
+  CSHAPE_LIM,       // tanh(d*g)        soft knee; low drive is nearly the raw difference
+  CSHAPE_CLIP,      // clamp(d*g)       hard knee, flat tops
+  CSHAPE_FOLD,      // triangle fold    keeps going where clip gives up
+  CSHAPE_RECT,      // |d|*g            octave up, ring-mod flavour
+  CSHAPE_MIN,       // min(A,B)         analogue AND
+  CSHAPE_MAX,       // max(A,B)         analogue OR
+  CSHAPE_COUNT
+};
+extern const char* const kCompShapeLabel[CSHAPE_COUNT];
+
+// Drive does nothing to a hard square or to analogue min/max.
+inline bool compShapeUsesDrive(uint8_t shape) {
+  return shape == CSHAPE_LIM || shape == CSHAPE_CLIP ||
+         shape == CSHAPE_FOLD || shape == CSHAPE_RECT;
+}
+
+// Where a comparator attenuverter row lands. WIDTH is the pulse width — the
+// classic one, moving B under A. DRIVE feeds the shaper, which is where the
+// rungler earns its keep: fold depth swept by the register is the sound.
+enum CompDest : uint8_t { CDEST_WIDTH = 0, CDEST_DRIVE, CDEST_COUNT };
+extern const char* const kCompDestLabel[CDEST_COUNT];
+
 struct Comparator {
   float offset = -0.20f;
+  uint8_t shape = CSHAPE_PWM;
+  float drive = 0.35f;
   ModRow mod[kCompModRows];
   int focus = 0;
   float level = 0.31f;

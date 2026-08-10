@@ -152,10 +152,42 @@ would quietly rule out a third of what this machine can do.
 Type is per-row, so `CHAOS-A` can be doing slow `FM-DC` pitch drift while `OSC-2` rings the
 output and `FDBK` phase-modulates it — simultaneously, from one screen.
 
-### 3.3 Comparator offset bank
+### 3.3 Comparator bank
 
-Four permanent attenuverter rows: `SEQ-1`, `SEQ-2`, `CHAOS-A`, `CHAOS-B`. No type selector —
-these just sum into the offset.
+Four permanent attenuverter rows: `SEQ-1`, `SEQ-2`, `CHAOS-A`, `CHAOS-B`. The `MODE` column is a
+destination with two entries:
+
+| Dest | Lands on |
+|---|---|
+| `WIDTH` | The offset under B — pulse width, and therefore the rhythm. |
+| `DRIVE` | The output shaper. Timbre only; see 3.3a. |
+
+`CHAOS-A → DRIVE` on `FOLD` is the pairing worth reaching for first: the register sweeps the fold
+depth while the pattern underneath stays exactly where you left it.
+
+### 3.3a The comparator's output shape
+
+The comparison is always the same hard question — *is A above B* — because its two edges are the
+machine's only clock. A tone control has no business changing the rhythm. So `OUT` shapes only
+what reaches the mixer and the filter, and switching it leaves the pattern untouched. Measured
+over two seconds at default tuning, all seven shapes produce **248 comparator edges**.
+
+| `OUT` | | Character |
+|---|---|---|
+| `PWM` | `sign(d)` | The original. One bit, all edge. |
+| `LIM` | `tanh(d·g)` | Soft knee; at low drive nearly the raw difference. |
+| `CLIP` | `clamp(d·g)` | Hard knee, flat tops. |
+| `FOLD` | triangle fold | Keeps generating where `CLIP` gives up — 267 → 2076 zero-crossings/s across the drive range, against 248 for `PWM`. |
+| `RECT` | `abs(d)·g` | Octave up, ring-mod flavour. |
+| `MIN` | `min(A,B)` | Analogue AND. |
+| `MAX` | `max(A,B)` | Analogue OR. |
+
+`DRV` is greyed rather than hidden on the shapes that ignore it (`PWM`, `MIN`, `MAX`) — the field
+keeps its place in the row so the cursor does not move under you when you change shape.
+
+`MIN`, `MAX` and `FOLD` are quieter than `PWM` by roughly 6 dB. That is what those functions
+honestly do to two triangle waves; `LEVEL` is on the next row rather than a makeup gain hidden
+inside the shaper.
 
 ### 3.4 Sequencer mod bank (SEQ1 shown)
 
@@ -231,6 +263,19 @@ with a chaos section bolted on:
 - Sequencer `DIV/MULT` below 1x skips incoming edges. Above 1x there is nothing
   to multiply against, so it passes through — going faster means turning the
   oscillators up, which is the honest answer.
+- The comparator's `OUT` shape is deliberately outside all of this: it is the
+  one comparator control that cannot disturb the timing (3.3a).
+
+A step's value is stored as 12…96 and **shown signed against its centre of 48**,
+so it reads -36…+36 with `0` in the middle. Absolute numbers gave no hint that
+48 was the centre or that 12 was the end of the scale, and the step bars only
+mapped 24…72 — so the bottom and top thirds drew an identical bar while the
+number kept moving, which made the floor look like a bug rather than a limit.
+The span is symmetric on purpose: at `RANGE 1` all of it reaches the bus, and
+at wider ranges the ends clamp, which is what the range scaling is for. The
+step grid starts at column 2 rather than 3 because a signed value is three
+characters wide and the eighth step would otherwise be clipped by the screen
+edge.
 
 ---
 

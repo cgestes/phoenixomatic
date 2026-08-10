@@ -53,7 +53,7 @@ class LogicPage : public IPage {
     int mid = y0 + h / 2;
     int span = h / 2 - 2;
 
-    float off = model_.comp.b - model_.osc[1].out;
+    float off = model_.comp.b - model_.osc[1].out;   // engine-computed, mod included
     int b_y = mid - static_cast<int>(off * static_cast<float>(span));
     if (b_y < y0) b_y = y0;
     if (b_y > y0 + h - 1) b_y = y0 + h - 1;
@@ -110,10 +110,14 @@ class LogicPage : public IPage {
   void zeroField() override {
     if (sub_ == 0) {
       Comparator& c = model_.comp;
-      if (nav_.row() == kCompOffsetRow) c.offset = 0.0f;
+      if (nav_.row() == kCompOffsetRow) {
+        if (nav_.field() == 1) c.shape = CSHAPE_PWM;
+        else if (nav_.field() == 2) c.drive = 0.0f;
+        else c.offset = 0.0f;
+      }
       else if (nav_.row() == compLevelRow()) c.level = 0.0f;
       else zeroModField(c.mod[bank_index_[nav_.row() - kCompBankRow0]],
-                        MOD_FIELD_AMOUNT);
+                        nav_.field());
       return;
     }
     if (nav_.row() == kFateModeRow) {
@@ -126,10 +130,20 @@ class LogicPage : public IPage {
   void randomizeField() override {
     if (sub_ == 0) {
       Comparator& c = model_.comp;
-      if (nav_.row() == kCompOffsetRow) c.offset = model_.randomUnit() * 2.0f - 1.0f;
+      if (nav_.row() == kCompOffsetRow) {
+        if (nav_.field() == 1) c.shape = static_cast<uint8_t>(model_.random() % CSHAPE_COUNT);
+        else if (nav_.field() == 2) c.drive = model_.randomUnit();
+        else c.offset = model_.randomUnit() * 2.0f - 1.0f;
+      }
       else if (nav_.row() == compLevelRow()) c.level = model_.randomUnit();
-      else c.mod[bank_index_[nav_.row() - kCompBankRow0]].amount =
-               model_.randomUnit() * 2.0f - 1.0f;
+      else {
+        ModRow& m = c.mod[bank_index_[nav_.row() - kCompBankRow0]];
+        if (nav_.field() == MOD_FIELD_MODE) {
+          m.mode = static_cast<uint8_t>(model_.random() % CDEST_COUNT);
+        } else {
+          m.amount = model_.randomUnit() * 2.0f - 1.0f;
+        }
+      }
       return;
     }
     if (nav_.row() == kFateModeRow) {
@@ -144,6 +158,8 @@ class LogicPage : public IPage {
     if (sub_ == 0) {
       Comparator& c = model_.comp;
       c.offset = 0.0f;
+      c.shape = CSHAPE_PWM;
+      c.drive = 0.0f;
       c.level = 0.0f;
       for (int i = 0; i < bank_count_; ++i) zeroModRow(c.mod[bank_index_[i]]);
     } else {
@@ -159,8 +175,12 @@ class LogicPage : public IPage {
     if (sub_ == 0) {
       Comparator& c = model_.comp;
       c.offset = model_.randomUnit() * 2.0f - 1.0f;
+      c.shape = static_cast<uint8_t>(model_.random() % CSHAPE_COUNT);
+      c.drive = model_.randomUnit();
       for (int i = 0; i < bank_count_; ++i) {
-        c.mod[bank_index_[i]].amount = model_.randomUnit() * 2.0f - 1.0f;
+        ModRow& m = c.mod[bank_index_[i]];
+        m.amount = model_.randomUnit() * 2.0f - 1.0f;
+        m.mode = static_cast<uint8_t>(model_.random() % CDEST_COUNT);
       }
     } else {
       for (int i = 0; i < kFateChannels; ++i) randomFate(model_.fate[i]);
@@ -191,8 +211,10 @@ class LogicPage : public IPage {
     if (sub_ == 0) {
       bank_count_ = visibleModRows(model_.comp.mod, kCompModRows, nav_mode_,
                                    bank_index_);
-      int rows = kCompBankRow0 + bank_count_ + 1;   // offset + bank + level
-      for (int i = 0; i < rows; ++i) comp_fields_[i] = 1;
+      int rows = kCompBankRow0 + bank_count_ + 1;   // shape + bank + level
+      comp_fields_[kCompOffsetRow] = 3;               // OFFSET SHAPE DRIVE
+      for (int i = 0; i < bank_count_; ++i) comp_fields_[kCompBankRow0 + i] = 2;
+      comp_fields_[kCompBankRow0 + bank_count_] = 1;  // LEVEL
       nav_.configure(comp_fields_, rows);
     } else {
       nav_.configure(kFateFields, kFateRows);
@@ -214,13 +236,23 @@ class LogicPage : public IPage {
     bool orow = nav_.atRow(kCompOffsetRow);
     uint8_t obg = rowBg(orow);
     if (orow) scr.highlight(1, 7, kScreenCols - 2, PEN_PANEL);
-    scr.text(2, 7, "OFFSET", PEN_TEXT, obg);
-    drawFieldF(scr, 9, 7, kCompOffsetRow, 0, PEN_COOL, nav_.at(kCompOffsetRow, 0), obg, "%+d",
+    scr.text(2, 7, "WIDTH", PEN_TEXT, obg);
+    drawFieldF(scr, 8, 7, kCompOffsetRow, 0, PEN_COOL, nav_.at(kCompOffsetRow, 0), obg, "%+d",
                static_cast<int>(c.offset * 100.0f));
+    scr.text(18, 7, "OUT", PEN_TEXT, obg);
+    drawField(scr, 22, 7, kCompOffsetRow, 1, kCompShapeLabel[c.shape], PEN_HOT,
+              nav_.at(kCompOffsetRow, 1), obg);
+    // Greyed rather than hidden: the field keeps its place in the row, so the
+    // cursor does not move under you when you change shape.
+    bool uses_drive = compShapeUsesDrive(c.shape);
+    scr.text(28, 7, "DRV", uses_drive ? PEN_TEXT : PEN_FAINT, obg);
+    drawFieldF(scr, 32, 7, kCompOffsetRow, 2,
+               uses_drive ? PEN_BRIGHT : PEN_FAINT, nav_.at(kCompOffsetRow, 2),
+               obg, "%d", static_cast<int>(c.drive * 100.0f));
 
     for (int i = 0; i < bank_count_; ++i) {
-      int focused = nav_.atRow(kCompBankRow0 + i) ? MOD_FIELD_AMOUNT : -1;
-      drawModRow(scr, 8 + i, c.mod[bank_index_[i]], focused, nullptr,
+      int focused = nav_.atRow(kCompBankRow0 + i) ? nav_.field() : -1;
+      drawModRow(scr, 8 + i, c.mod[bank_index_[i]], focused, kCompDestLabel,
                  kCompBankRow0 + i);
     }
 
@@ -311,14 +343,23 @@ class LogicPage : public IPage {
     Comparator& c = model_.comp;
     if (nav_.row() >= kCompBankRow0 && nav_.row() < compLevelRow()) {
       return editModRow(ev, c.mod[bank_index_[nav_.row() - kCompBankRow0]],
-                        MOD_FIELD_AMOUNT, 0);
+                        nav_.field(), CDEST_COUNT);
     }
     if (ev.code != KEY_LEFT && ev.code != KEY_RIGHT) return false;
-    float d = (ev.code == KEY_RIGHT ? 1.0f : -1.0f) * (ev.shift ? 0.01f : 0.05f);
+    int dir = ev.code == KEY_RIGHT ? 1 : -1;
+    float d = static_cast<float>(dir) * (ev.shift ? 0.01f : 0.05f);
     if (nav_.row() == kCompOffsetRow) {
-      c.offset += d;
-      if (c.offset < -1.0f) c.offset = -1.0f;
-      if (c.offset > 1.0f) c.offset = 1.0f;
+      if (nav_.field() == 1) {
+        c.shape = static_cast<uint8_t>((c.shape + CSHAPE_COUNT + dir) % CSHAPE_COUNT);
+      } else if (nav_.field() == 2) {
+        c.drive += d;
+        if (c.drive < 0.0f) c.drive = 0.0f;
+        if (c.drive > 1.0f) c.drive = 1.0f;
+      } else {
+        c.offset += d;
+        if (c.offset < -1.0f) c.offset = -1.0f;
+        if (c.offset > 1.0f) c.offset = 1.0f;
+      }
     } else {
       c.level += d;
       if (c.level < 0.0f) c.level = 0.0f;

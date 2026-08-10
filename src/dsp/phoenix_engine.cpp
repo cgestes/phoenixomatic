@@ -6,6 +6,36 @@
 
 namespace {
 
+// Reflect x back into [-1,1] instead of clamping at it — a triangle wavefolder,
+// period 4. Where CLIP flattens, this keeps generating new harmonics, which is
+// what makes it worth having next to CLIP rather than instead of it.
+inline float foldTri(float x) {
+  float q = (x + 1.0f) * 0.25f;
+  q -= std::floor(q);
+  float t = q * 4.0f;
+  return (t < 2.0f ? t : 4.0f - t) - 1.0f;
+}
+
+// Audio only. See CompShape in model.h for why this never feeds the timing.
+inline float shapeComp(float a, float b, uint8_t shape, float drive) {
+  if (drive < 0.0f) drive = 0.0f;
+  if (drive > 1.0f) drive = 1.0f;
+  float d = a - b;
+  float g = 1.0f + drive * 15.0f;
+  switch (shape) {
+    case CSHAPE_LIM:  return std::tanh(d * g);
+    case CSHAPE_CLIP: { float v = d * g; return v < -1.0f ? -1.0f : (v > 1.0f ? 1.0f : v); }
+    case CSHAPE_FOLD: return foldTri(d * g);
+    // Rectified: the difference folded about zero, so it runs at twice the
+    // rate the comparator flips.
+    case CSHAPE_RECT: { float v = std::fabs(d) * g - 1.0f; return v > 1.0f ? 1.0f : v; }
+    case CSHAPE_MIN:  { float v = a < b ? a : b; return v < -1.0f ? -1.0f : (v > 1.0f ? 1.0f : v); }
+    case CSHAPE_MAX:  { float v = a > b ? a : b; return v < -1.0f ? -1.0f : (v > 1.0f ? 1.0f : v); }
+    default:          return d > 0.0f ? 1.0f : -1.0f;
+  }
+}
+
+
 inline float clamp1(float v) { return v < -1.0f ? -1.0f : (v > 1.0f ? 1.0f : v); }
 
 // How far the filter's bank can drag the cutoff at full travel.
@@ -267,9 +297,12 @@ void PhoenixEngine::render(int16_t* out, size_t frames) {
 
     // --- comparator: the only time base ------------------------------------
     float offset = model_.comp.offset;
+    float drive_mod = 0.0f;
     for (int i = 0; i < kCompModRows; ++i) {
       const ModRow& m = model_.comp.mod[i];
-      if (m.amount != 0.0f) offset += m.amount * bus_[m.src];
+      if (m.amount == 0.0f) continue;
+      if (m.mode == CDEST_DRIVE) drive_mod += m.amount * bus_[m.src];
+      else offset += m.amount * bus_[m.src];
     }
     float a = osc_[0].value();
     float b = osc_[1].value() + offset;
@@ -277,7 +310,13 @@ void PhoenixEngine::render(int16_t* out, size_t frames) {
     comp_gt_ = a > b;
     gt_edge_ = comp_gt_ && !comp_gt_prev_;
     lt_edge_ = !comp_gt_ && comp_gt_prev_;
-    comp_out_ = comp_gt_ ? 1.0f : -1.0f;
+    // The comparison above is untouched by the shaper below, on purpose: those
+    // two edges are the whole machine's clock.
+    comp_out_ = shapeComp(a, b, model_.comp.shape,
+                          model_.comp.drive + drive_mod);
+    // The trace on the COMP page draws the threshold from these.
+    model_.comp.a = a;
+    model_.comp.b = b;
 
     if (gt_edge_) {
       if (edge_gap_ > 0) {
