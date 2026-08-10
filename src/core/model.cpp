@@ -19,7 +19,9 @@ const char* const kOscModTypeLabel[MOD_TYPE_COUNT] = {
   "FM-EXP", "FM-AC", "FM-LIN", "FM-TZ", "PM", "AM", "AM+5", "AM-RE", "RM"
 };
 const char* const kSeqDestLabel[DEST_COUNT] = { "CV", "CHANCE", "SLEW", "LEN" };
-const char* const kChaosModeLabel[CHAOS_MODE_COUNT] = { "SLOTH", "LORENZ", "ROSSLER", "RUNGLER" };
+const char* const kChaosModeLabel[CHAOS_MODE_COUNT] = {
+  "SLOTH", "LORENZ", "ROSSLER", "RND", "RUNGLER"
+};
 const char* const kChaosOutLabel[3] = { "TORPOR", "INERTIA", "APATHY" };
 const char* const kWaveLabel[WAVE_COUNT] = { "SIN", "TRI", "SAW", "SQR" };
 

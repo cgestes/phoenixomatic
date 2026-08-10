@@ -80,7 +80,15 @@ extern const char* const kSeqDestLabel[DEST_COUNT];
 // Modules
 // ---------------------------------------------------------------------------
 
-enum ChaosMode : uint8_t { CHAOS_SLOTH = 0, CHAOS_LORENZ, CHAOS_ROSSLER, CHAOS_RUNGLER, CHAOS_MODE_COUNT };
+// RND is a self-contained LFSR with a pseudo-random flip: stepped, and owing
+// nothing to the rest of the machine — you cannot steer it, only set how busy
+// it is. RUNGLER is the benjolin article: a shift register clocked by one
+// oscillator and fed by the other, with no random source anywhere, so the
+// pattern is a function of the tuning and a groove you find stays found.
+enum ChaosMode : uint8_t {
+  CHAOS_SLOTH = 0, CHAOS_LORENZ, CHAOS_ROSSLER, CHAOS_RND, CHAOS_RUNGLER,
+  CHAOS_MODE_COUNT
+};
 extern const char* const kChaosModeLabel[CHAOS_MODE_COUNT];
 extern const char* const kChaosOutLabel[3];         // TORPOR / INERTIA / APATHY
 

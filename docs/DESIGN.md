@@ -324,7 +324,30 @@ touch — the rest of the machine is grim industrial.
 └────────────────────────────────────────┘
 ```
 
-`MODE` cycles SLOTH / LORENZ / RÖSSLER / RUNGLER. `PICK` chooses which of the three outputs is
+`MODE` cycles SLOTH / LORENZ / RÖSSLER / RND / RUNGLER.
+
+**RND vs RUNGLER.** RND is a self-contained shift register with a pseudo-random flip: stepped
+voltage that owes nothing to the rest of the machine. You can set how busy it is, but you cannot
+steer it.
+
+RUNGLER is the benjolin article, and it is a *loop through the oscillators*:
+
+```
+OSC1 square ──clock──▶ ┌─────────────────┐
+                       │ 8-bit shift reg │──┬─ bits 0-2 ─▶ TORPOR
+OSC2 square ──data───▶ └─────────────────┘  ├─ bits 3-5 ─▶ INERTIA
+                                            └─ bit 7 ────▶ APATHY
+```
+
+CHAOS-B mirrors it — clocked by OSC2, fed by OSC1 — so the two are different runglers rather than
+two copies of one. There is no random source anywhere in it: the apparent randomness comes from
+the ratio between the two oscillators, which is exactly why a pattern you dial in with `DIV` and
+`MULT` stays dialled in. Simple ratios give short repeating figures; awkward ones wander for a
+long time before coming back.
+
+In this mode `RATE` divides the incoming clock (1…16) rather than setting a frequency, and `SKEW`
+blends the data bit with feedback from the register's top tap, steering the pattern between short
+and restless. `PICK` chooses which of the three outputs is
 published on the `CHA` bus. The three outputs are always running.
 
 ### 6.3 OSC (1 · 2) — the main performance page

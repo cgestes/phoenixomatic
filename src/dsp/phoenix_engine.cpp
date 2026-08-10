@@ -244,6 +244,20 @@ void PhoenixEngine::render(int16_t* out, size_t frames) {
       if (!o.mute) voice += s * o.level * 0.34f;
     }
 
+    // --- runglers ----------------------------------------------------------
+    // Each chaos core in RUNGLER mode is clocked by one oscillator and fed by
+    // the other, mirrored, so A and B are different runglers rather than two
+    // copies of one. Every sample: an audio-rate clock has edges inside the
+    // chaos stride.
+    if (model_.chaos[0].mode == CHAOS_RUNGLER && !model_.chaos[0].freeze) {
+      chaos_[0].tickRungler(osc_[0].value() > 0.0f, osc_[1].value() > 0.0f);
+      for (int o = 0; o < 3; ++o) model_.chaos[0].out[o] = chaos_[0].out(o);
+    }
+    if (model_.chaos[1].mode == CHAOS_RUNGLER && !model_.chaos[1].freeze) {
+      chaos_[1].tickRungler(osc_[1].value() > 0.0f, osc_[0].value() > 0.0f);
+      for (int o = 0; o < 3; ++o) model_.chaos[1].out[o] = chaos_[1].out(o);
+    }
+
     // --- comparator: the only time base ------------------------------------
     float offset = model_.comp.offset;
     for (int i = 0; i < kCompModRows; ++i) {

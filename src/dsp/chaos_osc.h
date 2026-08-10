@@ -18,6 +18,12 @@ class ChaosOsc {
 
   // Advance by `dt_samples` samples. Cheap: called every kChaosStride samples.
   void process(int dt_samples);
+
+  // RUNGLER mode only, and it must be called *every* sample: the clock is an
+  // oscillator, and at audio rate its edges fall inside the chaos stride.
+  // `clock_high` is one oscillator's square, `data_high` the other's.
+  void tickRungler(bool clock_high, bool data_high);
+
   void reset();
 
   // -1..1, already scaled by depth and offset by skew.
@@ -27,7 +33,7 @@ class ChaosOsc {
   // One chaotic core. Which equations it integrates depends on the mode.
   struct Core {
     float x = 0.1f, y = 0.0f, z = 0.0f;
-    // Rungler mode keeps a shift register instead of a flow.
+    // RND keeps a shift register instead of a flow.
     uint8_t shift = 0;
     float phase = 0.0f;
     float held = 0.0f;
@@ -43,4 +49,9 @@ class ChaosOsc {
   float skew_ = 0.0f;
   uint8_t mode_ = 0;
   uint32_t rng_ = 1;
+
+  // Rungler state. One register, three taps read off it.
+  uint8_t rung_shift_ = 0;
+  bool rung_prev_clock_ = false;
+  int rung_div_count_ = 0;
 };

@@ -35,6 +35,49 @@ void ChaosOsc::reset() {
     core_[i].phase = 0.13f * static_cast<float>(i);
     out_[i] = 0.0f;
   }
+  rung_shift_ = 0x2Du;   // any non-zero seed; all-zeros with pure data is fine
+  rung_prev_clock_ = false;
+  rung_div_count_ = 0;
+}
+
+// The benjolin article: one oscillator clocks the register, the other supplies
+// the bit. No random source anywhere — the apparent randomness comes from the
+// ratio between the two oscillators, which is exactly why a pattern you tune
+// in stays tuned in.
+//
+//   RATE  divides the incoming clock, 1..16
+//   SKEW  blends the data bit with feedback from the register's top tap, so
+//         the pattern can be steered from short and repeating to long and
+//         restless
+//   DEPTH scales the output
+void ChaosOsc::tickRungler(bool clock_high, bool data_high) {
+  bool rising = clock_high && !rung_prev_clock_;
+  rung_prev_clock_ = clock_high;
+  if (!rising) return;
+
+  int div = 1 + static_cast<int>(rate_ * 8.0f);
+  if (div < 1) div = 1;
+  if (div > 16) div = 16;
+  if ((++rung_div_count_ % div) != 0) return;
+
+  uint8_t bit = data_high ? 1u : 0u;
+  // Positive skew mixes in the register's own top bit, which lengthens the
+  // pattern; negative skew leaves the pure data bit, the classic behaviour.
+  if (skew_ > 0.0f) {
+    uint8_t fb = static_cast<uint8_t>((rung_shift_ >> 7) & 1u);
+    // Deterministic threshold on the register itself rather than a coin toss.
+    if ((rung_shift_ & 0x0Fu) < static_cast<uint8_t>(skew_ * 15.0f)) bit ^= fb;
+  }
+  rung_shift_ = static_cast<uint8_t>((rung_shift_ << 1) | bit);
+
+  // Three taps off the one register: two 3-bit DACs and the raw top bit.
+  float low = static_cast<float>(rung_shift_ & 0x07u) / 3.5f - 1.0f;
+  float high = static_cast<float>((rung_shift_ >> 3) & 0x07u) / 3.5f - 1.0f;
+  float msb = ((rung_shift_ >> 7) & 1u) ? 1.0f : -1.0f;
+
+  out_[0] = low * depth_;
+  out_[1] = high * depth_;
+  out_[2] = msb * depth_;
 }
 
 void ChaosOsc::setMode(uint8_t mode) {
@@ -70,9 +113,10 @@ void ChaosOsc::stepCore(Core& c, float dt) {
       c.z += dz * dt;
       break;
     }
-    case CHAOS_RUNGLER: {
-      // A benjolin rungler: a shift register clocked by an internal square,
-      // fed back on itself. Stepped rather than smooth, which is the point.
+    case CHAOS_RND: {
+      // A self-contained LFSR with a pseudo-random flip. Not a rungler — see
+      // tickRungler for that — but useful when you want stepped noise that
+      // answers to nobody. It cannot be steered by tuning, only made busier.
       c.phase += dt;
       if (c.phase >= 1.0f) {
         c.phase -= 1.0f;
@@ -85,7 +129,7 @@ void ChaosOsc::stepCore(Core& c, float dt) {
                     (skew_ * 0.5f + 0.5f) * 0.35f;
         if (flip) bit ^= 1u;
         c.shift = static_cast<uint8_t>((c.shift << 1) | bit);
-        // Read three bits as a small DAC, the way the original does.
+        // Three bits through a crude DAC.
         int v = (c.shift & 0x07);
         c.held = static_cast<float>(v) / 3.5f - 1.0f;
       }
@@ -111,6 +155,10 @@ void ChaosOsc::stepCore(Core& c, float dt) {
 }
 
 void ChaosOsc::process(int dt_samples) {
+  // The rungler is clocked by an oscillator, not by time, so it is driven
+  // entirely from tickRungler().
+  if (mode_ == CHAOS_RUNGLER) return;
+
   float seconds = static_cast<float>(dt_samples) / sample_rate_;
 
   for (int i = 0; i < 3; ++i) {
@@ -123,7 +171,7 @@ void ChaosOsc::process(int dt_samples) {
     switch (mode_) {
       case CHAOS_LORENZ:  dt = seconds * core_rate * 6.0f; break;
       case CHAOS_ROSSLER: dt = seconds * core_rate * 22.0f; break;
-      case CHAOS_RUNGLER: dt = seconds * core_rate * 90.0f; break;
+      case CHAOS_RND:     dt = seconds * core_rate * 90.0f; break;
       default:            dt = seconds * core_rate * 18.0f; break;
     }
     // Forward Euler needs a small step; subdivide rather than blow up.
@@ -135,7 +183,7 @@ void ChaosOsc::process(int dt_samples) {
     switch (mode_) {
       case CHAOS_LORENZ:  raw = c.x * 0.055f; break;
       case CHAOS_ROSSLER: raw = c.x * 0.09f; break;
-      case CHAOS_RUNGLER: raw = c.x; break;
+      case CHAOS_RND:     raw = c.x; break;
       default:            raw = c.x * 0.42f; break;
     }
     out_[i] = clamp1(raw * depth_ + skew_ * 0.2f);
