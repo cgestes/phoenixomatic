@@ -173,12 +173,10 @@ class DrumPage : public IPage {
       drawFieldF(scr, 19, row, PEN_VIOLET, nav_.at(i, 1), bg, "%d%%",
                  static_cast<int>(d.chance * 100.0f));
       drawFieldF(scr, 27, row, PEN_HOT, nav_.at(i, 2), bg, "/%d", d.div);
-      if (nav_.at(i, 3)) {
-        drawFieldF(scr, 32, row, PEN_BRIGHT, true, bg, "%d",
-                   static_cast<int>(d.level * 100.0f));
-      } else {
-        scr.bar(32, row, 5, d.level, d.mute ? PEN_FAINT : kDrumPen[i]);
-      }
+      // Keep the fader visible when focused; only the number is highlighted.
+      scr.bar(32, row, 4, d.level, d.mute ? PEN_FAINT : kDrumPen[i]);
+      drawFieldF(scr, 37, row, d.mute ? PEN_FAINT : PEN_BRIGHT, nav_.at(i, 3), bg,
+                 "%d", static_cast<int>(d.level * 100.0f));
     }
 
     scr.text(2, 11, "LIVE", PEN_DIM);

@@ -34,15 +34,12 @@ class MixPage : public IPage {
       uint8_t pen = stripPen(i);
       scr.text(2, row, stripName(i), mute ? PEN_FAINT : pen, bg);
 
+      // The fader stays put whether or not it is focused — it is the thing you
+      // are actually reading. Only the number takes the field highlight.
       float level = *constLevel(i);
-      if (nav_.at(i, 0)) {
-        drawFieldF(scr, 9, row, PEN_BRIGHT, true, bg, "%d",
-                   static_cast<int>(level * 100.0f));
-      } else {
-        scr.bar(9, row, 10, level, mute ? PEN_FAINT : pen);
-        scr.textf(21, row, mute ? PEN_FAINT : PEN_BRIGHT, "%d",
-                  static_cast<int>(level * 100.0f));
-      }
+      scr.bar(9, row, 10, level, mute ? PEN_FAINT : pen);
+      drawFieldF(scr, 21, row, mute ? PEN_FAINT : PEN_BRIGHT, nav_.at(i, 0), bg,
+                 "%d", static_cast<int>(level * 100.0f));
       drawField(scr, 26, row, mute ? "MUTE" : "ON", mute ? PEN_ALERT : PEN_HOT,
                 nav_.at(i, 1), bg);
     }
@@ -51,13 +48,9 @@ class MixPage : public IPage {
     uint8_t mbg = rowBg(mr);
     if (mr) scr.highlight(1, 11, kScreenCols - 2, PEN_PANEL);
     scr.text(2, 11, "MASTER", PEN_BRIGHT, mbg);
-    if (nav_.at(kMasterRow, 0)) {
-      drawFieldF(scr, 9, 11, PEN_BRIGHT, true, mbg, "%d",
-                 static_cast<int>(model_.master * 100.0f));
-    } else {
-      scr.bar(9, 11, 14, model_.master, PEN_EMBER);
-      scr.textf(25, 11, PEN_BRIGHT, "%d", static_cast<int>(model_.master * 100.0f));
-    }
+    scr.bar(9, 11, 14, model_.master, PEN_EMBER);
+    drawFieldF(scr, 25, 11, PEN_BRIGHT, nav_.at(kMasterRow, 0), mbg, "%d",
+               static_cast<int>(model_.master * 100.0f));
 
     bool orow = nav_.atRow(kOutRow);
     uint8_t obg = rowBg(orow);
