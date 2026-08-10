@@ -41,20 +41,20 @@ Open `phoenixomatic.ino` in the Arduino IDE with the M5Stack board support insta
 
 | Key | Action |
 |---|---|
+| `↑` `↓` | move between rows |
+| `TAB` / `SHIFT+TAB` | cycle the fields within the focused row |
+| `←` `→` | change the focused field (`SHIFT` for a fine step) |
+| `O` / `SHIFT+O` | reset the focused field / the whole page |
+| `R` / `SHIFT+R` | randomise the focused field / the whole page |
+| `1`–`7` | mute/unmute OSC-1, OSC-2, COMP, KIK, SNR, HH, OH |
+| `-` / `=` | mute everything / start everything |
+| `ESC` | invert every mute |
 | `SPACE` | play / stop |
 | `[` `]` | previous / next screen — walks sub-pages too, 15 in all |
-| `CTRL`+`↑`/`↓` | previous / next sub-page |
-| `↑` `↓` | move between rows |
-| `←` `→` | sweep the focused attenuverter or value (hold `SHIFT` for fine, or for the second parameter on a row) |
-| `T` | cycle the mod type / destination on the focused row |
-| `0` | recentre the focused attenuverter |
-| `TAB` | cycle the row's selector (gate source, waveform, trigger source) |
-| `F` | freeze both chaos oscillators |
-| `R` | scramble — randomise the current page |
+| `CTRL`+`↑`/`↓` | jump sub-pages directly |
 | `K` `L` | global rate — sweeps both oscillators, and so the tempo with them |
-| `-` `=` | master level |
-| `1`–`8` | select pattern (SEQ), mute (MIX / DRUM) |
-| `B` | cycle bank (SEQ) |
+| `F` | freeze both chaos oscillators |
+| `BACKSPACE` | clear a step to a rest (SEQ) |
 
 ## Layout
 

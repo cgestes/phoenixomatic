@@ -6,6 +6,7 @@
 
 #include "../../../fonts/phx_glyphs.h"
 #include "../../core/model.h"
+#include "../components/row_nav.h"
 #include "pages.h"
 
 namespace {
@@ -14,10 +15,12 @@ const char* const kScenes[] = {
   "ember-01", "toss-heavy", "slow-burn", "squawk", "<new scene>"
 };
 constexpr int kSceneCount = static_cast<int>(sizeof(kScenes) / sizeof(kScenes[0]));
+constexpr uint8_t kSceneFields[kSceneCount] = {1, 1, 1, 1, 1};
 
 class ProjectPage : public IPage {
  public:
-  explicit ProjectPage(PhoenixModel& m) : model_(m) { (void)model_; }
+  // Scene storage is not wired up yet, so the model is not needed here.
+  explicit ProjectPage(PhoenixModel&) { nav_.configure(kSceneFields, kSceneCount); }
 
   const char* title() const override { return "PROJECT"; }
 
@@ -26,9 +29,9 @@ class ProjectPage : public IPage {
 
     for (int i = 0; i < kSceneCount; ++i) {
       int row = 3 + i;
-      bool focused = focus_ == i;
+      bool focused = nav_.atRow(i);
       if (focused) scr.highlight(1, row, kScreenCols - 2, PEN_PANEL);
-      uint8_t bg = focused ? PEN_PANEL : PEN_BG;
+      uint8_t bg = rowBg(focused);
       scr.put(2, row, focused ? phx_glyphs::kTriRight : ' ', PEN_HOT, bg);
       bool current = i == loaded_;
       scr.text(4, row, kScenes[i], current ? PEN_BRIGHT : PEN_TEXT, bg);
@@ -40,21 +43,22 @@ class ProjectPage : public IPage {
     scr.text(2, 11, "TARGET", PEN_DIM);
     scr.text(10, 11, "SD card / browser storage", PEN_FAINT);
 
-    scr.text(2, 13, "[ENTER] load   [S] save   [N] new", PEN_FAINT);
+    scr.text(2, 13, "[ENTER] load", PEN_FAINT);
   }
 
   bool handleKey(const UIEvent& ev) override {
-    switch (ev.code) {
-      case KEY_UP:    focus_ = (focus_ + kSceneCount - 1) % kSceneCount; return true;
-      case KEY_DOWN:  focus_ = (focus_ + 1) % kSceneCount; return true;
-      case KEY_ENTER: loaded_ = focus_; return true;
-      default: return false;
+    if (nav_.handleNavKey(ev)) return true;
+    // Left/right and ENTER all mean "load this one" here; there is only ever
+    // the one field on a row.
+    if (ev.code == KEY_ENTER || ev.code == KEY_LEFT || ev.code == KEY_RIGHT) {
+      loaded_ = nav_.row();
+      return true;
     }
+    return false;
   }
 
  private:
-  PhoenixModel& model_;
-  int focus_ = 0;
+  RowNav nav_;
   int loaded_ = 0;
 };
 
@@ -67,17 +71,18 @@ class HelpPage : public IPage {
   void draw(TextScreen& scr) override {
     struct Row { const char* key; const char* what; };
     static const Row kRows[] = {
-      {"SPACE",  "play / stop"},
-      {"[ ]",    "previous / next page"},
-      {"CTRL+ARROWS", "sub-page"},
-      {"ARROWS", "move and adjust"},
-      {"T",      "mod type / destination"},
-      {"0",      "recentre attenuverter"},
-      {"TAB",    "cycle the selector"},
-      {"F",      "freeze chaos"},
-      {"R",      "scramble this page"},
-      {"K L",    "clock rate down / up"},
-      {"- =",    "master level"},
+      {"UP DOWN",   "move between rows"},
+      {"TAB",       "field within the row"},
+      {"LEFT RIGHT","change the value"},
+      {"O / SHIFT+O", "reset field / page"},
+      {"R / SHIFT+R", "random field / page"},
+      {"[ ]",       "previous / next screen"},
+      {"CTRL+UPDN", "sub-page"},
+      {"SPACE",     "play / stop"},
+      {"1-7",       "mute an instrument"},
+      {"- / =",     "mute all / unmute all"},
+      {"ESC",       "invert all mutes"},
+      {"K L",       "global rate"},
     };
     constexpr int kCount = static_cast<int>(sizeof(kRows) / sizeof(kRows[0]));
 

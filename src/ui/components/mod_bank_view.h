@@ -24,19 +24,24 @@ inline constexpr int kBankModeCol = 32;
 // Header line above a bank. Pass the mode column's caption, or nullptr.
 void drawBankHeader(TextScreen& scr, int row, const char* mode_caption);
 
+// A bank row has two fields: the attenuverter and the mode column.
+enum ModField : int { MOD_FIELD_AMOUNT = 0, MOD_FIELD_MODE, MOD_FIELD_COUNT };
+
 // One row. `mode_labels` may be null for banks with no mode column.
-void drawModRow(TextScreen& scr, int row, const ModRow& mod, bool focused,
+// `focused_field` is -1 when the row is not the focused one.
+void drawModRow(TextScreen& scr, int row, const ModRow& mod, int focused_field,
                 const char* const* mode_labels);
 
-// Draws header + rows, returns the row after the bank.
+// Draws header + rows, returns the row after the bank. `focus_row` is the
+// bank-relative index of the focused row, or -1 for none.
 int drawModBank(TextScreen& scr, int row, const ModRow* rows, int count,
-                int focus, const char* const* mode_labels,
-                const char* mode_caption);
+                int focus_row, int focused_field,
+                const char* const* mode_labels, const char* mode_caption);
+
+// Applies left/right to whichever field is focused. Returns true if consumed.
+bool editModRow(const UIEvent& ev, ModRow& row, int field, int mode_count);
 
 // Bus sources this bank is currently doing something with.
 uint8_t litSourcesOf(const ModRow* rows, int count);
 
-// Shared editing behaviour: left/right sweeps, 0 recentres, and the mode
-// column cycles. Returns true if the key was consumed.
-bool handleBankKey(const UIEvent& ev, ModRow* rows, int count, int& focus,
-                   int mode_count);
+

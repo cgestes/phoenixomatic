@@ -175,12 +175,30 @@ class PhoenixModel {
   // Advances UI wall-clock only; the engine owns every live field.
   void tick(float dt);
 
+  // The seven things that can be silenced, in the order the number keys and
+  // the MIX page list them.
+  enum Instrument : uint8_t {
+    INST_OSC1 = 0, INST_OSC2, INST_COMP, INST_KIK, INST_SNR, INST_HH, INST_OH,
+    INST_COUNT
+  };
+  bool isMuted(int inst) const;
+  void setMuted(int inst, bool muted);
+  void toggleMute(int inst);
+  void muteAll(bool muted);
+  void invertMutes();
+
+  // A pristine model, built once, for O (reset field) and SHIFT+O (reset page).
+  static const PhoenixModel& factory();
+  // Shared RNG so pages can randomise without carrying their own state.
+  uint32_t random();
+  float randomUnit();
+
   void togglePlay();
   // No clock to set. This sweeps both oscillators together, which is the one
   // control that moves the whole machine between sequencer and scream.
   void adjustRate(int delta);
   void adjustMaster(int delta);
-  void scramble(int page_index);   // [R] — randomise the current page
+
 
   // Live level of a bus source, 0..1, for the footer strip.
   float busLevel(SourceId id) const;
@@ -208,7 +226,5 @@ class PhoenixModel {
   double time = 0.0;
 
  private:
-  uint32_t rng();
-
   uint32_t rng_state_ = 0x1BADB002u;
 };

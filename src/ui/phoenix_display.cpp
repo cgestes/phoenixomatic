@@ -165,9 +165,27 @@ bool PhoenixDisplay::handleGlobalKey(const UIEvent& ev) {
   if (ev.key == ']') { nextPage(); return true; }
   if (ev.key == 'k') { model_.adjustRate(-1); return true; }
   if (ev.key == 'l') { model_.adjustRate(1); return true; }
-  if (ev.key == '-') { model_.adjustMaster(-1); return true; }
-  if (ev.key == '=') { model_.adjustMaster(1); return true; }
-  if (ev.key == 'r') { model_.scramble(page_index_); return true; }
+
+  // Mutes are global: a number key reaches the same instrument whatever page
+  // you are looking at, so silencing something is never a navigation problem.
+  if (ev.key >= '1' && ev.key <= '7') {
+    model_.toggleMute(ev.key - '1');
+    return true;
+  }
+  if (ev.key == '-') { model_.muteAll(true); return true; }
+  if (ev.key == '=' || ev.key == '+') { model_.muteAll(false); return true; }
+  if (ev.code == KEY_ESC) { model_.invertMutes(); return true; }
+
+  IPage* page = pages_[page_index_].get();
+
+  if (ev.key == 'o') {
+    if (ev.shift) page->resetPage(); else page->resetField();
+    return true;
+  }
+  if (ev.key == 'r') {
+    if (ev.shift) page->randomizePage(); else page->randomizeField();
+    return true;
+  }
   if (ev.key == 'f') {
     model_.chaos[0].freeze = !model_.chaos[0].freeze;
     model_.chaos[1].freeze = model_.chaos[0].freeze;
@@ -175,7 +193,6 @@ bool PhoenixDisplay::handleGlobalKey(const UIEvent& ev) {
   }
 
   // CTRL+UP/DOWN steps sub-pages.
-  IPage* page = pages_[page_index_].get();
   if (ev.ctrl && (ev.code == KEY_UP || ev.code == KEY_DOWN)) {
     int n = page->subPageCount();
     if (n > 1) {

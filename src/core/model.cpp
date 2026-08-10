@@ -137,11 +137,60 @@ PhoenixModel::PhoenixModel() {
   chaos[1].skew = 0.20f;
 }
 
-uint32_t PhoenixModel::rng() {
+uint32_t PhoenixModel::random() {
   rng_state_ ^= rng_state_ << 13;
   rng_state_ ^= rng_state_ >> 17;
   rng_state_ ^= rng_state_ << 5;
   return rng_state_;
+}
+
+float PhoenixModel::randomUnit() {
+  return static_cast<float>(random() >> 8) * (1.0f / 16777216.0f);
+}
+
+// Built once from the constructor and never touched again, so O and SHIFT+O
+// have something honest to restore from.
+const PhoenixModel& PhoenixModel::factory() {
+  static const PhoenixModel pristine;
+  return pristine;
+}
+
+// --- mutes -----------------------------------------------------------------
+
+bool PhoenixModel::isMuted(int inst) const {
+  switch (inst) {
+    case INST_OSC1: return osc[0].mute;
+    case INST_OSC2: return osc[1].mute;
+    case INST_COMP: return comp.mute;
+    case INST_KIK:
+    case INST_SNR:
+    case INST_HH:
+    case INST_OH:   return drum[inst - INST_KIK].mute;
+    default:        return false;
+  }
+}
+
+void PhoenixModel::setMuted(int inst, bool muted) {
+  switch (inst) {
+    case INST_OSC1: osc[0].mute = muted; break;
+    case INST_OSC2: osc[1].mute = muted; break;
+    case INST_COMP: comp.mute = muted; break;
+    case INST_KIK:
+    case INST_SNR:
+    case INST_HH:
+    case INST_OH:   drum[inst - INST_KIK].mute = muted; break;
+    default: break;
+  }
+}
+
+void PhoenixModel::toggleMute(int inst) { setMuted(inst, !isMuted(inst)); }
+
+void PhoenixModel::muteAll(bool muted) {
+  for (int i = 0; i < INST_COUNT; ++i) setMuted(i, muted);
+}
+
+void PhoenixModel::invertMutes() {
+  for (int i = 0; i < INST_COUNT; ++i) setMuted(i, !isMuted(i));
 }
 
 float PhoenixModel::busLevel(SourceId id) const {
@@ -185,51 +234,4 @@ void PhoenixModel::adjustMaster(int delta) {
   master += static_cast<float>(delta) * 0.02f;
   if (master < 0.0f) master = 0.0f;
   if (master > 1.0f) master = 1.0f;
-}
-
-void PhoenixModel::scramble(int page_index) {
-  auto rand_unit = [this]() { return static_cast<float>(rng() % 1000u) / 1000.0f; };
-  auto rand_bipolar = [&]() { return rand_unit() * 2.0f - 1.0f; };
-
-  switch (page_index) {
-    case 1:  // CHAOS
-      for (int c = 0; c < 2; ++c) {
-        chaos[c].rate = 0.01f + rand_unit() * 0.4f;
-        chaos[c].depth = 0.3f + rand_unit() * 0.7f;
-        chaos[c].skew = rand_bipolar();
-      }
-      break;
-    case 2:  // OSC
-      for (int v = 0; v < 2; ++v) {
-        for (int i = 0; i < kOscModRows; ++i) {
-          osc[v].mod[i].amount = rand_bipolar();
-          osc[v].mod[i].mode = static_cast<uint8_t>(rng() % MOD_TYPE_COUNT);
-        }
-      }
-      break;
-    case 3:  // SEQ — only the pattern you are looking at
-      for (int v = 0; v < 2; ++v) {
-        int8_t* notes = seq[v].editNotes();
-        for (int i = 0; i < kSeqSteps; ++i) {
-          notes[i] = (rng() % 5u) == 0
-                         ? static_cast<int8_t>(-1)
-                         : static_cast<int8_t>(28 + rng() % 40u);
-        }
-      }
-      break;
-    case 4:  // LOGIC
-      for (int i = 0; i < kFateChannels; ++i) {
-        fate[i].ratio = 1 + static_cast<int>(rng() % 16u);
-        fate[i].prob = rand_unit();
-      }
-      break;
-    case 5:  // DRUM
-      for (int i = 0; i < kDrumVoices; ++i) {
-        drum[i].chance = rand_unit();
-        drum[i].div = 1 + static_cast<int>(rng() % 4u);
-      }
-      break;
-    default:
-      break;
-  }
 }

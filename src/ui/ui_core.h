@@ -48,6 +48,13 @@ class IPage {
   // Return true if the key was consumed.
   virtual bool handleKey(const UIEvent& ev) { (void)ev; return false; }
 
+  // O / R act on the focused field; SHIFT+O / SHIFT+R on the whole page.
+  // Pages that have nothing to reset or randomise leave these alone.
+  virtual void resetField() {}
+  virtual void randomizeField() {}
+  virtual void resetPage() {}
+  virtual void randomizePage() {}
+
   // Which bus sources are doing something on this screen right now.
   virtual uint8_t litSources() const { return 0; }
 };

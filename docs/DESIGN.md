@@ -486,7 +486,19 @@ localStorage on web; help page listing the keymap.
 
 ---
 
-## 7. Keyboard map
+## 7. Keyboard
+
+**One interaction model, everywhere.** `↑`/`↓` move between rows, `TAB` cycles the fields within
+the focused row, `←`/`→` change the focused field. `RowNav` owns that cursor for every page; a
+page only declares how many fields each of its rows has and what a field means. No page invents
+its own key handling, so nothing has to be relearned screen to screen.
+
+The focused row gets a panel background and the focused field is inverted — the same treatment as
+the header name plate and the pattern slots, so "this is what left/right will change" always
+looks the same.
+
+Mutes are deliberately **global**: a number key reaches the same instrument whatever page you are
+looking at, because silencing something should never be a navigation problem. map
 
 ### Global
 | Key | Action |
