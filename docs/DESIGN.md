@@ -377,6 +377,28 @@ The page also draws the register itself, MSB first, coloured by which output rea
 `A` for APATHY (bit 7 raw), `I` for INERTIA (bits 3–5), `T` for TORPOR (bits 0–2). Watching the
 bits march explains a rungler faster than any amount of prose about it.
 
+**Why the two rungler depths differ.** The rungler feeds both oscillators, and the depths must
+not be equal. Modulating both by the same amount shifts them together and leaves their *ratio*
+untouched — and the ratio is the only thing deciding how the clock samples the data, so the
+register can never break its own pattern. The loop looks closed and is dead.
+
+Measured on the 3-bit tap, as the share of output sitting at the two extreme DAC levels:
+
+| CHAOS-A → OSC1 / OSC2 | output at the extremes |
+|---|---|
+| +50 / +50 | 75% |
+| +50 / 0 | 69% |
+| +50 / +20 | 15% |
+| **+50 / −35** | **7%** |
+
+Equal depths give a rungler that is mostly hard on or hard off. Opposed depths give one that uses
+its whole range, because now the feedback changes the interval, the interval changes the
+sampling, and the sampling changes the register.
+
+Generally: **modulating both oscillators equally from one source is a no-op** for anything
+downstream that cares about the interval between them — which here is the comparator and the
+rungler, which is to say everything.
+
 **Why OSC-2 ships detuned 35 cents.** At a near-exact `x3` the rungler's clock samples its data
 square at almost the same phase every time, so the register shifts long runs and sits at a rail —
 all-zeros or all-ones — most of the time. Measured across the range:
