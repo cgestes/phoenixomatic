@@ -399,6 +399,16 @@ Generally: **modulating both oscillators equally from one source is a no-op** fo
 downstream that cares about the interval between them — which here is the comparator and the
 rungler, which is to say everything.
 
+**The shipped tuning is 1/8 against 8/1** — six octaves apart. A slow clock sampling a fast data
+square is what gives a rungler varied bits rather than long runs: OSC-1 clocks it at about 2 Hz
+while OSC-2 supplies a square six octaves up. `FEEDBACK` ships at 10%, enough to keep the register
+out of a short loop without the data bit ceasing to matter.
+
+Measured over a minute at those defaults: 15 distinct register values, 101 steps on the TORPOR
+tap, comparator running at ~320 Hz. The rungler steps with OSC-1 and the comparator follows
+OSC-2, so the machine has a slow modulation layer and a fast time base going at once — which is
+the arrangement worth starting from.
+
 **Why OSC-2 ships detuned 35 cents.** At a near-exact `x3` the rungler's clock samples its data
 square at almost the same phase every time, so the register shifts long runs and sits at a rail —
 all-zeros or all-ones — most of the time. Measured across the range:
