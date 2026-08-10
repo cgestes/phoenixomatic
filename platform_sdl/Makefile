@@ -18,6 +18,14 @@ ifeq ($(strip $(SDL_CFLAGS)),)
   SDL_LIBS := -L/opt/homebrew/lib -lSDL2
 endif
 
+UNAME_S := $(shell uname -s)
+# The audio-output menu is a macOS menu bar, so it is Objective-C++ and only
+# builds there. Everywhere else installAudioMenu is an empty function.
+ifeq ($(UNAME_S),Darwin)
+  PLATFORM_SOURCES := mac_menu.mm
+  PLATFORM_LIBS := -framework Cocoa
+endif
+
 TARGET := phoenixomatic
 
 SOURCES := \
@@ -41,6 +49,7 @@ SOURCES := \
   ../src/ui/pages/config_page.cpp \
   ../src/ui/pages/project_page.cpp \
   sdl_display.cpp \
+  sdl_audio.cpp \
   sdl_main.cpp
 
 HEADERS := $(shell find .. -name '*.h' -not -path '../web/*' 2>/dev/null)
@@ -56,8 +65,9 @@ SDL2_DYLIB := /opt/homebrew/opt/sdl2/lib/libSDL2-2.0.0.dylib
 
 all: $(TARGET)
 
-$(TARGET): $(SOURCES) $(HEADERS)
-	$(CXX) $(CXXFLAGS) $(SDL_CFLAGS) $(SOURCES) $(SDL_LIBS) -o $@
+$(TARGET): $(SOURCES) $(PLATFORM_SOURCES) $(HEADERS)
+	$(CXX) $(CXXFLAGS) $(SDL_CFLAGS) $(SOURCES) $(PLATFORM_SOURCES) \
+	  $(SDL_LIBS) $(PLATFORM_LIBS) -o $@
 
 run: $(TARGET)
 	./$(TARGET)

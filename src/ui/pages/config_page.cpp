@@ -2,6 +2,8 @@
 //
 // BENJOLIN is the classic instrument and nothing more: two oscillators, the
 // rungler between them, the comparator. ADVANCED opens everything else.
+#include <cstdio>
+
 #include "../../../fonts/phx_glyphs.h"
 #include "../../core/model.h"
 #include "../components/row_nav.h"
@@ -52,10 +54,9 @@ class ConfigPage : public IPage {
       if (!on) scr.text(24, row, "hidden", PEN_FAINT);
     }
 
-    scr.text(2, 12, benjolin ? "the classic instrument"
+    scr.text(2, 13, benjolin ? "the classic instrument, nothing else"
                              : "everything the machine has",
-             PEN_DIM);
-    scr.text(2, 13, "hidden modules stop modulating too", PEN_FAINT);
+             PEN_FAINT);
   }
 
   void setCursor(int row, int field) override { nav_.setCursor(row, field); }
@@ -67,6 +68,8 @@ class ConfigPage : public IPage {
     if (!nav_.mapFieldKey(ev) && nav_.handleNavKey(ev)) return true;
     if (ev.code != KEY_LEFT && ev.code != KEY_RIGHT) return false;
     int dir = ev.code == KEY_RIGHT ? 1 : -1;
+
+
     model_.machine_mode = static_cast<uint8_t>(
         (model_.machine_mode + MACHINE_MODE_COUNT + dir) % MACHINE_MODE_COUNT);
     model_.applyMachineMode();
@@ -80,7 +83,9 @@ class ConfigPage : public IPage {
     return true;
   }
 
-  void zeroField() override { zeroPage(); }
+  void zeroField() override {
+    zeroPage();
+  }
 
   void zeroPage() override {
     model_.machine_mode = MODE_BENJOLIN;   // the origin of the range

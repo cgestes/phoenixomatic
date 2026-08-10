@@ -19,9 +19,16 @@ brew install sdl2
 cd platform_sdl
 make          # -> ./phoenixomatic
 make run      # build and launch
-./phoenixomatic 6          # window scale, 1..8 (default 4)
-./phoenixomatic shot out/  # write a BMP of every page and sub-page
+./phoenixomatic -h            # usage and the full keymap
+./phoenixomatic 6             # window scale, 1..8 (default 4)
+./phoenixomatic shot out/     # write a BMP of every screen
+./phoenixomatic --audio-list  # list audio outputs
+./phoenixomatic --audio 2     # start on output 2
 ```
+
+On macOS the **Audio Output** menu picks the output while it runs. The Cardputer
+has one speaker and the browser gives us whatever it is using, so neither offers
+a choice.
 
 ### Web
 

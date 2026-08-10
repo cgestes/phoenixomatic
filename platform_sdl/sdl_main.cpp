@@ -17,6 +17,8 @@
 #include "../src/dsp/audio_config.h"
 #include "../src/dsp/phoenix_engine.h"
 #include "../src/ui/phoenix_display.h"
+#include "mac_menu.h"
+#include "sdl_audio.h"
 #include "sdl_display.h"
 
 namespace {
@@ -30,25 +32,12 @@ struct App {
   PhoenixModel* model = nullptr;
   PhoenixDisplay* ui = nullptr;
   PhoenixEngine* engine = nullptr;
-  SDL_AudioDeviceID audio = 0;
   uint32_t last_ticks = 0;
   bool running = true;
   bool dragging = false;
 };
 
 App g_app;
-
-// Audio thread. Nothing here allocates or locks.
-void audioCallback(void* userdata, Uint8* stream, int len) {
-  auto* engine = static_cast<PhoenixEngine*>(userdata);
-  auto* out = reinterpret_cast<int16_t*>(stream);
-  size_t frames = static_cast<size_t>(len) / sizeof(int16_t);
-  if (engine) {
-    engine->render(out, frames);
-  } else {
-    SDL_memset(stream, 0, static_cast<size_t>(len));
-  }
-}
 
 // Maps an SDL key event onto the Cardputer's much smaller keyboard.
 bool translate(const SDL_KeyboardEvent& key, UIEvent& out) {
@@ -198,6 +187,48 @@ int captureAll(SDLDisplay& gfx, PhoenixModel& model, PhoenixDisplay& ui,
 int main(int argc, char** argv) {
   int scale = kDefaultScale;
   bool shot_mode = argc > 2 && SDL_strcmp(argv[1], "shot") == 0;
+  // --audio-list prints the outputs and --audio N picks one, for when the
+  // device you want is not the system default and you would rather not click.
+  bool list_devices = false;
+  int device_index = -1;
+  for (int i = 1; i < argc; ++i) {
+    const char* a = argv[i];
+    if (SDL_strcmp(a, "-h") == 0 || SDL_strcmp(a, "--help") == 0) {
+      printf(
+          "phoenixomatic - a benjolin-flavoured chaos machine\n"
+          "\n"
+          "usage: phoenixomatic [scale] [options]\n"
+          "       phoenixomatic shot <dir>\n"
+          "\n"
+          "  scale            window size, 1..8 (default %d)\n"
+          "  shot <dir>       write a BMP of every screen and exit\n"
+          "  --audio-list     list the audio outputs and exit\n"
+          "  --audio <n>      start on output n (-1 is the system default)\n"
+          "  -h, --help       this\n"
+          "\n"
+          "keys:\n"
+          "  up/down          move between rows\n"
+          "  left/right       move between the fields of a row\n"
+          "  a/z s/x d/c ...  raise or lower fields 1..8, one keyboard column\n"
+          "                   each; hold shift for the fine step\n"
+          "  o / shift+o      zero the field / the page\n"
+          "  r / t / shift+r  randomise the field / the row / the page\n"
+          "  space            toggle what is focused (play on HOME)\n"
+          "  [ ]              previous / next screen\n"
+          "  ctrl+up/down     sub-page\n"
+          "  1-7              mute an instrument\n"
+          "  - = esc          mute all / unmute all / invert\n"
+          "\n"
+          "mouse: click a value, then drag or scroll. one notch or ten pixels\n"
+          "       is one keypress. on macOS the menu bar picks the output.\n",
+          kDefaultScale);
+      return 0;
+    }
+    if (SDL_strcmp(a, "--audio-list") == 0) list_devices = true;
+    else if (SDL_strcmp(a, "--audio") == 0 && i + 1 < argc) {
+      device_index = atoi(argv[++i]);
+    }
+  }
   if (shot_mode) {
     SDL_setenv("SDL_VIDEODRIVER", "dummy", 1);
     scale = 1;
@@ -209,6 +240,16 @@ int main(int argc, char** argv) {
   if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS | SDL_INIT_AUDIO) != 0) {
     fprintf(stderr, "phoenixomatic: SDL_Init failed: %s\n", SDL_GetError());
     return 1;
+  }
+
+  // Informational: print the outputs and stop, rather than starting the
+  // machine so the list can scroll past.
+  if (list_devices) {
+    int n = SDL_GetNumAudioDevices(0);
+    printf("audio outputs:\n  -1  (system default)\n");
+    for (int i = 0; i < n; ++i) printf("  %2d  %s\n", i, SDL_GetAudioDeviceName(i, 0));
+    SDL_Quit();
+    return 0;
   }
 
   SDLDisplay gfx(kPanelW, kPanelH, scale, "phoenixomatic \xC2\xB7 modularcore");
@@ -223,20 +264,17 @@ int main(int argc, char** argv) {
   PhoenixEngine engine(model, static_cast<float>(kSampleRate));
 
   // Screenshot mode stays silent — it runs faster than real time.
+  SdlAudio audio;
   if (!shot_mode) {
-    SDL_AudioSpec want{};
-    want.freq = kSampleRate;
-    want.format = AUDIO_S16SYS;
-    want.channels = 1;
-    want.samples = static_cast<Uint16>(kBlockSize);
-    want.callback = audioCallback;
-    want.userdata = &engine;
-    SDL_AudioSpec have{};
-    g_app.audio = SDL_OpenAudioDevice(nullptr, 0, &want, &have, 0);
-    if (g_app.audio == 0) {
+    if (!audio.start(&engine)) {
       fprintf(stderr, "phoenixomatic: no audio (%s) — running silent\n", SDL_GetError());
-    } else {
-      SDL_PauseAudioDevice(g_app.audio, 0);
+    }
+    // The picker lives in the menu bar rather than on a page: it is a
+    // property of this machine, not of the instrument, and the Cardputer and
+    // the browser have no choice to offer.
+    if (audio.count() > 1) installAudioMenu(&audio);
+    if (device_index >= 0 && !audio.select(device_index)) {
+      fprintf(stderr, "phoenixomatic: device %d not available\n", device_index);
     }
   }
 
@@ -261,7 +299,7 @@ int main(int argc, char** argv) {
   }
 #endif
 
-  if (g_app.audio) SDL_CloseAudioDevice(g_app.audio);
+  audio.stop();
   SDL_Quit();
   return 0;
 }
