@@ -708,6 +708,12 @@ synthesises the column-pair key for whichever field the cursor is on, so step si
 detents and the `XOR` position on `FEEDBACK` all behave identically whichever you use, and none of
 it exists twice.
 
+A drag or a wheel notch is exactly one keypress, `SHIFT` included. The pointer does not get step
+sizes of its own, and it cannot even ask for "finer" in general: `SHIFT` is the *small* step on a
+percentage and the *large* one on a whole number like `DIV`, where 1 is already as fine as it
+goes. Gentleness comes from distance instead — ten pixels of travel per press, so a drag crosses
+a range deliberately rather than at a twitch.
+
 Hit-testing works because a field registers the cells it occupies *as it draws*, from the same
 `(row, field)` pair it tests for focus — one call site, so the hit map cannot drift from the
 layout when a page moves something. Each field claims a cell of padding either side, since a
