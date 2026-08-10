@@ -126,6 +126,33 @@ class FilterPage : public IPage {
     for (int i = 0; i < bank_count_; ++i) zeroModRow(f.mod[bank_index_[i]]);
   }
 
+  void maxField() override {
+    FilterState& f = model_.filter;
+    if (nav_.row() >= kBankRow0) {
+      maxModField(bankRow(), nav_.field(), FDEST_COUNT);
+      return;
+    }
+    if (nav_.row() == kTopRow) {
+      if (nav_.field() == 0) f.mode = 2;   // LP, BP, HP — the page steps mode modulo 3
+      else f.input = FILT_IN_COUNT - 1;
+    } else if (nav_.field() == 0) {
+      f.freq = 1.0f;
+    } else {
+      f.res = 1.0f;   // I is a deliberate press, so it is allowed to self-oscillate
+    }
+  }
+
+  void maxPage() override {
+    FilterState& f = model_.filter;
+    f.mode = 2;   // LP, BP, HP — the page steps mode modulo 3
+    f.input = FILT_IN_COUNT - 1;
+    f.freq = 1.0f;
+    f.res = 1.0f;
+    for (int i = 0; i < bank_count_; ++i) {
+      maxModRow(f.mod[bank_index_[i]], FDEST_COUNT);
+    }
+  }
+
   void randomizeField() override {
     FilterState& f = model_.filter;
     if (nav_.row() >= kBankRow0) {

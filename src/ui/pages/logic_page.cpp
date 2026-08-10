@@ -175,6 +175,46 @@ class LogicPage : public IPage {
     }
   }
 
+  void maxField() override {
+    if (sub_ == 0) {
+      Comparator& c = model_.comp;
+      if (nav_.row() == kCompOffsetRow) {
+        if (nav_.field() == 1) c.shape = CSHAPE_COUNT - 1;
+        else if (nav_.field() == 2) c.drive = 1.0f;
+        else c.offset = 1.0f;
+      } else if (nav_.row() == compLevelRow()) {
+        c.level = 1.0f;
+      } else {
+        maxModField(c.mod[bank_index_[nav_.row() - kCompBankRow0]],
+                    nav_.field(), CDEST_COUNT);
+      }
+      return;
+    }
+    if (nav_.row() == kFateModeRow) {
+      if (nav_.field() == 0) div_mode_ = DIVMODE_COUNT - 1;
+      else toss_mode_ = TOSS_MODE_COUNT - 1;
+      return;
+    }
+    maxFateField(model_.fate[nav_.row()]);
+  }
+
+  void maxPage() override {
+    if (sub_ == 0) {
+      Comparator& c = model_.comp;
+      c.offset = 1.0f;
+      c.shape = CSHAPE_COUNT - 1;
+      c.drive = 1.0f;
+      c.level = 1.0f;
+      for (int i = 0; i < bank_count_; ++i) {
+        maxModRow(c.mod[bank_index_[i]], CDEST_COUNT);
+      }
+    } else {
+      for (int i = 0; i < kFateChannels; ++i) maxFate(model_.fate[i]);
+      div_mode_ = DIVMODE_COUNT - 1;
+      toss_mode_ = TOSS_MODE_COUNT - 1;
+    }
+  }
+
   void randomizeRow() override { nav_.forEachField([this] { randomizeField(); }); }
 
   void randomizePage() override {
@@ -426,6 +466,27 @@ class LogicPage : public IPage {
       case 3: f.prob = 0.0f; break;
       case 4: f.mod_src = -1; break;
       default: f.mod_amt = 0.0f; break;
+    }
+  }
+
+  void maxFate(FateChannel& f) {
+    f.src = GATE_COUNT - 1;
+    f.ratio = kRatioMax;
+    f.phase = f.ratio - 1;
+    f.prob = 1.0f;
+    f.mod_src = SRC_COUNT - 1;
+    f.mod_amt = 1.0f;
+  }
+
+  void maxFateField(FateChannel& f) {
+    switch (nav_.field()) {
+      case 0: f.src = GATE_COUNT - 1; break;
+      case 1: f.ratio = kRatioMax; break;
+      // Phase only means anything inside the ratio, so its top follows it.
+      case 2: f.phase = f.ratio - 1; break;
+      case 3: f.prob = 1.0f; break;
+      case 4: f.mod_src = SRC_COUNT - 1; break;
+      default: f.mod_amt = 1.0f; break;
     }
   }
 

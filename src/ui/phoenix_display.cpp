@@ -360,6 +360,10 @@ bool PhoenixDisplay::handleGlobalKey(const UIEvent& ev) {
     return page->toggleField();
   }
 
+  if (ev.key == 'i') {
+    if (ev.shift) page->maxPage(); else page->maxField();
+    return true;
+  }
   if (ev.key == 'o') {
     if (ev.shift) page->zeroPage(); else page->zeroField();
     return true;

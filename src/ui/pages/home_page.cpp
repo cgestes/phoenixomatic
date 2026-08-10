@@ -121,6 +121,10 @@ class HomePage : public IPage {
 
   void zeroField() override { model_.rate_offset = 0.0f; }
   void zeroPage() override { model_.rate_offset = 0.0f; }
+
+  // RATE's top is the ceiling adjustRate clamps to.
+  void maxField() override { model_.rate_offset = 6.0f; }
+  void maxPage() override { model_.rate_offset = 6.0f; }
  private:
   PhoenixModel& model_;
   RowNav nav_;

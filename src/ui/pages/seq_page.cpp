@@ -158,6 +158,30 @@ class SeqPage : public IPage {
     for (int i = 0; i < kSeqModRows; ++i) zeroModRow(s.mod[i]);
   }
 
+  void maxField() override {
+    Seq& s = model_.seq[which_];
+    switch (nav_.row()) {
+      case kPatRow:
+        if (nav_.field() == 0) s.pat = kSeqPatterns - 1; else s.bank = kSeqBanks - 1;
+        break;
+      case kStepRow:
+        s.editNotes()[nav_.field()] = kSeqNoteMax;
+        break;
+      case kGateRow: maxGateField(s); break;
+      default:
+        maxModField(s.mod[nav_.row() - kBankRow0], nav_.field(), DEST_COUNT);
+        break;
+    }
+  }
+
+  void maxPage() override {
+    Seq& s = model_.seq[which_];
+    int8_t* notes = s.editNotes();
+    for (int i = 0; i < kSeqSteps; ++i) notes[i] = kSeqNoteMax;
+    maxGate(s);
+    for (int i = 0; i < kSeqModRows; ++i) maxModRow(s.mod[i], DEST_COUNT);
+  }
+
   void randomizeRow() override { nav_.forEachField([this] { randomizeField(); }); }
 
   void randomizePage() override {
@@ -299,6 +323,24 @@ class SeqPage : public IPage {
       case 2: s.dir = DIR_FWD; break;
       case 3: s.range = 1; break;
       default: s.chance = 0.0f; break;
+    }
+  }
+
+  void maxGate(Seq& s) {
+    s.clock_src = GATE_COUNT - 1;
+    s.div = kRatioMax;
+    s.dir = DIR_COUNT - 1;
+    s.range = kSeqRangeOct[kSeqRangeCount - 1];
+    s.chance = 1.0f;
+  }
+
+  void maxGateField(Seq& s) {
+    switch (nav_.field()) {
+      case 0: s.clock_src = GATE_COUNT - 1; break;
+      case 1: s.div = kRatioMax; break;
+      case 2: s.dir = DIR_COUNT - 1; break;
+      case 3: s.range = kSeqRangeOct[kSeqRangeCount - 1]; break;
+      default: s.chance = 1.0f; break;
     }
   }
 

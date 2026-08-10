@@ -608,9 +608,9 @@ Machine, which answers a question you can actually hear:
 
 | `CHANCE` | Reads | What the register does |
 |---|---|---|
-| `0%` | `LOCKED` | Recycles the bit leaving the end. The figure repeats forever, with period exactly `STEPS`. |
+| `0%` | `LOCKED` | Recycles the bit leaving the end. The figure repeats forever, with period exactly `STEPS`. **`O` lands here** — a locked loop is the origin, not the plain rungler. |
 | `1…99%` | `DRIFT` | Some clocks recycle, some take new data. The figure holds its shape while wandering. |
-| `100%` | `OPEN` | Every clock takes a fresh bit from the other oscillator — the plain rungler. |
+| `100%` | `OPEN` | Every clock takes a fresh bit from the other oscillator — the plain rungler. **`I` lands here.** |
 
 Measured, clocking OSC-1 at ~130 Hz:
 
@@ -973,6 +973,14 @@ Mutes are deliberately **global**: a number key reaches the same instrument what
 looking at, because silencing something should never be a navigation problem. map
 
 ### Global
+
+`O` sends the focused field to its origin, `I` to the top of its range; `SHIFT` widens either to
+the whole page. They are a pair, so every field that answers one answers the other — checked
+across 3200 field/sub-page/mode combinations, with no field where the two land in the same place.
+
+`I` is safe to bind because it is not one of the sixteen letters the column pairs claim
+(`asdfghjk` / `zxcvbnm,`); no global shortcut may live on one of those.
+
 | Key | Action |
 |---|---|
 | `SPACE` | Toggle the focused thing: a modulation row in or out, a step to a rest. Above a module's bank it silences the module — mute on OSC, COMP and FILTER, freeze on CHAOS, which is a modulator's equivalent. On HOME, play/stop. |

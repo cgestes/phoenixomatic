@@ -231,7 +231,7 @@ class ChaosPage : public IPage {
           if (c.mode == CHAOS_RUNGLER) c.steps = 8;
           else c.skew = 0.0f;
         } else {
-          c.chance = 1.0f;   // origin is the plain rungler, always taking data
+          c.chance = 0.0f;   // O locks the loop; I opens it wide
         }
         break;
       default: c.pick = 0; break;
@@ -274,6 +274,41 @@ class ChaosPage : public IPage {
     c.rate = 0.005f;
     c.skew = 0.0f;
     c.pick = 0;
+  }
+
+  void maxField() override {
+    Chaos& c = model_.chaos[which_];
+    switch (nav_.row()) {
+      case kModeRow:
+        if (nav_.field() == 0) c.mode = CHAOS_MODE_COUNT - 1; else c.freeze = true;
+        break;
+      case kShapeRow:
+        if (nav_.field() == 0) {
+          // The rungler's fast end is x2, which is the *bottom* of its stored
+          // range — "max" here means the fastest, not the largest number.
+          if (c.mode == CHAOS_RUNGLER) c.clk_div = kRunglerDoubleSpeed;
+          else c.rate = 2.0f;
+        } else if (nav_.field() == 1) {
+          if (c.mode == CHAOS_RUNGLER) c.steps = kRunglerLengths[kRunglerLengthCount - 1];
+          else c.skew = 1.0f;
+        } else {
+          c.chance = 1.0f;
+        }
+        break;
+      default: c.pick = 2; break;
+    }
+  }
+
+  void maxPage() override {
+    Chaos& c = model_.chaos[which_];
+    c.mode = CHAOS_MODE_COUNT - 1;
+    c.freeze = false;   // a frozen page at full travel does nothing at all
+    c.rate = 2.0f;
+    c.skew = 1.0f;
+    c.clk_div = kRunglerDoubleSpeed;
+    c.steps = kRunglerLengths[kRunglerLengthCount - 1];
+    c.chance = 1.0f;
+    c.pick = 2;
   }
 
   void randomizeRow() override { nav_.forEachField([this] { randomizeField(); }); }

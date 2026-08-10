@@ -58,6 +58,7 @@ Open `phoenixomatic.ino` in the Arduino IDE with the M5Stack board support insta
 | `TAB` / `SHIFT+TAB` | cycle the fields within the focused row |
 | `←` `→` | change the focused field (`SHIFT` for a fine step) |
 | `O` / `SHIFT+O` | zero the focused field / every field on the page (origin where a field has no zero) |
+| `I` / `SHIFT+I` | send the focused field / the page to the top of its range |
 | `R` / `T` / `SHIFT+R` | randomise the focused field / the whole row / the whole page |
 | `1`–`7` | mute/unmute OSC-1, OSC-2, COMP, KIK, SNR, HH, OH (`0` is reserved for mixing) |
 | `-` / `=` | mute everything / start everything |

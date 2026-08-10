@@ -213,6 +213,31 @@ class OscPage : public IPage {
     for (int i = 0; i < bank_count_; ++i) zeroModRow(o.mod[bank_index_[i]]);
   }
 
+  void maxField() override {
+    Osc& o = model_.osc[voice_];
+    if (nav_.row() >= kBankRow0) {
+      maxModField(bankRow(), nav_.field(), MOD_TYPE_COUNT);
+      return;
+    }
+    switch (nav_.field()) {
+      case 0: o.wave = WAVE_COUNT - 1; break;
+      case 1: o.div = kRatioMax; break;
+      case 2: o.mult = kRatioMax; break;
+      default: o.dtune = 100; break;   // a semitone, the field's own limit
+    }
+  }
+
+  void maxPage() override {
+    Osc& o = model_.osc[voice_];
+    o.wave = WAVE_COUNT - 1;
+    o.div = kRatioMax;
+    o.mult = kRatioMax;
+    o.dtune = 100;
+    for (int i = 0; i < bank_count_; ++i) {
+      maxModRow(o.mod[bank_index_[i]], MOD_TYPE_COUNT);
+    }
+  }
+
   void randomizeRow() override { nav_.forEachField([this] { randomizeField(); }); }
 
   void randomizePage() override {

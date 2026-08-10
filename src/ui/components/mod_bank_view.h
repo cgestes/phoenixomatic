@@ -64,6 +64,23 @@ inline void zeroModRow(ModRow& row) {
 // Just the field under the cursor — for O and R, which act on one value. A row
 // carries two independent decisions, and touching both would make the cursor
 // position a lie.
+// The far end of the same two fields. A bank's mode column has no natural
+// "most", so max means the last entry in its list — which is what the field
+// would show if you held RIGHT.
+inline void maxModField(ModRow& row, int field, int mode_count) {
+  if (field == MOD_FIELD_MODE) {
+    row.mode = static_cast<uint8_t>(mode_count > 0 ? mode_count - 1 : 0);
+  } else {
+    row.amount = 1.0f;
+    row.on = true;   // wide open and bypassed would be a contradiction
+  }
+}
+
+inline void maxModRow(ModRow& row, int mode_count) {
+  maxModField(row, MOD_FIELD_AMOUNT, mode_count);
+  maxModField(row, MOD_FIELD_MODE, mode_count);
+}
+
 inline void zeroModField(ModRow& row, int field) {
   if (field == MOD_FIELD_MODE) row.mode = 0;
   else row.amount = 0.0f;

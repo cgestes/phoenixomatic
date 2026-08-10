@@ -147,6 +147,37 @@ class DrumPage : public IPage {
     }
   }
 
+  void maxField() override {
+    if (sub_ == 0) {
+      Drum& d = model_.drum[nav_.row()];
+      switch (nav_.field()) {
+        case 0: d.trig_src = GATE_COUNT - 1; break;
+        case 1: d.chance = 1.0f; break;
+        case 2: d.div = kDrumMaxDiv; break;
+        default: d.level = 1.0f; break;
+      }
+      return;
+    }
+    *param(voiceIndex(nav_.row()), nav_.field()) = 100;
+  }
+
+  void maxPage() override {
+    if (sub_ == 0) {
+      for (int i = 0; i < kDrumVoices; ++i) {
+        Drum& d = model_.drum[i];
+        d.chance = 1.0f;
+        d.level = 1.0f;
+        // Not the divider or the source: taking every voice to /1024 off one
+        // gate silences the page, which is the opposite of what I means.
+      }
+      return;
+    }
+    for (int slot = 0; slot < 2; ++slot) {
+      int v = voiceIndex(slot);
+      for (int p = 0; p < 5; ++p) *param(v, p) = 100;
+    }
+  }
+
   void randomizeRow() override { nav_.forEachField([this] { randomizeField(); }); }
 
   void randomizePage() override {

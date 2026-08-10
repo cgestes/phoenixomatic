@@ -93,6 +93,13 @@ class ConfigPage : public IPage {
     model_.applyMachineMode();
   }
 
+  void maxField() override { maxPage(); }
+
+  void maxPage() override {
+    model_.machine_mode = MACHINE_MODE_COUNT - 1;   // the far end of the range
+    model_.applyMachineMode();
+  }
+
  private:
   PhoenixModel& model_;
   RowNav nav_;

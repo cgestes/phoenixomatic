@@ -78,6 +78,11 @@ class IPage {
   // it does not — a divider goes to 1, a selector to its first entry.
   virtual void zeroField() {}
   virtual void zeroPage() {}
+  // The other end of the same idea: O sends a field to its origin, I sends it
+  // to the top of its range. Wide open is as much a place you want to reach in
+  // one press as zero is.
+  virtual void maxField() {}
+  virtual void maxPage() {}
   // R randomises the focused field, T the whole row, SHIFT+R the whole page.
   virtual void randomizeField() {}
   virtual void randomizeRow() {}

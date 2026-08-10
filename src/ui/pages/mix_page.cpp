@@ -132,6 +132,25 @@ class MixPage : public IPage {
     model_.crush = 0;
   }
 
+  void maxField() override {
+    if (nav_.row() < strip_count_) {
+      int i = strip_index_[nav_.row()];
+      // Mute's far end is muted, matching how the field itself reads.
+      if (nav_.field() == 1) model_.setMuted(i, true);
+      else *constLevelMut(i) = 1.0f;
+      return;
+    }
+    if (nav_.row() == masterRow()) { model_.master = 1.0f; return; }
+    if (nav_.field() == 0) model_.drive = 100; else model_.crush = 100;
+  }
+
+  void maxPage() override {
+    // Levels and master only. Driving and crushing a whole mix to 100 from one
+    // press is a noise, not a setting, and O is right there to undo a level.
+    for (int s = 0; s < strip_count_; ++s) *constLevelMut(strip_index_[s]) = 1.0f;
+    model_.master = 1.0f;
+  }
+
   void randomizeRow() override { nav_.forEachField([this] { randomizeField(); }); }
 
   void randomizePage() override {
