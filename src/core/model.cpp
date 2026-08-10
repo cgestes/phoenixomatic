@@ -66,8 +66,10 @@ PhoenixModel::PhoenixModel() {
   // across the range: +7c leaves it railed 66% of the time, +25c 29%, +35c
   // 10%. Enough detune to keep the register moving, not so much that the
   // twelfth stops sounding like one.
-  osc[0].div = 1;  osc[0].mult = 1;  osc[0].dtune = 0;   osc[0].wave = WAVE_TRI;
-  osc[1].div = 1;  osc[1].mult = 3;  osc[1].dtune = 35;  osc[1].wave = WAVE_SAW;
+  // 1/8 against 8/1: six octaves apart. A slow clock sampling a fast data
+  // square is what gives a rungler varied bits instead of long runs.
+  osc[0].div = 8;  osc[0].mult = 1;  osc[0].dtune = 0;   osc[0].wave = WAVE_TRI;
+  osc[1].div = 1;  osc[1].mult = 8;  osc[1].dtune = 35;  osc[1].wave = WAVE_SAW;
   osc[1].level = 0.52f;
 
   // --- sequencer banks: the other sequencer, both oscillators, both chaos.
@@ -170,9 +172,9 @@ PhoenixModel::PhoenixModel() {
   // rest across all eight levels.
   osc[1].mod[0].amount = -0.35f;
 
-  // FEEDBACK at its origin, so the default rungler is the classic one and
-  // turning the knob up is audibly a change.
-  chaos[0].skew = 0.0f;
+  // A little feedback: enough to stop the register settling into a short loop,
+  // not so much that the data bit stops mattering.
+  chaos[0].skew = 0.10f;
 
   chaos[1].rate = 0.07f;
   chaos[1].depth = 0.55f;
