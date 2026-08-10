@@ -188,6 +188,14 @@ destination with two entries:
 `CHAOS-A → DRIVE` on `FOLD` is the pairing worth reaching for first: the register sweeps the fold
 depth while the pattern underneath stays exactly where you left it.
 
+A bypassed row must not modulate. `SPACE` switches a row off while keeping its
+setting, and every bank in the engine reads through `ModRow::active()` — except
+the comparator, which for a while tested only for a non-zero amount. A
+switched-off `SEQ-1` row at `+0.40` went on driving the comparator's offset,
+and in `BENJOLIN` mode, where that row is hidden, it did so with nothing on
+screen to explain it. Two independent faults pointing at the same symptom is
+what made it look like the comparator itself was broken.
+
 ### 3.3a The comparator's output shape
 
 The comparison is always the same hard question — *is A above B* — because its two edges are the
@@ -315,14 +323,19 @@ counting up one at a time: past 5 the useful values are far apart, and crawling
 sequencer drives the bus with, in octaves at an exp-FM row with the attenuverter
 wide open.
 
-The sequencer's CV is deliberately **not clamped to the ±1 bus rail**. Pinning
-it there made every setting above `RANGE 2` identical — the same fault the step
-scale had, one layer down. A wide sequencer CV is the whole point of the
-control; the attenuverter at the far end decides what it becomes. A runaway
-guard sits at ±16 (the widest range reaches 10, and five mod rows at full
-travel can add five more), and the on-screen step bars read the *normalised*
-value so they show the pattern's shape instead of pinning as soon as `RANGE`
-opens up.
+The sequencer's CV is **bounded by `RANGE` itself** — not by the ±1 bus rail,
+and not by a distant fixed ceiling. Pinning it at the rail made every setting
+above `RANGE 2` identical, the same fault the step scale had one layer down;
+bounding it by `RANGE` gives exactly the old ±1 at the default and widens from
+there. The step bars read the *normalised* value, so they show the pattern's
+shape instead of pinning as soon as `RANGE` opens up.
+
+A far-away ceiling was tried first and was wrong: `SEQ-1` and `SEQ-2` modulate
+each other's CV, so with nothing near to stop it the pair compounds until it
+pins at whatever the ceiling is. That dragged the comparator's `B` input to
+**-7.7**, froze `A>B` on, dropped the comparator from ~140 Hz to 3 Hz, and left
+the machine silent — a whole-instrument failure from one loosened clamp. The
+limit has to sit where the loop is, not out past it.
 
 One honest limit: the oscillator caps exponential FM at ±8 octaves, which is
 already past Nyquist from C3, so with an attenuverter **fully open** `8`, `10`,

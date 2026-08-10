@@ -41,16 +41,9 @@ inline float clamp1(float v) { return v < -1.0f ? -1.0f : (v > 1.0f ? 1.0f : v);
 // How far the filter's bank can drag the cutoff at full travel.
 constexpr float kFilterModOctaves = 5.0f;
 
-// Everything on the patch bus is -1..1, sequencer CV included. Two octaves
-// either side of middle maps to full travel, so a mod row's attenuverter is
-// the only thing deciding how far a note actually moves anything.
 // 0…100 onto -1…+1. The halves are exact, so at RANGE 2 — the default — the
 // full width of the step scale lands on the bus with nothing clamped off
 // either end, and RANGE is a straight scaler either side of that.
-// Runaway guard only: the widest RANGE reaches 10, and five mod rows at full
-// travel can add five more.
-constexpr float kSeqCvLimit = 16.0f;
-
 inline float noteToBus(int8_t note) {
   return (static_cast<float>(note) - static_cast<float>(kSeqNoteMid)) /
          (static_cast<float>(kSeqNoteMax - kSeqNoteMin) * 0.5f);
@@ -262,12 +255,18 @@ void PhoenixEngine::render(int16_t* out, size_t frames) {
       } else {
         seq_cv_[v] = target;
       }
-      // Deliberately not clamped to the bus rail. RANGE is a gain, and
-      // pinning it at 1 made every setting above 2 identical — the same fault
-      // the step scale had. A wide sequencer CV is the point of the control;
-      // the attenuverter at the far end decides what it becomes.
-      if (seq_cv_[v] > kSeqCvLimit) seq_cv_[v] = kSeqCvLimit;
-      if (seq_cv_[v] < -kSeqCvLimit) seq_cv_[v] = -kSeqCvLimit;
+      // Bounded by RANGE itself — not by the bus rail, and not by a distant
+      // fixed ceiling. RANGE is precisely what this sequencer is allowed to
+      // swing, so it is the right limit: at the default 2 it is exactly the
+      // old ±1, and a wider setting widens it, which was the point.
+      //
+      // A far-away ceiling was wrong twice over. SEQ-1 and SEQ-2 modulate each
+      // other's CV, so with nothing near to stop it the pair compounds until
+      // it pins at the ceiling — which dragged the comparator's B input to
+      // -7.7, froze A>B on, and left the machine silent.
+      float span = static_cast<float>(s.range) * 0.5f;
+      if (seq_cv_[v] > span) seq_cv_[v] = span;
+      if (seq_cv_[v] < -span) seq_cv_[v] = -span;
       // The readout stays normalised, so the bar shows the pattern's shape
       // rather than pinning as soon as RANGE opens up.
       model_.seq[v].out = clamp1(noteToBus(note)) * 0.5f + 0.5f;
@@ -315,7 +314,11 @@ void PhoenixEngine::render(int16_t* out, size_t frames) {
     float drive_mod = 0.0f;
     for (int i = 0; i < kCompModRows; ++i) {
       const ModRow& m = model_.comp.mod[i];
-      if (m.amount == 0.0f) continue;
+      // active(), not just a non-zero amount: SPACE bypasses a row while
+      // keeping its setting, and every other bank in the engine honours that.
+      // This one did not, so a switched-off row went on modulating — and in
+      // BENJOLIN mode, where its source is hidden, it did so invisibly.
+      if (!m.active()) continue;
       if (m.mode == CDEST_DRIVE) drive_mod += m.amount * bus_[m.src];
       else offset += m.amount * bus_[m.src];
     }
