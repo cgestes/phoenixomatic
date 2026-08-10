@@ -164,8 +164,8 @@ class OscPage : public IPage {
     }
     switch (nav_.field()) {
       case 0: o.wave = static_cast<uint8_t>(model_.random() % WAVE_COUNT); break;
-      case 1: o.div = 1 + static_cast<int>(model_.random() % 8u); break;
-      case 2: o.mult = 1 + static_cast<int>(model_.random() % 8u); break;
+      case 1: o.div = randomRatioTerm(model_.randomUnit()); break;
+      case 2: o.mult = randomRatioTerm(model_.randomUnit()); break;
       default: o.dtune = static_cast<int>(model_.random() % 41u) - 20; break;
     }
   }
@@ -184,10 +184,8 @@ class OscPage : public IPage {
   void randomizePage() override {
     Osc& o = model_.osc[voice_];
     o.wave = static_cast<uint8_t>(model_.random() % WAVE_COUNT);
-    // Small whole numbers: they are the ratios that actually hold the
-    // comparator together.
-    o.div = 1 + static_cast<int>(model_.random() % 8u);
-    o.mult = 1 + static_cast<int>(model_.random() % 8u);
+    o.div = randomRatioTerm(model_.randomUnit());
+    o.mult = randomRatioTerm(model_.randomUnit());
     for (int i = 0; i < bank_count_; ++i) {
       ModRow& m = o.mod[bank_index_[i]];
       m.amount = model_.randomUnit() * 2.0f - 1.0f;

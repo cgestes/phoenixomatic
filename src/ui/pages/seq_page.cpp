@@ -301,7 +301,7 @@ class SeqPage : public IPage {
   void randomGateField(Seq& s) {
     switch (nav_.field()) {
       case 0: s.clock_src = static_cast<uint8_t>(model_.random() % GATE_COUNT); break;
-      case 1: s.div = 1 + static_cast<int>(model_.random() % 8u); break;
+      case 1: s.div = randomRatioTerm(model_.randomUnit()); break;
       case 2: s.dir = static_cast<uint8_t>(model_.random() % DIR_COUNT); break;
       case 3: s.range = 1 + static_cast<int>(model_.random() % 5u); break;
       default: s.chance = 0.4f + model_.randomUnit() * 0.6f; break;
@@ -310,7 +310,7 @@ class SeqPage : public IPage {
 
   void randomGate(Seq& s) {
     s.clock_src = static_cast<uint8_t>(model_.random() % GATE_COUNT);
-    s.div = 1 + static_cast<int>(model_.random() % 8u);
+    s.div = randomRatioTerm(model_.randomUnit());
     s.dir = static_cast<uint8_t>(model_.random() % DIR_COUNT);
     s.chance = 0.4f + model_.randomUnit() * 0.6f;
   }

@@ -401,7 +401,7 @@ class LogicPage : public IPage {
     switch (nav_.field()) {
       case 0: f.src = static_cast<uint8_t>(model_.random() % GATE_COUNT); break;
       case 1:
-        f.ratio = 1 + static_cast<int>(model_.random() % 16u);
+        f.ratio = randomRatioTerm(model_.randomUnit());
         if (f.phase >= f.ratio) f.phase = f.ratio - 1;
         break;
       case 2: f.phase = static_cast<int>(model_.random() % static_cast<uint32_t>(f.ratio)); break;
@@ -413,7 +413,7 @@ class LogicPage : public IPage {
 
   void randomFate(FateChannel& f) {
     f.src = static_cast<uint8_t>(model_.random() % GATE_COUNT);
-    f.ratio = 1 + static_cast<int>(model_.random() % 16u);
+    f.ratio = randomRatioTerm(model_.randomUnit());
     f.phase = static_cast<int>(model_.random() % static_cast<uint32_t>(f.ratio));
     f.prob = model_.randomUnit();
     f.mod_src = static_cast<int>(model_.random() % (SRC_COUNT + 1)) - 1;

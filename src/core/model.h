@@ -164,6 +164,20 @@ inline constexpr int clampRatioTerm(int v) {
   return v < 1 ? 1 : (v > kRatioMax ? kRatioMax : v);
 }
 
+// A random ratio term from a unit random, over the whole 1..64 range but
+// weighted towards the small end. Uniform would land on an awkward ratio
+// almost every time, and awkward ratios are where the comparator stops locking
+// and the machine turns to mush; capping it at 8 to avoid that made most of
+// the field unreachable instead. Cubed puts about half the draws under 8 and
+// still reaches the top.
+inline int randomRatioTerm(float unit, int max_term = kRatioMax) {
+  if (unit < 0.0f) unit = 0.0f;
+  if (unit > 1.0f) unit = 1.0f;
+  int v = 1 + static_cast<int>(unit * unit * unit *
+                               static_cast<float>(max_term - 1) + 0.5f);
+  return v < 1 ? 1 : (v > max_term ? max_term : v);
+}
+
 // Both chaos oscillators reach both audio oscillators, so a single chaos
 // source can drive the pair — which is what BENJOLIN mode leans on.
 inline constexpr int kOscModRows = 6;

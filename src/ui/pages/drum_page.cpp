@@ -109,7 +109,7 @@ class DrumPage : public IPage {
       switch (nav_.field()) {
         case 0: d.trig_src = static_cast<uint8_t>(model_.random() % GATE_COUNT); break;
         case 1: d.chance = model_.randomUnit(); break;
-        case 2: d.div = 1 + static_cast<int>(model_.random() % 8u); break;
+        case 2: d.div = randomRatioTerm(model_.randomUnit(), 16); break;
         default: d.level = 0.3f + model_.randomUnit() * 0.7f; break;
       }
       return;
@@ -143,7 +143,7 @@ class DrumPage : public IPage {
         Drum& d = model_.drum[i];
         d.trig_src = static_cast<uint8_t>(model_.random() % GATE_COUNT);
         d.chance = model_.randomUnit();
-        d.div = 1 + static_cast<int>(model_.random() % 8u);
+        d.div = randomRatioTerm(model_.randomUnit(), 16);
       }
       return;
     }
