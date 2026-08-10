@@ -159,7 +159,10 @@ extern const char* const kWaveLabel[WAVE_COUNT];
 // DIV and MULT are separate whole numbers, 1..64 each, rather than one folded
 // scale: the interesting tunings are the plain ratios, and reading "3 over 2"
 // off two fields beats hunting for it in a single list of 127.
-inline constexpr float kRootHz = 130.8128f;   // C3
+// Middle C. Every ratio is measured against this, and the note readout counts
+// octaves from it — the two must move together, hence the pair.
+inline constexpr float kRootHz = 261.6256f;   // C4
+inline constexpr int kRootOctave = 4;
 inline constexpr int kRatioMax = 64;
 inline constexpr int clampRatioTerm(int v) {
   return v < 1 ? 1 : (v > kRatioMax ? kRatioMax : v);
@@ -196,9 +199,9 @@ struct Osc {
   float phase = 0.0f;
 };
 
-// What a voice is actually running at: its ratio against C3, its detune and
-// the global RATE sweep. The same expression the engine uses, so the number on
-// screen is the frequency being produced rather than an idealised one.
+// What a voice is actually running at: its ratio against the root, its detune
+// and the global RATE sweep. The same expression the engine uses, so the number
+// on screen is the frequency produced rather than an idealised one.
 inline float oscHz(const Osc& o, float rate_offset) {
   float ratio = static_cast<float>(clampRatioTerm(o.mult)) /
                 static_cast<float>(clampRatioTerm(o.div));
@@ -223,9 +226,10 @@ inline NoteRead noteFor(float hz) {
   int nearest = static_cast<int>(std::lround(st));
   int cents = static_cast<int>(std::lround((st - static_cast<float>(nearest)) * 100.0f));
   int idx = ((nearest % 12) + 12) % 12;
-  // Floored, not truncated: C3 is the root, and the octave below it has to
-  // count down rather than fold back towards zero.
-  int octave = 3 + static_cast<int>(std::floor(static_cast<float>(nearest) / 12.0f));
+  // Floored, not truncated: the octave below the root has to count down rather
+  // than fold back towards zero.
+  int octave = kRootOctave +
+               static_cast<int>(std::floor(static_cast<float>(nearest) / 12.0f));
   return NoteRead{kNoteName[idx], octave, cents};
 }
 
@@ -479,7 +483,7 @@ class PhoenixModel {
   // Global pitch offset in octaves, applied to both oscillators. Down here the
   // comparator ticks like a sequencer; up there it screams.
   uint8_t machine_mode = MODE_BENJOLIN;
-  float rate_offset = -3.0f;
+  float rate_offset = -4.0f;
   float master = 0.74f;
   int drive = 8;   // leaves the drums room to punch through
   int crush = 0;

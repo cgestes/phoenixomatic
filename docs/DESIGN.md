@@ -26,7 +26,7 @@ The third decision is the one that defines the instrument. See §3.
 | # | Module | Count | Notes |
 |---|---|---|---|
 | 1 | Chaos oscillator | 2 | Triple-Sloth style. 3 outputs each (TORPOR / INERTIA / APATHY), slow → audio rate |
-| 2 | Oscillator | 2 | SIN / TRI / SAW / SQR, tuned as a **ratio** against C3, with a 5-slot modulation bank each |
+| 2 | Oscillator | 2 | SIN / TRI / SAW / SQR, tuned as a **ratio** against C4, with a 5-slot modulation bank each |
 | 3 | Step sequencer | 8 steps × 2 | Clock div/mult + a 5-row modulation bank each |
 | 4 | Comparator | 1 | A vs B + modulated offset. Outputs A>B, A<B gates **and** audio |
 | 5 | Filter | 1 | Resonant multimode (LP/BP/HP), fed by the comparator's pulse train and swept by the rungler. The Benjolin's voice. |
@@ -103,8 +103,8 @@ first few units on each side unreachable.
 ### 3.1a Tuning is a ratio, not a pitch
 
 Both oscillators are tuned by two whole numbers — **DIV** and **MULT**, each 1…64 — against a
-single root of **C3 (130.81 Hz)**, with **DTUNE** in cents for pulling off an exact ratio.
-Frequency is `C3 × MULT / DIV`.
+single root of **C4 (261.63 Hz)**, middle C, with **DTUNE** in cents for pulling off an exact
+ratio. Frequency is `C4 × MULT / DIV`.
 
 Two fields rather than one folded scale: the interesting tunings are the plain ratios, and
 reading "3 over 2" off two numbers beats hunting for it in a list of 127 entries. `SHIFT` jumps
@@ -363,7 +363,7 @@ the machine silent — a whole-instrument failure from one loosened clamp. The
 limit has to sit where the loop is, not out past it.
 
 One honest limit: the oscillator caps exponential FM at ±8 octaves, which is
-already past Nyquist from C3, so with an attenuverter **fully open** `8`, `10`,
+already past Nyquist from the root, so with an attenuverter **fully open** `8`, `10`,
 `15` and `20` all arrive at the same place. They separate as soon as the
 attenuverter comes down, which is how the control is meant to be used —
 at amount `0.3` they give 2.4, 3.0, 4.5 and 6.0 octaves. Destinations with
