@@ -51,7 +51,11 @@ PhoenixModel::PhoenixModel() {
     // CHAOS-A drives both oscillators by default, so the machine behaves the
     // same whether or not the second chaos core is on the panel. The depths
     // are deliberately unequal — see below.
-    osc[v].mod[0].amount = 0.50f;  osc[v].mod[0].mode = MOD_FM_EXP;   // CHAOS-A
+    // 0.36, not 0.50: the chaos oscillator used to have its own DEPTH at 0.72
+    // in front of this, and that control is gone as redundant. Keeping the old
+    // number would have made removing a duplicate gain quietly modulate 39%
+    // harder than before.
+    osc[v].mod[0].amount = 0.36f;  osc[v].mod[0].mode = MOD_FM_EXP;   // CHAOS-A
     osc[v].mod[1].amount = 0.00f;  osc[v].mod[1].mode = MOD_FM_EXP;   // CHAOS-B
     osc[v].mod[2].amount = 1.00f;  osc[v].mod[2].mode = MOD_FM_EXP;   // SEQ
     osc[v].mod[3].amount = 0.00f;  osc[v].mod[3].mode = MOD_FM_AC;    // other osc
@@ -170,14 +174,13 @@ PhoenixModel::PhoenixModel() {
   // its own pattern. Measured on the 3-bit tap: equal depths put 75% of the
   // output at the extremes; +50 against -35 puts 7% there and spreads the
   // rest across all eight levels.
-  osc[1].mod[0].amount = -0.35f;
+  osc[1].mod[0].amount = -0.25f;
 
   // XOR: the Benjolin's own feedback path, so RUNGLER mode is the authentic
   // article out of the box. 93 register states against 15 with none.
   chaos[0].skew = runglerSkewForFeedback(kFeedbackXor);
 
   chaos[1].rate = 0.07f;
-  chaos[1].depth = 0.55f;
   chaos[1].skew = 0.20f;
 }
 

@@ -12,13 +12,12 @@
 namespace {
 
 constexpr int kScopeCol = 2;
-constexpr int kScopeRow = 12;
+constexpr int kScopeRow = 11;
 constexpr int kScopeCols = 36;
-constexpr int kScopeRows = 2;
+constexpr int kScopeRows = 3;
 
-constexpr int kTuneRow = 0;    // WAVE / DIV / MULT
-constexpr int kVoiceRow = 1;   // DTUNE / LVL
-constexpr int kBankRow0 = 2;   // first attenuverter row
+constexpr int kTuneRow = 0;    // WAVE / DIV / MULT / DTUNE
+constexpr int kBankRow0 = 1;   // first attenuverter row
 
 class OscPage : public IPage {
  public:
@@ -34,29 +33,21 @@ class OscPage : public IPage {
     refreshRows();
     Osc& o = model_.osc[voice_];
 
+    // One line now that level lives on MIX, which frees a row for the scope.
     bool tr = nav_.atRow(kTuneRow);
     uint8_t tbg = rowBg(tr);
     if (tr) scr.highlight(1, 1, kScreenCols - 2, PEN_PANEL);
     scr.text(1, 1, "WAVE", PEN_DIM, tbg);
     drawField(scr, 6, 1, kWaveLabel[o.wave], PEN_HOT, nav_.at(kTuneRow, 0), tbg);
-    scr.text(13, 1, "DIV", PEN_DIM, tbg);
-    drawFieldF(scr, 17, 1, PEN_BRIGHT, nav_.at(kTuneRow, 1), tbg, "%d", o.div);
-    scr.text(24, 1, "MULT", PEN_DIM, tbg);
-    drawFieldF(scr, 29, 1, PEN_BRIGHT, nav_.at(kTuneRow, 2), tbg, "%d", o.mult);
-
-    bool vr = nav_.atRow(kVoiceRow);
-    uint8_t bg = rowBg(vr);
-    if (vr) scr.highlight(1, 3, kScreenCols - 2, PEN_PANEL);
-    // A blank row between the two tuning lines: they carry different kinds of
-    // decision and ran together without it.
-    scr.text(1, 3, "DTUNE", PEN_DIM, bg);
-    drawFieldF(scr, 7, 3, PEN_COOL, nav_.at(kVoiceRow, 0), bg, "%+dc", o.dtune);
-    scr.text(24, 3, "LVL", PEN_DIM, bg);
-    drawFieldF(scr, 29, 3, o.mute ? PEN_FAINT : PEN_BRIGHT, nav_.at(kVoiceRow, 1),
-               bg, "%d", static_cast<int>(o.level * 100.0f));
+    scr.text(11, 1, "DIV", PEN_DIM, tbg);
+    drawFieldF(scr, 15, 1, PEN_BRIGHT, nav_.at(kTuneRow, 1), tbg, "%d", o.div);
+    scr.text(19, 1, "MULT", PEN_DIM, tbg);
+    drawFieldF(scr, 24, 1, PEN_BRIGHT, nav_.at(kTuneRow, 2), tbg, "%d", o.mult);
+    scr.text(28, 1, "DTUNE", PEN_DIM, tbg);
+    drawFieldF(scr, 34, 1, PEN_COOL, nav_.at(kTuneRow, 3), tbg, "%+d", o.dtune);
 
     int focus_row = nav_.row() >= kBankRow0 ? nav_.row() - kBankRow0 : -1;
-    drawModBankIndexed(scr, 5, o.mod, bank_index_, bank_count_, focus_row,
+    drawModBankIndexed(scr, 3, o.mod, bank_index_, bank_count_, focus_row,
                        nav_.field(), kOscModTypeLabel, "TYPE");
 
     scr.reserve(kScopeCol, kScopeRow, kScopeCols, kScopeRows);
@@ -115,22 +106,15 @@ class OscPage : public IPage {
     // to find x16.
     int step = ev.shift ? 8 : 1;
 
-    if (nav_.row() == kTuneRow) {
-      switch (nav_.field()) {
-        case 0: o.wave = static_cast<uint8_t>((o.wave + WAVE_COUNT + dir) % WAVE_COUNT); break;
-        case 1: o.div = clampRatioTerm(o.div + dir * step); break;
-        default: o.mult = clampRatioTerm(o.mult + dir * step); break;
-      }
-      return true;
-    }
-    if (nav_.field() == 0) {
-      o.dtune += dir * (ev.shift ? 1 : 5);
-      if (o.dtune < -100) o.dtune = -100;
-      if (o.dtune > 100) o.dtune = 100;
-    } else {
-      o.level += static_cast<float>(dir) * 0.02f;
-      if (o.level < 0.0f) o.level = 0.0f;
-      if (o.level > 1.0f) o.level = 1.0f;
+    switch (nav_.field()) {
+      case 0: o.wave = static_cast<uint8_t>((o.wave + WAVE_COUNT + dir) % WAVE_COUNT); break;
+      case 1: o.div = clampRatioTerm(o.div + dir * step); break;
+      case 2: o.mult = clampRatioTerm(o.mult + dir * step); break;
+      default:
+        o.dtune += dir * (ev.shift ? 1 : 5);
+        if (o.dtune < -100) o.dtune = -100;
+        if (o.dtune > 100) o.dtune = 100;
+        break;
     }
     return true;
   }
@@ -148,17 +132,12 @@ class OscPage : public IPage {
       zeroModField(bankRow(), nav_.field());
       return;
     }
-    if (nav_.row() == kTuneRow) {
-      switch (nav_.field()) {
-        case 0: o.wave = WAVE_SIN; break;
-        // No zero for a ratio term; 1 is its origin.
-        case 1: o.div = 1; break;
-        default: o.mult = 1; break;
-      }
-    } else if (nav_.field() == 0) {
-      o.dtune = 0;
-    } else {
-      o.level = 0.0f;
+    switch (nav_.field()) {
+      case 0: o.wave = WAVE_SIN; break;
+      // No zero for a ratio term; 1 is its origin.
+      case 1: o.div = 1; break;
+      case 2: o.mult = 1; break;
+      default: o.dtune = 0; break;
     }
   }
 
@@ -173,16 +152,11 @@ class OscPage : public IPage {
       }
       return;
     }
-    if (nav_.row() == kTuneRow) {
-      switch (nav_.field()) {
-        case 0: o.wave = static_cast<uint8_t>(model_.random() % WAVE_COUNT); break;
-        case 1: o.div = 1 + static_cast<int>(model_.random() % 8u); break;
-        default: o.mult = 1 + static_cast<int>(model_.random() % 8u); break;
-      }
-    } else if (nav_.field() == 0) {
-      o.dtune = static_cast<int>(model_.random() % 41u) - 20;
-    } else {
-      o.level = 0.3f + model_.randomUnit() * 0.7f;
+    switch (nav_.field()) {
+      case 0: o.wave = static_cast<uint8_t>(model_.random() % WAVE_COUNT); break;
+      case 1: o.div = 1 + static_cast<int>(model_.random() % 8u); break;
+      case 2: o.mult = 1 + static_cast<int>(model_.random() % 8u); break;
+      default: o.dtune = static_cast<int>(model_.random() % 41u) - 20; break;
     }
   }
 
@@ -192,7 +166,6 @@ class OscPage : public IPage {
     o.div = 1;
     o.mult = 1;
     o.dtune = 0;
-    o.level = 0.0f;
     for (int i = 0; i < bank_count_; ++i) zeroModRow(o.mod[bank_index_[i]]);
   }
 
@@ -229,8 +202,7 @@ class OscPage : public IPage {
     nav_mode_ = model_.machine_mode;
     bank_count_ = visibleModRows(model_.osc[voice_].mod, kOscModRows,
                                  nav_mode_, bank_index_);
-    fields_[kTuneRow] = 3;
-    fields_[kVoiceRow] = 2;
+    fields_[kTuneRow] = 4;
     for (int i = 0; i < bank_count_; ++i) fields_[kBankRow0 + i] = 2;
     nav_.configure(fields_, kBankRow0 + bank_count_);
   }

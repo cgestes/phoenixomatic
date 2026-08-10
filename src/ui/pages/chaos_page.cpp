@@ -11,7 +11,7 @@ constexpr int kModeRow = 0;   // MODE | FREEZE
 constexpr int kShapeRow = 1;  // RATE | DEPTH | SKEW
 constexpr int kPickRow = 2;   // PICK
 
-constexpr uint8_t kFields[] = {2, 3, 1};
+constexpr uint8_t kFields[] = {2, 2, 1};
 constexpr int kRows = 3;
 
 // The history plot sits to the right of the three output meters.
@@ -57,27 +57,20 @@ class ChaosPage : public IPage {
     // something different: the clock comes from an oscillator, so RATE divides
     // it, and SKEW feeds the register back on itself instead of tilting a flow.
     bool rung = c.mode == CHAOS_RUNGLER;
-    const char* names[3] = {rung ? "CLK DIV" : "RATE", rung ? "LEVEL" : "DEPTH",
-                            rung ? "FEEDBACK" : "SKEW"};
-    for (int i = 0; i < 3; ++i) {
-      int col = 3 + i * 12;
+    const char* names[2] = {rung ? "CLK DIV" : "RATE", rung ? "FEEDBACK" : "SKEW"};
+    for (int i = 0; i < 2; ++i) {
+      int col = 3 + i * 14;
       scr.text(col, 3, names[i], PEN_DIM, sbg);
       char buf[12];
-      switch (i) {
-        case 0:
-          if (rung) snprintf(buf, sizeof(buf), "/%d", runglerClockDiv(c.rate));
-          else snprintf(buf, sizeof(buf), "%.2fHz", static_cast<double>(c.rate));
-          break;
-        case 1: snprintf(buf, sizeof(buf), "%d", static_cast<int>(c.depth * 100.0f)); break;
-        default:
-          if (rung) {
-            int fb = runglerFeedback(c.skew);
-            if (fb == kFeedbackXor) snprintf(buf, sizeof(buf), "XOR");
-            else snprintf(buf, sizeof(buf), "%d%%", fb);
-          } else {
-            snprintf(buf, sizeof(buf), "%+d", static_cast<int>(c.skew * 100.0f));
-          }
-          break;
+      if (i == 0) {
+        if (rung) snprintf(buf, sizeof(buf), "/%d", runglerClockDiv(c.rate));
+        else snprintf(buf, sizeof(buf), "%.2fHz", static_cast<double>(c.rate));
+      } else if (rung) {
+        int fb = runglerFeedback(c.skew);
+        if (fb == kFeedbackXor) snprintf(buf, sizeof(buf), "XOR");
+        else snprintf(buf, sizeof(buf), "%d%%", fb);
+      } else {
+        snprintf(buf, sizeof(buf), "%+d", static_cast<int>(c.skew * 100.0f));
       }
       drawField(scr, col, 4, buf, PEN_COOL, nav_.at(kShapeRow, i), sbg);
     }
@@ -202,9 +195,9 @@ class ChaosPage : public IPage {
         // Zero for a divider is 1, its origin.
         if (nav_.field() == 0) {
           c.rate = c.mode == CHAOS_RUNGLER ? runglerRateForDiv(1) : 0.005f;
+        } else {
+          c.skew = c.mode == CHAOS_RUNGLER ? runglerSkewForFeedback(0) : 0.0f;
         }
-        else if (nav_.field() == 1) c.depth = 0.0f;
-        else c.skew = c.mode == CHAOS_RUNGLER ? runglerSkewForFeedback(0) : 0.0f;
         break;
       default: c.pick = 0; break;
     }
@@ -223,7 +216,6 @@ class ChaosPage : public IPage {
                        ? runglerRateForDiv(1 + static_cast<int>(model_.random() % kRunglerMaxDiv))
                        : 0.01f + model_.randomUnit() * 0.4f;
         }
-        else if (nav_.field() == 1) c.depth = 0.3f + model_.randomUnit() * 0.7f;
         else if (c.mode == CHAOS_RUNGLER) {
           c.skew = runglerSkewForFeedback(
               static_cast<int>(model_.random() % 102u) - 1);
@@ -240,7 +232,6 @@ class ChaosPage : public IPage {
     c.mode = CHAOS_SLOTH;
     c.freeze = false;
     c.rate = 0.005f;
-    c.depth = 0.0f;
     c.skew = 0.0f;
     c.pick = 0;
   }
@@ -249,7 +240,6 @@ class ChaosPage : public IPage {
     Chaos& c = model_.chaos[which_];
     c.mode = static_cast<uint8_t>(model_.random() % CHAOS_MODE_COUNT);
     c.rate = 0.01f + model_.randomUnit() * 0.4f;
-    c.depth = 0.3f + model_.randomUnit() * 0.7f;
     c.skew = model_.randomUnit() * 2.0f - 1.0f;
     c.pick = static_cast<int>(model_.random() % 3u);
   }
@@ -314,7 +304,10 @@ class ChaosPage : public IPage {
     int n = 0;
     for (int i = 0; i < hist_fill_; ++i) {
       float v = hist_[i] < 0 ? -hist_[i] : hist_[i];
-      if (v > 0.6f) ++n;   // the two outer levels of the 3-bit DAC
+      // Only the outermost pair. A 3-bit DAC at full scale puts its second
+      // level at 0.71, so a lower threshold counts four levels as "ends" and
+      // the reading balloons for no reason.
+      if (v > 0.9f) ++n;
     }
     return n * 100 / hist_fill_;
   }
@@ -332,11 +325,6 @@ class ChaosPage : public IPage {
         c.rate += d * 0.01f;
         if (c.rate < 0.005f) c.rate = 0.005f;
         if (c.rate > 2.0f) c.rate = 2.0f;
-        break;
-      case 1:
-        c.depth += d * 0.02f;
-        if (c.depth < 0.0f) c.depth = 0.0f;
-        if (c.depth > 1.0f) c.depth = 1.0f;
         break;
       default:
         if (c.mode == CHAOS_RUNGLER) {

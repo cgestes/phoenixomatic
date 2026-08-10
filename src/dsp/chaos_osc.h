@@ -13,7 +13,6 @@ class ChaosOsc {
   void init(float sample_rate, uint32_t seed);
   void setMode(uint8_t mode);      // ChaosMode
   void setRate(float hz);
-  void setDepth(float depth);      // 0..1
   void setSkew(float skew);        // -1..1
 
   // Advance by `dt_samples` samples. Cheap: called every kChaosStride samples.
@@ -26,7 +25,7 @@ class ChaosOsc {
 
   void reset();
 
-  // -1..1, already scaled by depth and offset by skew.
+  // -1..1, full scale. Attenuverters downstream decide how much lands.
   float out(int index) const { return out_[index < 0 ? 0 : (index > 2 ? 2 : index)]; }
 
   // The rungler's shift register, so the panel can show it.
@@ -48,7 +47,6 @@ class ChaosOsc {
   float out_[3] = {0, 0, 0};
   float sample_rate_ = 22050.0f;
   float rate_ = 0.04f;
-  float depth_ = 0.72f;
   float skew_ = 0.0f;
   uint8_t mode_ = 0;
   uint32_t rng_ = 1;

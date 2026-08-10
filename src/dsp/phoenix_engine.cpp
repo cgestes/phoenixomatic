@@ -47,7 +47,6 @@ void PhoenixEngine::applyParams() {
     const Chaos& c = model_.chaos[i];
     chaos_[i].setMode(c.mode);
     chaos_[i].setRate(c.rate);
-    chaos_[i].setDepth(c.depth);
     chaos_[i].setSkew(c.skew);
 
     const Osc& o = model_.osc[i];

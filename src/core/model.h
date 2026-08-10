@@ -132,7 +132,9 @@ inline float runglerRateForDiv(int div) {
 struct Chaos {
   uint8_t mode = CHAOS_SLOTH;
   float rate = 0.04f;      // Hz
-  float depth = 0.72f;
+  // No depth: how much of this reaches anything is the attenuverter's job on
+  // the destination, and a second gain in front of it would just be a way to
+  // make the same sound at two different settings.
   float skew = -0.12f;
   bool freeze = false;
   int pick = 0;            // which output is published on the bus

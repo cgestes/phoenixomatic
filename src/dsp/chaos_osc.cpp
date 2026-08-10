@@ -91,9 +91,9 @@ void ChaosOsc::tickRungler(bool clock_high, bool data_high) {
   // APATHY is the bit on its way out, raw — the pulse.
   float apathy = ((rung_shift_ >> 7) & 1u) ? 1.0f : -1.0f;
 
-  out_[0] = torpor * depth_;
-  out_[1] = inertia * depth_;
-  out_[2] = apathy * depth_;
+  out_[0] = torpor;
+  out_[1] = inertia;
+  out_[2] = apathy;
 }
 
 void ChaosOsc::setMode(uint8_t mode) {
@@ -103,7 +103,6 @@ void ChaosOsc::setMode(uint8_t mode) {
 }
 
 void ChaosOsc::setRate(float hz) { rate_ = hz < 0.001f ? 0.001f : hz; }
-void ChaosOsc::setDepth(float d) { depth_ = d < 0.0f ? 0.0f : (d > 1.0f ? 1.0f : d); }
 void ChaosOsc::setSkew(float s) { skew_ = clamp1(s); }
 
 void ChaosOsc::stepCore(Core& c, float dt) {
@@ -202,6 +201,6 @@ void ChaosOsc::process(int dt_samples) {
       case CHAOS_RND:     raw = c.x; break;
       default:            raw = c.x * 0.42f; break;
     }
-    out_[i] = clamp1(raw * depth_ + skew_ * 0.2f);
+    out_[i] = clamp1(raw + skew_ * 0.2f);
   }
 }
