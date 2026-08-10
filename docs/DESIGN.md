@@ -483,9 +483,10 @@ RUNGLER is the benjolin article, and it is a *loop through the oscillators*:
 
 ```
 OSC1 square ──clock──▶ ┌─────────────────┐
-                       │ 8-bit shift reg │──┬─ bits 0-2 ─▶ TORPOR
-OSC2 square ──data───▶ └─────────────────┘  ├─ bits 3-5 ─▶ INERTIA
-                                            └─ bit 7 ────▶ APATHY
+                       │ 8-bit shift reg │──┬─ bits 5-7 ─▶ TORPOR   (3-bit DAC)
+OSC2 square ──data───▶ └─────────────────┘  ├─ all eight ▶ INERTIA
+       ▲                        │           └─ bit 7 ────▶ APATHY   (raw pulse)
+       └──── XOR ◀──── bit 7 ───┘
 ```
 
 CHAOS-B mirrors it — clocked by OSC2, fed by OSC1 — so the two are different runglers rather than
