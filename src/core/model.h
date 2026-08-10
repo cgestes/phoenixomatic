@@ -229,8 +229,6 @@ class PhoenixModel {
   void muteAll(bool muted);
   void invertMutes();
 
-  // A pristine model, built once, for O (reset field) and SHIFT+O (reset page).
-  static const PhoenixModel& factory();
   // Shared RNG so pages can randomise without carrying their own state.
   uint32_t random();
   float randomUnit();

@@ -53,11 +53,13 @@ class IPage {
   // through untouched.
   virtual bool toggleField() { return false; }
 
-  // O / R act on the focused field; SHIFT+O / SHIFT+R on the whole page.
-  // Pages that have nothing to reset or randomise leave these alone.
-  virtual void resetField() {}
+  // O zeroes the focused field, SHIFT+O every field on the page. "Zero" means
+  // literally zero where the field has one, and the origin of its range where
+  // it does not — a divider goes to 1, a selector to its first entry.
+  virtual void zeroField() {}
+  virtual void zeroPage() {}
+  // R randomises the focused field, SHIFT+R the whole page.
   virtual void randomizeField() {}
-  virtual void resetPage() {}
   virtual void randomizePage() {}
 
   // Which bus sources are doing something on this screen right now.

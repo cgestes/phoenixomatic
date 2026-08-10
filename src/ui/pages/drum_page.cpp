@@ -83,20 +83,18 @@ class DrumPage : public IPage {
     return true;
   }
 
-  void resetField() override {
+  void zeroField() override {
     if (sub_ == 0) {
-      const Drum& d = PhoenixModel::factory().drum[nav_.row()];
-      Drum& t = model_.drum[nav_.row()];
+      Drum& d = model_.drum[nav_.row()];
       switch (nav_.field()) {
-        case 0: t.trig_src = d.trig_src; break;
-        case 1: t.chance = d.chance; break;
-        case 2: t.div = d.div; break;
-        default: t.level = d.level; break;
+        case 0: d.trig_src = GATE_CMP_GT; break;
+        case 1: d.chance = 0.0f; break;
+        case 2: d.div = 1; break;      // no zero for a divider
+        default: d.level = 0.0f; break;
       }
       return;
     }
-    int v = voiceIndex(nav_.row());
-    *param(v, nav_.field()) = *constParam(PhoenixModel::factory().drum[v], nav_.field());
+    *param(voiceIndex(nav_.row()), nav_.field()) = 0;
   }
 
   void randomizeField() override {
@@ -114,13 +112,20 @@ class DrumPage : public IPage {
         static_cast<int>(model_.random() % 101u);
   }
 
-  void resetPage() override {
-    for (int i = 0; i < kDrumVoices; ++i) {
-      if (sub_ != 0 && i != voiceIndex(0) && i != voiceIndex(1)) continue;
-      // Mute is a performance decision, not a setting.
-      bool mute = model_.drum[i].mute;
-      model_.drum[i] = PhoenixModel::factory().drum[i];
-      model_.drum[i].mute = mute;
+  void zeroPage() override {
+    if (sub_ == 0) {
+      for (int i = 0; i < kDrumVoices; ++i) {
+        Drum& d = model_.drum[i];
+        d.trig_src = GATE_CMP_GT;
+        d.chance = 0.0f;
+        d.div = 1;
+        d.level = 0.0f;
+      }
+      return;
+    }
+    for (int slot = 0; slot < 2; ++slot) {
+      int v = voiceIndex(slot);
+      for (int p = 0; p < 5; ++p) *param(v, p) = 0;
     }
   }
 
@@ -154,10 +159,6 @@ class DrumPage : public IPage {
   int* param(int voice, int field) {
     Drum& d = model_.drum[voice];
     int* slots[5] = {&d.tune, &d.decay, &d.p3, &d.p4, &d.p5};
-    return slots[field < 0 ? 0 : (field > 4 ? 4 : field)];
-  }
-  static const int* constParam(const Drum& d, int field) {
-    const int* slots[5] = {&d.tune, &d.decay, &d.p3, &d.p4, &d.p5};
     return slots[field < 0 ? 0 : (field > 4 ? 4 : field)];
   }
 

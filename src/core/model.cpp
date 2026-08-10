@@ -161,13 +161,6 @@ float PhoenixModel::randomUnit() {
   return static_cast<float>(random() >> 8) * (1.0f / 16777216.0f);
 }
 
-// Built once from the constructor and never touched again, so O and SHIFT+O
-// have something honest to restore from.
-const PhoenixModel& PhoenixModel::factory() {
-  static const PhoenixModel pristine;
-  return pristine;
-}
-
 // --- mutes -----------------------------------------------------------------
 
 bool PhoenixModel::isMuted(int inst) const {

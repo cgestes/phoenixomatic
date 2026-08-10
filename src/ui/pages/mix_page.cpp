@@ -91,15 +91,15 @@ class MixPage : public IPage {
     return true;
   }
 
-  void resetField() override {
-    const PhoenixModel& d = PhoenixModel::factory();
+  void zeroField() override {
     if (nav_.row() < kStrips) {
-      if (nav_.field() == 1) model_.setMuted(nav_.row(), d.isMuted(nav_.row()));
-      else *constLevelMut(nav_.row()) = *constLevelOf(d, nav_.row());
+      // Mute has no zero; unmuted is its origin.
+      if (nav_.field() == 1) model_.setMuted(nav_.row(), false);
+      else *constLevelMut(nav_.row()) = 0.0f;
       return;
     }
-    if (nav_.row() == kMasterRow) { model_.master = d.master; return; }
-    if (nav_.field() == 0) model_.drive = d.drive; else model_.crush = d.crush;
+    if (nav_.row() == kMasterRow) { model_.master = 0.0f; return; }
+    if (nav_.field() == 0) model_.drive = 0; else model_.crush = 0;
   }
 
   void randomizeField() override {
@@ -116,12 +116,11 @@ class MixPage : public IPage {
     *v = static_cast<int>(model_.random() % 60u);
   }
 
-  void resetPage() override {
-    const PhoenixModel& d = PhoenixModel::factory();
-    for (int i = 0; i < kStrips; ++i) *constLevelMut(i) = *constLevelOf(d, i);
-    model_.master = d.master;
-    model_.drive = d.drive;
-    model_.crush = d.crush;
+  void zeroPage() override {
+    for (int i = 0; i < kStrips; ++i) *constLevelMut(i) = 0.0f;
+    model_.master = 0.0f;
+    model_.drive = 0;
+    model_.crush = 0;
   }
 
   void randomizePage() override {

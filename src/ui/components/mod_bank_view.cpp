@@ -66,10 +66,8 @@ uint8_t litSourcesOf(const ModRow* rows, int count) {
 }
 
 bool editModRow(const UIEvent& ev, ModRow& row, int field, int mode_count) {
-  if (ev.key == '0') {
-    row.amount = 0.0f;
-    return true;
-  }
+  // The digit 0 is deliberately not bound here — it is reserved for mixing.
+  // O is the key that zeroes a value.
   if (ev.code != KEY_LEFT && ev.code != KEY_RIGHT) return false;
   int dir = ev.code == KEY_RIGHT ? 1 : -1;
 

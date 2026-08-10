@@ -113,19 +113,20 @@ class ChaosPage : public IPage {
     return true;
   }
 
-  void resetField() override {
-    const Chaos& d = PhoenixModel::factory().chaos[which_];
+  void zeroField() override {
     Chaos& c = model_.chaos[which_];
     switch (nav_.row()) {
       case kModeRow:
-        if (nav_.field() == 0) c.mode = d.mode; else c.freeze = d.freeze;
+        if (nav_.field() == 0) c.mode = CHAOS_SLOTH; else c.freeze = false;
         break;
       case kShapeRow:
-        if (nav_.field() == 0) c.rate = d.rate;
-        else if (nav_.field() == 1) c.depth = d.depth;
-        else c.skew = d.skew;
+        // Rate has no true zero — a stopped chaos core is just frozen — so it
+        // goes to the slowest it will run.
+        if (nav_.field() == 0) c.rate = 0.005f;
+        else if (nav_.field() == 1) c.depth = 0.0f;
+        else c.skew = 0.0f;
         break;
-      default: c.pick = d.pick; break;
+      default: c.pick = 0; break;
     }
   }
 
@@ -145,7 +146,15 @@ class ChaosPage : public IPage {
     }
   }
 
-  void resetPage() override { model_.chaos[which_] = PhoenixModel::factory().chaos[which_]; }
+  void zeroPage() override {
+    Chaos& c = model_.chaos[which_];
+    c.mode = CHAOS_SLOTH;
+    c.freeze = false;
+    c.rate = 0.005f;
+    c.depth = 0.0f;
+    c.skew = 0.0f;
+    c.pick = 0;
+  }
 
   void randomizePage() override {
     Chaos& c = model_.chaos[which_];

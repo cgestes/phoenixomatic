@@ -187,7 +187,7 @@ bool PhoenixDisplay::handleGlobalKey(const UIEvent& ev) {
   }
 
   if (ev.key == 'o') {
-    if (ev.shift) page->resetPage(); else page->resetField();
+    if (ev.shift) page->zeroPage(); else page->zeroField();
     return true;
   }
   if (ev.key == 'r') {

@@ -144,23 +144,23 @@ class OscPage : public IPage {
     return true;
   }
 
-  void resetField() override {
-    const Osc& d = PhoenixModel::factory().osc[voice_];
+  void zeroField() override {
     Osc& o = model_.osc[voice_];
     if (nav_.row() >= kBankRow0) {
-      o.mod[nav_.row() - kBankRow0] = d.mod[nav_.row() - kBankRow0];
+      zeroModRow(o.mod[nav_.row() - kBankRow0]);
       return;
     }
     if (nav_.row() == kTuneRow) {
       switch (nav_.field()) {
-        case 0: o.wave = d.wave; break;
-        case 1: o.div = d.div; break;
-        default: o.mult = d.mult; break;
+        case 0: o.wave = WAVE_SIN; break;
+        // No zero for a ratio term; 1 is its origin.
+        case 1: o.div = 1; break;
+        default: o.mult = 1; break;
       }
     } else if (nav_.field() == 0) {
-      o.dtune = d.dtune;
+      o.dtune = 0;
     } else {
-      o.level = d.level;
+      o.level = 0.0f;
     }
   }
 
@@ -185,12 +185,14 @@ class OscPage : public IPage {
     }
   }
 
-  void resetPage() override {
-    // Mute state is a performance decision, not a setting: reset should not
-    // silently bring a muted voice back.
-    bool mute = model_.osc[voice_].mute;
-    model_.osc[voice_] = PhoenixModel::factory().osc[voice_];
-    model_.osc[voice_].mute = mute;
+  void zeroPage() override {
+    Osc& o = model_.osc[voice_];
+    o.wave = WAVE_SIN;
+    o.div = 1;
+    o.mult = 1;
+    o.dtune = 0;
+    o.level = 0.0f;
+    for (int i = 0; i < kOscModRows; ++i) zeroModRow(o.mod[i]);
   }
 
   void randomizePage() override {

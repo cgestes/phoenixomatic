@@ -74,7 +74,7 @@ class HelpPage : public IPage {
       {"UP DOWN",   "move between rows"},
       {"TAB",       "field within the row"},
       {"LEFT RIGHT","change the value"},
-      {"O / SHIFT+O", "reset field / page"},
+      {"O / SHIFT+O", "zero field / page"},
       {"R / SHIFT+R", "random field / page"},
       {"[ ]",       "previous / next screen"},
       {"CTRL+UPDN", "sub-page"},

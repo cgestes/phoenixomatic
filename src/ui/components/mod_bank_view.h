@@ -41,6 +41,13 @@ int drawModBank(TextScreen& scr, int row, const ModRow* rows, int count,
 // Applies left/right to whichever field is focused. Returns true if consumed.
 bool editModRow(const UIEvent& ev, ModRow& row, int field, int mode_count);
 
+// Zero: amount to nothing, mode back to its first entry, bypass cleared.
+inline void zeroModRow(ModRow& row) {
+  row.amount = 0.0f;
+  row.mode = 0;
+  row.on = true;
+}
+
 // Bus sources this bank is currently doing something with.
 uint8_t litSourcesOf(const ModRow* rows, int count);
 

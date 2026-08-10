@@ -96,20 +96,19 @@ class LogicPage : public IPage {
     return true;
   }
 
-  void resetField() override {
+  void zeroField() override {
     if (sub_ == 0) {
-      const Comparator& d = PhoenixModel::factory().comp;
       Comparator& c = model_.comp;
-      if (nav_.row() == kCompOffsetRow) c.offset = d.offset;
-      else if (nav_.row() == kCompLevelRow) c.level = d.level;
-      else c.mod[nav_.row() - kCompBankRow0] = d.mod[nav_.row() - kCompBankRow0];
+      if (nav_.row() == kCompOffsetRow) c.offset = 0.0f;
+      else if (nav_.row() == kCompLevelRow) c.level = 0.0f;
+      else zeroModRow(c.mod[nav_.row() - kCompBankRow0]);
       return;
     }
     if (nav_.row() == kFateModeRow) {
       if (nav_.field() == 0) div_mode_ = DIVMODE_DIVIDE; else toss_mode_ = TOSS_TOSS;
       return;
     }
-    model_.fate[nav_.row()] = PhoenixModel::factory().fate[nav_.row()];
+    zeroFate(model_.fate[nav_.row()]);
   }
 
   void randomizeField() override {
@@ -128,16 +127,14 @@ class LogicPage : public IPage {
     randomFate(model_.fate[nav_.row()]);
   }
 
-  void resetPage() override {
+  void zeroPage() override {
     if (sub_ == 0) {
-      // Mute is a performance decision, not a setting; reset leaves it alone.
-      bool mute = model_.comp.mute;
-      model_.comp = PhoenixModel::factory().comp;
-      model_.comp.mute = mute;
+      Comparator& c = model_.comp;
+      c.offset = 0.0f;
+      c.level = 0.0f;
+      for (int i = 0; i < kCompModRows; ++i) zeroModRow(c.mod[i]);
     } else {
-      for (int i = 0; i < kFateChannels; ++i) {
-        model_.fate[i] = PhoenixModel::factory().fate[i];
-      }
+      for (int i = 0; i < kFateChannels; ++i) zeroFate(model_.fate[i]);
       div_mode_ = DIVMODE_DIVIDE;
       toss_mode_ = TOSS_TOSS;
     }
@@ -336,6 +333,16 @@ class LogicPage : public IPage {
         break;
     }
     return true;
+  }
+
+  // A divider has no zero, so it goes to 1; the modulator goes to none.
+  void zeroFate(FateChannel& f) {
+    f.src = GATE_CMP_GT;
+    f.ratio = 1;
+    f.phase = 0;
+    f.prob = 0.0f;
+    f.mod_src = -1;
+    f.mod_amt = 0.0f;
   }
 
   void randomFate(FateChannel& f) {

@@ -102,18 +102,17 @@ class SeqPage : public IPage {
     return false;
   }
 
-  void resetField() override {
-    const Seq& d = PhoenixModel::factory().seq[which_];
+  void zeroField() override {
     Seq& s = model_.seq[which_];
     switch (nav_.row()) {
       case kPatRow:
-        if (nav_.field() == 0) s.pat = d.pat; else s.bank = d.bank;
+        if (nav_.field() == 0) s.pat = 0; else s.bank = 0;
         break;
       case kStepRow:
-        s.editNotes()[nav_.field()] = d.pattern[s.bank][s.pat][nav_.field()];
+        s.editNotes()[nav_.field()] = -1;   // a step's zero is a rest
         break;
-      case kGateRow: resetGate(s, d); break;
-      default: s.mod[nav_.row() - kBankRow0] = d.mod[nav_.row() - kBankRow0]; break;
+      case kGateRow: zeroGate(s); break;
+      default: zeroModRow(s.mod[nav_.row() - kBankRow0]); break;
     }
   }
 
@@ -137,8 +136,12 @@ class SeqPage : public IPage {
     }
   }
 
-  void resetPage() override {
-    model_.seq[which_] = PhoenixModel::factory().seq[which_];
+  void zeroPage() override {
+    Seq& s = model_.seq[which_];
+    int8_t* notes = s.editNotes();
+    for (int i = 0; i < kSeqSteps; ++i) notes[i] = -1;
+    zeroGate(s);
+    for (int i = 0; i < kSeqModRows; ++i) zeroModRow(s.mod[i]);
   }
 
   void randomizePage() override {
@@ -251,14 +254,14 @@ class SeqPage : public IPage {
     }
   }
 
-  void resetGate(Seq& s, const Seq& d) {
-    switch (nav_.field()) {
-      case 0: s.clock_src = d.clock_src; break;
-      case 1: s.div = d.div; break;
-      case 2: s.dir = d.dir; break;
-      case 3: s.range = d.range; break;
-      default: s.chance = d.chance; break;
-    }
+  // A gate source and a direction have no zero, so they go to the first entry
+  // in their list; the divider and the range go to 1.
+  void zeroGate(Seq& s) {
+    s.clock_src = GATE_CMP_GT;
+    s.div = 1;
+    s.dir = DIR_FWD;
+    s.range = 1;
+    s.chance = 0.0f;
   }
 
   void randomGate(Seq& s) {
