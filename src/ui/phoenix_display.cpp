@@ -254,7 +254,12 @@ void PhoenixDisplay::adjustFocused(int dir, bool fine) {
   UIEvent ev;
   ev.key = dir > 0 ? RowNav::kFieldUp[field] : RowNav::kFieldDown[field];
   ev.shift = fine;
+  ParamHint before = page->focusedHint();
   page->handleKey(ev);
+  ParamHint after = page->focusedHint();
+  if (after.kind == before.kind && (after.a != before.a || after.b != before.b)) {
+    model_.hint_flash = 1.0f;
+  }
 }
 
 void PhoenixDisplay::mouseDown(int x, int y) {
@@ -398,6 +403,16 @@ bool PhoenixDisplay::handleKey(const UIEvent& ev) {
   }
   // Globals go first, but they deliberately claim no arrow keys and no 'T',
   // so a page's own row editing always gets those.
-  if (handleGlobalKey(ev)) return true;
-  return pages_[page_index_]->handleKey(ev);
+  // Flash the sketch when the value behind it moves, rather than when a
+  // particular key is pressed. That catches the column pairs, the arrows, and
+  // O / I / R alike, without anywhere having a list of which keys count as an
+  // edit — a list that would be wrong the first time a page adds a control.
+  IPage* page = pages_[page_index_].get();
+  ParamHint before = page->focusedHint();
+  bool handled = handleGlobalKey(ev) || page->handleKey(ev);
+  ParamHint after = page->focusedHint();
+  if (after.kind == before.kind && (after.a != before.a || after.b != before.b)) {
+    model_.hint_flash = 1.0f;
+  }
+  return handled;
 }

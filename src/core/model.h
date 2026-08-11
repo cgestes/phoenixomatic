@@ -586,6 +586,10 @@ class PhoenixModel {
   // Measured, not set: how often the comparator is actually flipping. This is
   // the only "tempo" the machine has, and it is a readout.
   float comp_hz = 0.0f;
+
+  // Brightens the parameter sketch just after an edit, then fades. The eye
+  // should go to the thing that moved.
+  float hint_flash = 0.0f;
   int step_counter = 0;     // comparator edges since start
   float fate_led = 0.0f;    // any fate channel firing, for the bus strip
   double time = 0.0;

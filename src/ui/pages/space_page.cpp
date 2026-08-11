@@ -16,6 +16,15 @@ constexpr int kTopRow = 0;     // MODE | MIX
 constexpr int kToneRow = 1;    // SIZE | DECAY | DAMP
 constexpr int kExtraRow = 2;   // mode-specific; absent in ROOM
 
+// The bottom two rows, caption left and sketch right. Both effect pages use
+// the same rectangle so the picture does not jump when you step between them,
+// and it sits below the deepest the bank reaches in either machine mode.
+constexpr int kHintCapCol = 2;
+constexpr int kHintCol = 15;
+constexpr int kHintRow = 12;
+constexpr int kHintCols = 24;
+constexpr int kHintRows = 2;
+
 class SpacePage : public IPage {
  public:
   explicit SpacePage(PhoenixModel& m) : model_(m) { refreshRows(); }
@@ -77,7 +86,52 @@ class SpacePage : public IPage {
     drawModBankIndexed(scr, hasExtra() ? 5 : 4, sp.mod, bank_index_, bank_count_,
                        focus_row, nav_.field(), kSpaceDestLabel, "DEST", bank0);
 
-    scr.text(2, 13, modeHint(sp.mode), PEN_FAINT);
+    ParamHint hint = focusedHint();
+    if (hint.kind != HINT_NONE) {
+      scr.reserve(kHintCol, kHintRow, kHintCols, kHintRows);
+      if (hint.caption) scr.text(kHintCapCol, kHintRow, hint.caption, PEN_FAINT);
+    } else {
+      scr.text(2, 13, modeHint(sp.mode), PEN_FAINT);
+    }
+  }
+
+  // What the cursor is on, as a picture. The bank rows deliberately have no
+  // sketch: an attenuverter already draws its own track, and a second picture
+  // of the same number would be noise.
+  ParamHint focusedHint() const override {
+    const SpaceState& sp = model_.space;
+    if (nav_.row() == kTopRow) {
+      if (nav_.field() == 1) return ParamHint{HINT_MIX, sp.mix, 0.0f, nullptr, 0, "dry / wet"};
+      return ParamHint{};
+    }
+    if (nav_.row() == kToneRow) {
+      if (nav_.field() == 0) return ParamHint{HINT_SIZE, sp.size, 0.0f, nullptr, 0, "the four lines"};
+      if (nav_.field() == 1) {
+        return ParamHint{sp.mode == SPACE_IRON ? HINT_GATE : HINT_DECAY, sp.decay,
+                         0.0f, nullptr, 0, "how long it rings"};
+      }
+      return ParamHint{HINT_DAMP, sp.damp, 0.0f, nullptr, 0, "top lost each pass"};
+    }
+    if (nav_.row() == kExtraRow && hasExtra()) {
+      if (sp.mode == SPACE_SHIMMER) {
+        if (nav_.field() == 0) {
+          return ParamHint{HINT_INTERVAL, shimmerRatio(sp.shimmer_pitch), 0.0f,
+                           nullptr, 0, "against the original"};
+        }
+        return ParamHint{HINT_MIX, sp.shimmer, 0.0f, nullptr, 0, "how much rejoins"};
+      }
+      if (nav_.field() == 1) {
+        return ParamHint{HINT_DRIVE, sp.drive, 0.0f, nullptr, 0, "inside the loop"};
+      }
+    }
+    return ParamHint{};
+  }
+
+  void drawOverlay(IGfx& gfx) override {
+    ParamHint hint = focusedHint();
+    if (hint.kind == HINT_NONE) return;
+    drawParamHint(gfx, TextScreen::pixelX(kHintCol), TextScreen::pixelY(kHintRow),
+                  kHintCols * kCellW, kHintRows * kCellH, hint, model_.hint_flash);
   }
 
   void setCursor(int row, int field) override { nav_.setCursor(row, field); }

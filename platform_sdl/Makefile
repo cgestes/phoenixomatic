@@ -42,6 +42,7 @@ SOURCES := \
   ../src/ui/text_screen.cpp \
   ../src/ui/phoenix_display.cpp \
   ../src/ui/components/mod_bank_view.cpp \
+  ../src/ui/components/param_hint.cpp \
   ../src/ui/components/phoenix_sprite.cpp \
   ../src/ui/pages/home_page.cpp \
   ../src/ui/pages/chaos_page.cpp \

@@ -65,6 +65,38 @@ presses away that way and a thousand the other, and doubling is how you actually
 drum divisions. Verified against a 2136 Hz source over 30 seconds: `/256` → 250 hits, `/512` →
 125, `/1024` → 62.
 
+### 2.0a2 Parameter sketches
+
+A number tells you a control moved; it does not tell you what it moves. `SIZE 50` and `DAMP 50`
+read identically and mean nothing alike. So the field under the cursor draws **what it does**, in
+the bottom two rows: caption on the left, sketch on the right.
+
+| Sketch | Shows |
+|---|---|
+| `DECAY` | a tail, flatter the longer it rings |
+| `DAMP` | a spectrum tilted — what each pass round the loop keeps |
+| `SIZE` | the four delay lines, scaled together |
+| `MIX` | dry against wet, side by side |
+| `TAPS` | all four impulses at once: time across, level up, pan as a pip |
+| `TIME` | one tap's spacing, repeated, so milliseconds become a rhythm |
+| `PAN` | a marker across the field |
+| `INTERVAL` | the shifted copy against the original, height as pitch |
+| `FEEDBACK` | repeats, each a fraction of the last |
+| `DRIVE` | the transfer curve |
+| `GATE` | a tail with holes in it |
+
+**It brightens when the value moves, not when a key is pressed.** `PhoenixDisplay` compares the
+sketch's value before and after dispatching, so the column pairs, the arrows and `O`/`I`/`R` all
+flash it without anywhere holding a list of which keys count as an edit — a list that would be
+wrong the first time a page gained a control. The flash fades over about a second.
+
+**The vocabulary is shared; the placement is not.** A page returns a `ParamHint` from
+`focusedHint()` and reserves its own rectangle, which is what makes this generalise: adding hints
+to another page is a `focusedHint()` and a rectangle, not a new drawing routine. `LEVEL` on the
+DELAY taps deliberately draws all four taps rather than the one under the cursor — it is a
+balance, not a value. Bank rows draw no sketch, because an attenuverter already draws its own
+track and a second picture of the same number is noise.
+
 ### 2.0b DELAY
 
 **Four taps off a single buffer, not four delay lines.** The memory goes on the longest time you

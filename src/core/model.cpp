@@ -364,6 +364,10 @@ float* PhoenixModel::levelOf(int inst) {
 void PhoenixModel::tick(float dt) {
   if (dt > 0.1f) dt = 0.1f;
   time += dt;
+  // About a second to fade: long enough to notice after a single press, short
+  // enough that a page left alone settles back to its resting colour.
+  hint_flash -= dt * 1.1f;
+  if (hint_flash < 0.0f) hint_flash = 0.0f;
 }
 
 void PhoenixModel::applyMachineMode() {

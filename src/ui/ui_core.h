@@ -7,6 +7,7 @@
 
 #include <cstdint>
 
+#include "components/param_hint.h"
 #include "text_screen.h"
 
 enum KeyCode : uint8_t {
@@ -50,6 +51,10 @@ class IPage {
   virtual void draw(TextScreen& scr) = 0;
   // Called after the cell flush, for pages that reserved a pixel region.
   virtual void drawOverlay(IGfx& gfx) { (void)gfx; }
+
+  // What the field under the cursor actually does, as a sketch. Pages that
+  // return HINT_NONE simply have no picture yet — see components/param_hint.h.
+  virtual ParamHint focusedHint() const { return ParamHint{}; }
 
   // Return true if the key was consumed.
   virtual bool handleKey(const UIEvent& ev) { (void)ev; return false; }
