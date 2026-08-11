@@ -84,6 +84,14 @@ the bottom two rows: caption on the left, sketch on the right.
 | `FEEDBACK` | repeats, each a fraction of the last |
 | `DRIVE` | the transfer curve |
 | `GATE` | a tail with holes in it |
+| `WAVE` | two cycles of the shape actually selected |
+| `RATIO` | two lengths whose proportion is the tuning |
+| `CHANCE` | twelve throws at these odds — how often it lands |
+| `DIVIDE` | every pulse arriving, and which of them get through |
+| `FILTER` | the response, with the peak where the cutoff is |
+| `PWM` | two signals crossing a threshold, and the square that falls out |
+| `CRUSH` | a wave and the levels it is still allowed to take |
+| `STEPS` | the register, as the cells the loop goes round |
 
 Left of each sketch is a **schematic of the mechanism**, which answers a different question: the
 sketch says *where this is set*, the schematic says *what it is wired to*.
@@ -131,7 +139,16 @@ to track. A page adds hints by implementing `focusedHint()` and making two coord
 adding this to another page.
 
 Both passes are needed because they run either side of the cell flush: words written in the
-overlay pass would be painted over, and pixels drawn in the text pass would be flushed away. `LEVEL` on the
+overlay pass would be painted over, and pixels drawn in the text pass would be flushed away.
+
+**Every page has them now.** What is deliberately left blank is the selectors — trigger sources,
+wave *names*, machine modes, directions, mute states. A picture of a list is a list, and a wrong
+picture is worse than none: `RATE` in the chaos flow modes is a continuous speed with no honest
+shape, so it draws nothing rather than borrowing one that means something else.
+
+The schematics stay with the kinds whose sketch is abstract — `SIZE`'s four bars, `DECAY`'s curve,
+`FEEDBACK`'s diminishing repeats. A filter response and a waveform already say what they are, so
+they use the full panel instead. `LEVEL` on the
 DELAY taps deliberately draws all four taps rather than the one under the cursor — it is a
 balance, not a value. Bank rows draw no sketch, because an attenuverter already draws its own
 track and a second picture of the same number is noise.

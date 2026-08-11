@@ -3,6 +3,7 @@
 #include "../../../fonts/phx_glyphs.h"
 #include "../../core/model.h"
 #include "../components/mod_bank_view.h"
+#include "../components/param_hint.h"
 #include "../components/row_nav.h"
 #include "pages.h"
 
@@ -45,6 +46,9 @@ class LogicPage : public IPage {
   }
 
   void drawOverlay(IGfx& gfx) override {
+    if (model_.hint_flash > 0.0f) {
+      drawHintOverlay(gfx, focusedHint(), model_.hint_flash);
+    }
     if (sub_ != 0) return;
     int x0 = TextScreen::pixelX(kTraceCol);
     int y0 = TextScreen::pixelY(kTraceRow);
@@ -77,6 +81,28 @@ class LogicPage : public IPage {
   // a footer slot.
   int outputInstrument() const override {
     return sub_ == 0 ? PhoenixModel::INST_COMP : -1;
+  }
+
+  ParamHint focusedHint() const override {
+    if (sub_ == 0) {
+      const Comparator& c = model_.comp;
+      if (nav_.row() == kCompOffsetRow) {
+        // OFFSET is pulse width, which is the one thing on this page you can
+        // see without hearing it.
+        if (nav_.field() == 0) return ParamHint{HINT_PWM, c.offset};
+        if (nav_.field() == 1) return ParamHint{};        // OUT names a shape
+        return ParamHint{HINT_DRIVE, c.drive};
+      }
+      if (nav_.row() == compLevelRow()) return ParamHint{HINT_MIX, c.level};
+      return ParamHint{};
+    }
+    if (nav_.row() == kFateModeRow) return ParamHint{};
+    const FateChannel& f = model_.fate[nav_.row()];
+    switch (nav_.field()) {
+      case 1: return ParamHint{HINT_DIVIDE, static_cast<float>(f.ratio)};
+      case 3: return ParamHint{HINT_CHANCE, f.prob};
+      default: return ParamHint{};
+    }
   }
 
   void setCursor(int row, int field) override { nav_.setCursor(row, field); }
@@ -263,6 +289,9 @@ class LogicPage : public IPage {
     scr.text(24, 1, "OSC-2", PEN_EMBER);
 
     scr.reserve(kTraceCol, kTraceRow, kTraceCols, kTraceRows);
+
+    bool hint_up = model_.hint_flash > 0.0f;
+    if (hint_up || model_.hint_clearing) drawHintPanel(scr, focusedHint(), hint_up);
 
     bool orow = nav_.atRow(kCompOffsetRow);
     uint8_t obg = rowBg(orow);

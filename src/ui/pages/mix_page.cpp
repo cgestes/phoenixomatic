@@ -2,6 +2,7 @@
 // is the whole point of it: the thing generating the rhythm also makes a sound.
 #include "../../../fonts/phx_glyphs.h"
 #include "../../core/model.h"
+#include "../components/param_hint.h"
 #include "../components/row_nav.h"
 #include "pages.h"
 
@@ -60,6 +61,26 @@ class MixPage : public IPage {
     drawFieldF(scr, 8, 13, outRow(), 0, PEN_BRIGHT, nav_.at(outRow(), 0), obg, "%d", model_.drive);
     scr.text(13, 13, "CRUSH", PEN_DIM, obg);
     drawFieldF(scr, 19, 13, outRow(), 1, PEN_BRIGHT, nav_.at(outRow(), 1), obg, "%d", model_.crush);
+
+    bool hint_up = model_.hint_flash > 0.0f;
+    if (hint_up || model_.hint_clearing) drawHintPanel(scr, focusedHint(), hint_up);
+  }
+
+  ParamHint focusedHint() const override {
+    if (nav_.row() < strip_count_) {
+      if (nav_.field() == 1) return ParamHint{};          // mute is a state
+      return ParamHint{HINT_MIX, *constLevel(strip_index_[nav_.row()])};
+    }
+    if (nav_.row() == masterRow()) return ParamHint{HINT_MIX, model_.master};
+    if (nav_.field() == 0) {
+      return ParamHint{HINT_DRIVE, static_cast<float>(model_.drive) / 100.0f};
+    }
+    return ParamHint{HINT_CRUSH, static_cast<float>(model_.crush) / 100.0f};
+  }
+
+  void drawOverlay(IGfx& gfx) override {
+    if (model_.hint_flash <= 0.0f) return;
+    drawHintOverlay(gfx, focusedHint(), model_.hint_flash);
   }
 
   void setCursor(int row, int field) override { nav_.setCursor(row, field); }

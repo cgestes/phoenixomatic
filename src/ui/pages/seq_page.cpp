@@ -4,6 +4,7 @@
 #include "../../../fonts/phx_glyphs.h"
 #include "../../core/model.h"
 #include "../components/mod_bank_view.h"
+#include "../components/param_hint.h"
 #include "../components/row_nav.h"
 #include "pages.h"
 
@@ -45,6 +46,33 @@ class SeqPage : public IPage {
     int focus_row = nav_.row() >= kBankRow0 ? nav_.row() - kBankRow0 : -1;
     drawModBank(scr, kScrBank, s.mod, kSeqModRows, focus_row, nav_.field(),
                 kSeqDestLabel, "DEST", kBankRow0);
+
+    bool hint_up = model_.hint_flash > 0.0f;
+    if (hint_up || model_.hint_clearing) drawHintPanel(scr, focusedHint(), hint_up);
+  }
+
+  ParamHint focusedHint() const override {
+    const Seq& s = model_.seq[which_];
+    if (nav_.row() == kGateRow) {
+      switch (nav_.field()) {
+        case 1: return ParamHint{HINT_DIVIDE, static_cast<float>(s.div)};
+        // RANGE is octaves, so it draws as the interval it spans.
+        case 3: return ParamHint{HINT_INTERVAL, std::exp2(static_cast<float>(s.range))};
+        case 4: return ParamHint{HINT_CHANCE, s.chance};
+        default: return ParamHint{};
+      }
+    }
+    if (nav_.row() == kStepRow) {
+      int8_t n = s.notes()[nav_.field()];
+      if (n < 0) return ParamHint{};      // a rest has no height to show
+      return ParamHint{HINT_MIX, static_cast<float>(n) / static_cast<float>(kSeqNoteMax)};
+    }
+    return ParamHint{};
+  }
+
+  void drawOverlay(IGfx& gfx) override {
+    if (model_.hint_flash <= 0.0f) return;
+    drawHintOverlay(gfx, focusedHint(), model_.hint_flash);
   }
 
   void setCursor(int row, int field) override { nav_.setCursor(row, field); }

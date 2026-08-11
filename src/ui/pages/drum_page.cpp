@@ -2,6 +2,7 @@
 // so they go two per sub-page.
 #include "../../../fonts/phx_glyphs.h"
 #include "../../core/model.h"
+#include "../components/param_hint.h"
 #include "../components/row_nav.h"
 #include "pages.h"
 
@@ -49,6 +50,29 @@ class DrumPage : public IPage {
 
   void draw(TextScreen& scr) override {
     if (sub_ == 0) drawTrig(scr); else drawVoices(scr);
+  }
+
+  ParamHint focusedHint() const override {
+    if (sub_ == 0) {
+      const Drum& d = model_.drum[nav_.row()];
+      switch (nav_.field()) {
+        case 1: return ParamHint{HINT_CHANCE, d.chance};
+        case 2: return ParamHint{HINT_DIVIDE, static_cast<float>(d.div)};
+        case 3: return ParamHint{HINT_MIX, d.level};
+        default: return ParamHint{};   // the trigger source is a name
+      }
+    }
+    // Voice pages: DECAY is the one parameter with a shape worth drawing.
+    if (nav_.field() == 1) {
+      const Drum& d = model_.drum[voiceIndex(nav_.row())];
+      return ParamHint{HINT_DECAY, static_cast<float>(d.decay) / 100.0f};
+    }
+    return ParamHint{};
+  }
+
+  void drawOverlay(IGfx& gfx) override {
+    if (model_.hint_flash <= 0.0f) return;
+    drawHintOverlay(gfx, focusedHint(), model_.hint_flash);
   }
 
   void setCursor(int row, int field) override { nav_.setCursor(row, field); }
@@ -248,6 +272,9 @@ class DrumPage : public IPage {
       scr.put(8 + i * 5, 11, glyph, d.live ? kDrumPen[i] : PEN_FAINT);
     }
     scr.text(2, 13, "5-8 mute these voices", PEN_FAINT);
+
+    bool hint_up = model_.hint_flash > 0.0f;
+    if (hint_up || model_.hint_clearing) drawHintPanel(scr, focusedHint(), hint_up);
   }
 
   void drawVoices(TextScreen& scr) {

@@ -176,6 +176,130 @@ void gated(IGfx& g, const Box& b, float amount, IGfxColor c) {
 }
 
 
+void waveShape(IGfx& g, const Box& b, int wave, IGfxColor c) {
+  // Two cycles of the actual shape. A name in a field says which one is
+  // selected; this says what that means.
+  int mid = b.y + b.h / 2;
+  int amp = b.h / 2 - 1;
+  g.fillRect(b.x, mid, b.w, 1, COLOR_RULE);
+  int prev = mid;
+  for (int i = 0; i < b.w; ++i) {
+    float ph = static_cast<float>(i) / static_cast<float>(b.w - 1) * 2.0f;
+    ph -= std::floor(ph);
+    float v;
+    switch (wave) {
+      case 0:  v = std::sin(ph * 6.2831853f); break;              // SIN
+      case 1:  v = 4.0f * (ph < 0.5f ? ph : 1.0f - ph) - 1.0f; break;  // TRI
+      case 2:  v = ph * 2.0f - 1.0f; break;                        // SAW
+      default: v = ph < 0.5f ? 1.0f : -1.0f; break;                // SQR
+    }
+    int yy = mid - static_cast<int>(v * amp);
+    g.drawLine(b.x + i - 1, prev, b.x + i, yy, c);
+    prev = yy;
+  }
+}
+
+void chance(IGfx& g, const Box& b, float p, IGfxColor c) {
+  baseline(g, b);
+  // Twelve throws at these odds, deterministic so the picture is steady: how
+  // often it lands, not a live sample of it landing.
+  for (int i = 0; i < 12; ++i) {
+    bool hit = (i * 0.0833f + 0.04f) < p;
+    int x = b.x + i * (b.w / 12);
+    vbar(g, b, x, hit ? 1.0f : 0.12f, hit ? c : COLOR_FAINT);
+  }
+}
+
+void divide(IGfx& g, const Box& b, int n, IGfxColor c) {
+  baseline(g, b);
+  // Every pulse arriving, and which of them get through.
+  if (n < 1) n = 1;
+  for (int i = 0; i < 16; ++i) {
+    int x = b.x + i * (b.w / 16);
+    bool through = (i % n) == 0;
+    vbar(g, b, x, through ? 1.0f : 0.3f, through ? c : COLOR_FAINT);
+  }
+}
+
+void filterCurve(IGfx& g, const Box& b, float cutoff, float res, int mode,
+                 IGfxColor c) {
+  baseline(g, b);
+  // The response, with the peak where the cutoff is. Which side falls away is
+  // the whole difference between the three modes.
+  int prev = -1;
+  for (int i = 0; i < b.w; ++i) {
+    float u = static_cast<float>(i) / static_cast<float>(b.w - 1);
+    float d = (u - cutoff) * 6.0f;
+    float v;
+    switch (mode) {
+      case 1:  v = 1.0f / (1.0f + d * d); break;                    // BP
+      case 2:  v = d > 0.0f ? 1.0f : 1.0f / (1.0f + d * d); break;   // HP
+      default: v = d < 0.0f ? 1.0f : 1.0f / (1.0f + d * d); break;   // LP
+    }
+    v *= 0.55f + res * 0.45f;
+    if (std::fabs(d) < 0.9f) v += res * 0.45f;   // the resonant peak
+    int yy = b.py(v);
+    if (prev >= 0) g.drawLine(b.x + i - 1, prev, b.x + i, yy, c);
+    prev = yy;
+  }
+}
+
+void pwm(IGfx& g, const Box& b, float offset, IGfxColor c) {
+  // Two signals and the threshold between them, with the square that falls
+  // out drawn underneath — the comparator in one picture.
+  int mid = b.y + b.h / 3;
+  int amp = b.h / 3;
+  int thr = mid - static_cast<int>(offset * amp);
+  g.fillRect(b.x, thr, b.w, 1, COLOR_DIM);
+  int prev = mid, base = b.y + b.h - 1;
+  for (int i = 0; i < b.w; ++i) {
+    float ph = static_cast<float>(i) / static_cast<float>(b.w - 1) * 2.0f;
+    ph -= std::floor(ph);
+    float v = 4.0f * (ph < 0.5f ? ph : 1.0f - ph) - 1.0f;
+    int yy = mid - static_cast<int>(v * amp);
+    g.drawLine(b.x + i - 1, prev, b.x + i, yy, c);
+    prev = yy;
+    g.fillRect(b.x + i, yy < thr ? base - 3 : base, 1, 3, yy < thr ? COLOR_HOT : COLOR_FAINT);
+  }
+}
+
+void crush(IGfx& g, const Box& b, float amount, IGfxColor c) {
+  // A wave and the levels it is still allowed to take.
+  int mid = b.y + b.h / 2;
+  int amp = b.h / 2 - 1;
+  float bits = 12.0f - amount * 10.5f;
+  float levels = std::exp2(bits - 1.0f);
+  if (levels > 16.0f) levels = 16.0f;
+  for (int i = 0; i < b.w; ++i) {
+    float u = static_cast<float>(i) / static_cast<float>(b.w - 1);
+    float v = std::sin(u * 6.2831853f);
+    v = std::round(v * levels) / levels;
+    g.fillRect(b.x + i, mid - static_cast<int>(v * amp), 1, 1, c);
+  }
+  g.fillRect(b.x, mid, b.w, 1, COLOR_RULE);
+}
+
+void steps(IGfx& g, const Box& b, int n, IGfxColor c) {
+  // The register, as the cells the loop actually goes round.
+  if (n < 1) n = 1;
+  int per = b.w / (n > 16 ? 32 : (n > 8 ? 16 : 8));
+  if (per < 2) per = 2;
+  int y = b.y + b.h / 2 - 2;
+  for (int i = 0; i < n && b.x + i * per < b.x + b.w - 1; ++i) {
+    g.fillRect(b.x + i * per, y, per - 1, 4, i == 0 ? COLOR_BRIGHT : c);
+  }
+}
+
+void ratio(IGfx& g, const Box& b, float div, float mult, IGfxColor c) {
+  // Two lengths whose proportion is the tuning: what "3 over 2" looks like.
+  if (div < 1.0f) div = 1.0f;
+  if (mult < 1.0f) mult = 1.0f;
+  float m = div > mult ? div : mult;
+  int y0 = b.y + 2, y1 = b.y + b.h - 5;
+  g.fillRect(b.x, y0, static_cast<int>(div / m * (b.w - 2)), 3, COLOR_DIM);
+  g.fillRect(b.x, y1, static_cast<int>(mult / m * (b.w - 2)), 3, c);
+}
+
 // --- the schematics --------------------------------------------------------
 //
 // The left half of the band is a pictogram of the mechanism, not a plot of the
@@ -437,6 +561,14 @@ void drawHintOverlay(IGfx& gfx, const ParamHint& hint, float flash) {
     case HINT_DRIVE:    drive(gfx, b, hint.a, c); break;
     case HINT_TIME:     timeGap(gfx, b, hint.a, hint.b, c); break;
     case HINT_GATE:     gated(gfx, b, hint.a, c); break;
+    case HINT_WAVE:     waveShape(gfx, b, static_cast<int>(hint.a), c); break;
+    case HINT_CHANCE:   chance(gfx, b, hint.a, c); break;
+    case HINT_DIVIDE:   divide(gfx, b, static_cast<int>(hint.a), c); break;
+    case HINT_FILTER:   filterCurve(gfx, b, hint.a, hint.b, hint.tap_count, c); break;
+    case HINT_PWM:      pwm(gfx, b, hint.a, c); break;
+    case HINT_CRUSH:    crush(gfx, b, hint.a, c); break;
+    case HINT_STEPS:    steps(gfx, b, static_cast<int>(hint.a), c); break;
+    case HINT_RATIO:    ratio(gfx, b, hint.a, hint.b, c); break;
     default: break;
   }
 }

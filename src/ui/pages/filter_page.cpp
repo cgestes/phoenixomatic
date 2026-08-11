@@ -7,6 +7,7 @@
 
 #include "../../core/model.h"
 #include "../components/mod_bank_view.h"
+#include "../components/param_hint.h"
 #include "../components/row_nav.h"
 #include "pages.h"
 
@@ -57,9 +58,28 @@ class FilterPage : public IPage {
                        nav_.field(), kFilterDestLabel, "DEST", kBankRow0);
 
     scr.text(2, 13, "PWM in, rungler on cutoff \x88 the voice", PEN_FAINT);
+
+    bool hint_up = model_.hint_flash > 0.0f;
+    if (hint_up || model_.hint_clearing) drawHintPanel(scr, focusedHint(), hint_up);
   }
 
   int outputInstrument() const override { return PhoenixModel::INST_FILTER; }
+
+  ParamHint focusedHint() const override {
+    const FilterState& f = model_.filter;
+    if (nav_.row() >= kBankRow0) return ParamHint{};
+    // Every field on this page bends the same curve, so they all draw it and
+    // the one you are holding is the one that moves.
+    ParamHint h{HINT_FILTER, f.freq, f.res};
+    h.tap_count = f.mode;
+    if (nav_.row() == kTopRow && nav_.field() == 1) return ParamHint{};   // IN
+    return h;
+  }
+
+  void drawOverlay(IGfx& gfx) override {
+    if (model_.hint_flash <= 0.0f) return;
+    drawHintOverlay(gfx, focusedHint(), model_.hint_flash);
+  }
 
   void setCursor(int row, int field) override { nav_.setCursor(row, field); }
   int focusedField() const override { return nav_.field(); }

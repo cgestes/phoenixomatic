@@ -28,6 +28,15 @@ enum HintKind : uint8_t {
   HINT_DRIVE,      // the transfer curve
   HINT_TIME,       // one tap's spacing; a is ms, b the longest it can be
   HINT_GATE,       // a tail chopped by something else
+  // Added when the vocabulary spread past the two effect pages.
+  HINT_WAVE,       // the shape itself; a is the wave index
+  HINT_CHANCE,     // a coin at these odds, thrown a few times
+  HINT_DIVIDE,     // every nth pulse gets through; a is n
+  HINT_FILTER,     // the response; a is cutoff, b resonance, tap_count the mode
+  HINT_PWM,        // two signals crossing, and the square that falls out
+  HINT_CRUSH,      // a wave with the levels it is allowed to take
+  HINT_STEPS,      // the register, a cells around
+  HINT_RATIO,      // a ratio as two lengths; a is div, b is mult
 };
 
 struct ParamHint {

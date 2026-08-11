@@ -2,6 +2,7 @@
 // which one is published on the bus; the other two keep moving underneath.
 #include "../../../fonts/phx_glyphs.h"
 #include "../../core/model.h"
+#include "../components/param_hint.h"
 #include "../components/row_nav.h"
 #include "pages.h"
 
@@ -96,6 +97,9 @@ class ChaosPage : public IPage {
     if (rung) drawRegister(scr, c);
 
     scr.reserve(kPlotCol, kPlotRow, kPlotCols, kPlotRows);
+
+    bool hint_up = model_.hint_flash > 0.0f;
+    if (hint_up || model_.hint_clearing) drawHintPanel(scr, focusedHint(), hint_up);
     pushHistory(c.out[c.pick]);
 
     // Only RUNGLER's APATHY is one bit, and asking a pulse how much of its
@@ -142,6 +146,9 @@ class ChaosPage : public IPage {
   }
 
   void drawOverlay(IGfx& gfx) override {
+    if (model_.hint_flash > 0.0f) {
+      drawHintOverlay(gfx, focusedHint(), model_.hint_flash);
+    }
     int x0 = TextScreen::pixelX(kPlotCol);
     int y0 = TextScreen::pixelY(kPlotRow);
     int w = kPlotCols * kCellW;
@@ -172,6 +179,26 @@ class ChaosPage : public IPage {
       }
       prev = y;
     }
+  }
+
+  ParamHint focusedHint() const override {
+    const Chaos& c = model_.chaos[which_];
+    if (nav_.row() != kShapeRow) return ParamHint{};
+    bool rung = c.mode == CHAOS_RUNGLER;
+    if (nav_.field() == 0) {
+      if (!rung) return ParamHint{};
+      // x2 is the fast end, so it divides by nothing.
+      return ParamHint{HINT_DIVIDE, static_cast<float>(c.clk_div < 1 ? 1 : c.clk_div)};
+    }
+    if (nav_.field() == 1) {
+      // SKEW tilts the output one way or the other, which is the same shape as
+      // a pan: a position either side of centre.
+      return rung ? ParamHint{HINT_STEPS, static_cast<float>(c.steps)}
+                  : ParamHint{HINT_PAN, c.skew};
+    }
+    // RATE in the flow modes is a continuous speed with no obvious picture,
+    // and a wrong picture is worse than none.
+    return rung ? ParamHint{HINT_CHANCE, c.chance} : ParamHint{};
   }
 
   void setCursor(int row, int field) override { nav_.setCursor(row, field); }

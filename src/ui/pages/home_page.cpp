@@ -9,6 +9,7 @@
 #include "../../../fonts/phx_glyphs.h"
 #include "../../core/model.h"
 #include "../components/phoenix_sprite.h"
+#include "../components/param_hint.h"
 #include "../components/row_nav.h"
 #include "pages.h"
 
@@ -49,6 +50,9 @@ class HomePage : public IPage {
     scr.text(21, 1, "OUT", PEN_DIM);
     scr.reserve(kScopeCol, kScopeRow, kScopeCols, kScopeRows);
 
+    bool hint_up = model_.hint_flash > 0.0f;
+    if (hint_up || model_.hint_clearing) drawHintPanel(scr, focusedHint(), hint_up);
+
     scr.text(2, 8, "CMP", PEN_DIM);
     scr.textf(6, 8, PEN_BRIGHT, "%.0fHz", static_cast<double>(model_.comp_hz));
     bool rf = nav_.atRow(0);
@@ -81,6 +85,9 @@ class HomePage : public IPage {
   }
 
   void drawOverlay(IGfx& gfx) override {
+    if (model_.hint_flash > 0.0f) {
+      drawHintOverlay(gfx, focusedHint(), model_.hint_flash);
+    }
     phoenix_sprite::draw(gfx, TextScreen::pixelX(kBirdCol),
                          TextScreen::pixelY(kBirdRow) - 1, flap_, heat_);
 
@@ -106,6 +113,12 @@ class HomePage : public IPage {
       if (px > 0) gfx.drawLine(x0 + px - 1, prev, x0 + px, y, COLOR_EMBER);
       prev = y;
     }
+  }
+
+  ParamHint focusedHint() const override {
+    // RATE moves both oscillators together, so it draws as the interval it
+    // shifts them by — the one number on this page with a pitch meaning.
+    return ParamHint{HINT_INTERVAL, std::exp2(model_.rate_offset)};
   }
 
   void setCursor(int row, int field) override { nav_.setCursor(row, field); }
