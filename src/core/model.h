@@ -375,6 +375,26 @@ struct FateChannel {
   int count = 0;
 };
 
+// SPACE — reverb, shimmer and a gated metal ring, sharing one delay network.
+// See src/dsp/space.h for why they are one module rather than three.
+inline constexpr int kSpaceModRows = 4;
+
+enum SpaceDest : uint8_t { SPDEST_SIZE = 0, SPDEST_DECAY, SPDEST_DAMP, SPDEST_MIX, SPDEST_COUNT };
+extern const char* const kSpaceDestLabel[SPDEST_COUNT];
+extern const char* const kSpaceModeLabel[3];
+
+struct SpaceState {
+  uint8_t mode = 0;          // SpaceMode
+  float mix = 0.0f;          // dry at boot; it is an effect, not a voice; it is an effect, not a voice
+  float size = 0.5f;
+  float decay = 0.6f;
+  float damp = 0.5f;
+  float shimmer = 0.5f;      // SHIMMER only
+  float drive = 0.4f;        // IRON only
+  uint8_t gate_src = GATE_CMP_GT;   // IRON only
+  ModRow mod[kSpaceModRows];
+};
+
 // The Benjolin's filter: the comparator's pulse train through a resonant
 // multimode filter, swept by the rungler. Cutoff and resonance are both CV
 // destinations, so they get an attenuverter bank like everything else.
@@ -499,6 +519,7 @@ class PhoenixModel {
   Seq seq[2];
   Comparator comp;
   FilterState filter;
+  SpaceState space;
   FateChannel fate[kFateChannels];
   Drum drum[kDrumVoices];
 

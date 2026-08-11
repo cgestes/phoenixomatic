@@ -62,8 +62,12 @@ PhoenixEngine::PhoenixEngine(PhoenixModel& model, float sample_rate)
                   0xBEEFu + static_cast<uint32_t>(i) * 2654435761u);
   }
   filter_.init(sample_rate_);
+  space_.init(sample_rate_);
   // ~70ms, so a single-sample pulse is still visible on a 25fps panel.
   led_hold_samples_ = static_cast<int>(sample_rate_ * 0.07f);
+  // IRON holds its gate open for a beat after each pulse. A gate source is an
+  // instant; a tail needs a window.
+  gate_hold_samples_ = static_cast<int>(sample_rate_ * 0.06f);
 }
 
 uint32_t PhoenixEngine::rng() {
@@ -78,6 +82,22 @@ float PhoenixEngine::randUnit() {
 }
 
 void PhoenixEngine::applyParams() {
+  {
+    const SpaceState& sp = model_.space;
+    space_.setMode(sp.mode);
+    space_.setShimmer(sp.shimmer);
+    space_.setDrive(sp.drive);
+  }
+
+  // 0 is off; from there 12 bits down to about 1.5, so the dial spends its
+  // travel where the grit is audible rather than in the inaudible top bits.
+  if (model_.crush <= 0) {
+    crush_levels_ = 0.0f;
+  } else {
+    float bits = 12.0f - static_cast<float>(model_.crush) * 0.105f;
+    crush_levels_ = std::exp2(bits - 1.0f);
+  }
+
   for (int i = 0; i < 2; ++i) {
     const Chaos& c = model_.chaos[i];
     chaos_[i].setMode(c.mode);
@@ -227,7 +247,8 @@ void PhoenixEngine::render(int16_t* out, size_t frames) {
 
   for (size_t n = 0; n < frames; ++n) {
     if (!running) {
-      out[n] = 0;
+      out[n * 2] = 0;
+      out[n * 2 + 1] = 0;
       continue;
     }
 
@@ -428,15 +449,64 @@ void PhoenixEngine::render(int16_t* out, size_t frames) {
     }
 
     // --- output -------------------------------------------------------------
-    float s = std::tanh(voice * drive) * master;
+    float s = std::tanh(voice * drive);
+
+    // CRUSH: quantise to fewer bits. Applied before MASTER on purpose — after
+    // it, turning the volume down would use fewer levels and crush harder,
+    // which is not what a volume control is for.
+    if (crush_levels_ > 0.0f) {
+      s = std::round(s * crush_levels_) / crush_levels_;
+    }
+
+    // --- space --------------------------------------------------------------
+    // After the drive, because a reverb belongs after distortion and not
+    // inside it, and before MASTER so the wet/dry balance does not shift when
+    // you change the volume.
+    float wet_l = 0.0f, wet_r = 0.0f;
+    {
+      const SpaceState& sp = model_.space;
+      float size = sp.size, decay = sp.decay, damp = sp.damp, mix = sp.mix;
+      for (int i = 0; i < kSpaceModRows; ++i) {
+        const ModRow& m = sp.mod[i];
+        if (!m.active()) continue;
+        float v = m.amount * bus_[m.src];
+        switch (m.mode) {
+          case SPDEST_DECAY: decay += v; break;
+          case SPDEST_DAMP:  damp += v; break;
+          case SPDEST_MIX:   mix += v; break;
+          default:           size += v; break;
+        }
+      }
+      space_.setSize(size);
+      space_.setDecay(decay);
+      space_.setDamp(damp);
+      space_.process(s, gateEdge(sp.gate_src) || space_gate_hold_ > 0, &wet_l, &wet_r);
+      // A gate source is an instant, not a duration, so IRON holds it open for
+      // a fixed window — otherwise the tail would be shut before it started.
+      if (gateEdge(sp.gate_src)) space_gate_hold_ = gate_hold_samples_;
+      else if (space_gate_hold_ > 0) --space_gate_hold_;
+
+      if (mix < 0.0f) mix = 0.0f;
+      if (mix > 1.0f) mix = 1.0f;
+      float dry = 1.0f - mix;
+      wet_l = s * dry + wet_l * mix;
+      wet_r = s * dry + wet_r * mix;
+    }
+
+    wet_l *= master;
+    wet_r *= master;
+    s *= master;
 
     // The comparator is a square sitting on whatever offset it landed on, so
-    // the sum carries DC. Block it or the speaker eats the headroom.
-    dc_block_y_ = s - dc_block_x_ + 0.9985f * dc_block_y_;
-    dc_block_x_ = s;
-    s = dc_block_y_;
+    // the sum carries DC. Block it or the speaker eats the headroom. One
+    // blocker per channel, since SPACE makes them differ.
+    dc_block_y_ = wet_l - dc_block_x_ + 0.9985f * dc_block_y_;
+    dc_block_x_ = wet_l;
+    dc_block_yr_ = wet_r - dc_block_xr_ + 0.9985f * dc_block_yr_;
+    dc_block_xr_ = wet_r;
 
-    out[n] = static_cast<int16_t>(clamp1(s) * 32000.0f);
+    out[n * 2] = static_cast<int16_t>(clamp1(dc_block_y_) * 32000.0f);
+    out[n * 2 + 1] = static_cast<int16_t>(clamp1(dc_block_yr_) * 32000.0f);
   }
 
   model_.comp.a_gt_b = comp_gt_;

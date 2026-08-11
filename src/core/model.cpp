@@ -36,6 +36,9 @@ const char* const kCompShapeLabel[CSHAPE_COUNT] = {
     "PWM", "LIM", "CLIP", "FOLD", "RECT", "MIN", "MAX" };
 const char* const kCompDestLabel[CDEST_COUNT] = { "OFFSET", "DRIVE" };
 
+const char* const kSpaceDestLabel[SPDEST_COUNT] = { "SIZE", "DECAY", "DAMP", "MIX" };
+const char* const kSpaceModeLabel[3] = { "ROOM", "SHIMMER", "IRON" };
+
 const char* const kNoteName[12] = { "C",  "C#", "D",  "D#", "E",  "F",
                                     "F#", "G",  "G#", "A",  "A#", "B" };
 const char* const kFilterModeLabel[3] = { "LP", "BP", "HP" };
@@ -155,6 +158,17 @@ PhoenixModel::PhoenixModel() {
     filter.mod[i].src = filt_srcs[i];
     filter.mod[i].mode = FDEST_FREQ;
   }
+  {
+    const char* space_names[kSpaceModRows] = { "CHAOS-A", "CHAOS-B", "OSC-2", "CMP" };
+    const SourceId space_srcs[kSpaceModRows] = { SRC_CHA, SRC_CHB, SRC_OS2, SRC_CMP };
+    for (int i = 0; i < kSpaceModRows; ++i) {
+      space.mod[i].name = space_names[i];
+      space.mod[i].src = space_srcs[i];
+      space.mod[i].mode = SPDEST_SIZE;
+    }
+    space.mod[0].mode = SPDEST_DECAY;
+  }
+
   filter.mod[0].amount = 0.275f;  // rungler -> cutoff
   filter.mod[3].amount = 0.10f;   // OSC-2 sweep
 

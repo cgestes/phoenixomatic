@@ -23,13 +23,16 @@
 #include "chaos_osc.h"
 #include "drum_voices.h"
 #include "filter.h"
+#include "space.h"
 #include "osc.h"
 
 class PhoenixEngine {
  public:
   PhoenixEngine(PhoenixModel& model, float sample_rate);
 
-  // Mono, 16-bit. Fills `frames` samples.
+  // Interleaved stereo, 16-bit: `frames` frames, so 2 * frames samples written.
+  // The Cardputer's speaker is mono but its headphone jack is not, and reverb
+  // is the one thing that really needs two channels.
   void render(int16_t* out, size_t frames);
 
   float sampleRate() const { return sample_rate_; }
@@ -52,6 +55,7 @@ class PhoenixEngine {
   OscVoice osc_[2];
   DrumVoice drum_[kDrumVoices];
   Filter filter_;
+  Space space_;
 
   // The patch bus: one live value per source, exactly the eight the footer
   // shows. Mod banks read from here and nowhere else.
@@ -91,4 +95,9 @@ class PhoenixEngine {
 
   uint32_t rng_state_ = 0x2545F491u;
   float dc_block_x_ = 0.0f, dc_block_y_ = 0.0f;
+  // Quantisation levels for CRUSH; 0 means off.
+  float crush_levels_ = 0.0f;
+  float dc_block_xr_ = 0.0f, dc_block_yr_ = 0.0f;
+  int space_gate_hold_ = 0;
+  int gate_hold_samples_ = 1;
 };

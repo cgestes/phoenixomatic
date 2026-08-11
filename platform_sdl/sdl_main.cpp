@@ -138,22 +138,30 @@ int captureAll(SDLDisplay& gfx, PhoenixModel& model, PhoenixDisplay& ui,
   // The engine is the only thing that moves state now, so drive it directly
   // instead of waiting on an audio device. One second of audio, and a peak /
   // RMS report so "it renders" and "it makes a sound" are separate claims.
-  int16_t buf[kBlockSize];
-  double sum_sq = 0.0;
+  int16_t buf[kBlockSize * 2];
+  double sum_sq = 0.0, diff_sq = 0.0;
   int peak = 0;
   size_t total = 0;
   for (int b = 0; b < kSampleRate / static_cast<int>(kBlockSize); ++b) {
     engine.render(buf, kBlockSize);
     for (size_t i = 0; i < kBlockSize; ++i) {
-      int v = buf[i] < 0 ? -buf[i] : buf[i];
-      if (v > peak) peak = v;
-      sum_sq += static_cast<double>(buf[i]) * buf[i];
+      int l = buf[i * 2], r = buf[i * 2 + 1];
+      int a = l < 0 ? -l : l, c = r < 0 ? -r : r;
+      if (a > peak) peak = a;
+      if (c > peak) peak = c;
+      sum_sq += (static_cast<double>(l) * l + static_cast<double>(r) * r) * 0.5;
+      // How far apart the channels are, so "stereo" is a measurement and not
+      // a claim about the buffer layout.
+      diff_sq += static_cast<double>(l - r) * (l - r);
       ++total;
     }
   }
   double rms = total ? std::sqrt(sum_sq / static_cast<double>(total)) : 0.0;
-  printf("phoenixomatic: 1s render — peak %d (%.1f%% FS), rms %.0f, comp %.0f Hz\n",
-         peak, 100.0 * peak / 32767.0, rms, static_cast<double>(model.comp_hz));
+  double width = total ? std::sqrt(diff_sq / static_cast<double>(total)) : 0.0;
+  printf("phoenixomatic: 1s render — peak %d (%.1f%% FS), rms %.0f, "
+         "L-R %.0f, comp %.0f Hz\n",
+         peak, 100.0 * peak / 32767.0, rms, width,
+         static_cast<double>(model.comp_hz));
 
   for (int i = 0; i < 4; ++i) ui.update(1.0f / 30.0f);
 

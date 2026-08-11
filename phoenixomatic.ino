@@ -19,7 +19,7 @@ PhoenixModel g_model;
 PhoenixDisplay* g_ui = nullptr;
 PhoenixEngine* g_engine = nullptr;
 TaskHandle_t g_audio_task = nullptr;
-int16_t g_audio_buf[kBlockSize];
+int16_t g_audio_buf[kBlockSize * 2];   // interleaved stereo
 
 unsigned long g_last_ms = 0;
 
@@ -135,7 +135,8 @@ void audioTask(void*) {
     }
     if (g_engine) {
       g_engine->render(g_audio_buf, kBlockSize);
-      M5Cardputer.Speaker.playRaw(g_audio_buf, kBlockSize, kSampleRate, false);
+      // playRaw counts samples, not frames, and the last flag is stereo.
+      M5Cardputer.Speaker.playRaw(g_audio_buf, kBlockSize * 2, kSampleRate, true);
     } else {
       vTaskDelay(5 / portTICK_PERIOD_MS);
     }

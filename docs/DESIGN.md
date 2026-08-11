@@ -32,6 +32,7 @@ The third decision is the one that defines the instrument. See §3.
 | 5 | Filter | 1 | Resonant multimode (LP/BP/HP), fed by the comparator's pulse train and swept by the rungler. The Benjolin's voice. |
 | 5 | Gate channel — **FATE** | 4 | Divider **then** coin toss, in series. Three taps each |
 | 6 | Drum voice | 4 | KIK, SNR, HH, OH — each with trigger source, chance, divider |
+| 7 | **SPACE** | 1 | One delay network, three characters: `ROOM`, `SHIMMER`, `IRON`. The only stereo thing on the machine |
 
 ### 2.0a Gate sources
 
@@ -62,6 +63,51 @@ audio-rate edge by hundreds. `SHIFT` doubles rather than adding a larger constan
 presses away that way and a thousand the other, and doubling is how you actually move between
 drum divisions. Verified against a 2136 Hz source over 30 seconds: `/256` → 250 hits, `/512` →
 125, `/1024` → 62.
+
+### 2.0b SPACE, and why the output is stereo
+
+Three effects would have been three modules. They are one, because they want the same skeleton:
+a **four-line feedback delay network** with a Householder mixing matrix and a one-pole damper per
+line. Decay comes from the feedback *gain*, not from the length of the lines, so the lines stay
+short — about 70 KB of buffers all told, and roughly thirty operations a sample.
+
+| Mode | What changes | |
+|---|---|---|
+| `ROOM` | diffused in, damped, 30–150 ms lines | a plain reverb |
+| `SHIMMER` | the tail is fed back an octave up | ambient |
+| `IRON` | 4–25 ms lines, **no** input diffusion, `tanh` inside the loop, tail gated | industrial |
+
+`IRON`'s gate is the point of it. The tail is opened by one of the machine's own **gate sources** —
+`CMP A>B`, a `FATE` tap, `RUNG-A` — so a gated reverb here is locked to the comparator rather than
+to a threshold on its own level. Held open for 60 ms per pulse, because a gate source is an
+instant and a tail needs a window, and enveloped over 3 ms so it does not click. Measured at
+**-120 dB** with the gate shut.
+
+Skipping the input diffusion in `IRON` is what makes it metal rather than room: the discrete slaps
+*are* the sound, and smearing them is exactly what turns one into the other.
+
+Measured — 50 ms burst, then silence, `DECAY 85%`:
+
+| Mode | tail to -60 dB | L-R | mono sum |
+|---|---|---|---|
+| `ROOM` | 2.80 s | 0.030 | 86% |
+| `SHIMMER` | 3.02 s | 0.034 | 86% |
+| `IRON` | 0.66 s | 0.094 | 75% |
+
+**The two channels are decorrelated by taking different line pairs, not by inverting one.**
+Inverting widens the headphone image and then cancels on the Cardputer's mono speaker — which is
+the other half of the same jack. The mono-sum column is that check: near 100% would mean no width,
+near 0% would mean the speaker goes quiet.
+
+The output path is interleaved stereo end to end — engine, SDL, wasm and the Cardputer's
+`playRaw`. Everything upstream of `SPACE` is still one voice, so the channels are identical until
+the tail arrives; `shot` reports `L-R` so that is a measurement rather than a claim about buffer
+layout.
+
+**CRUSH now does something.** It had a field, an editor and a place on the MIX page, and the engine
+never read it — a dead control sitting next to the one being added. It quantises to fewer bits, 12
+down to about 1.5 across the dial, applied *before* `MASTER` so turning the volume down does not
+crush harder. Measured as rms distance from clean: 7 at 10%, 127 at 50%, 4539 at 100%.
 
 ### 2.1 Why FATE is one module and not two
 

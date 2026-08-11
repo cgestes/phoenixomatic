@@ -24,6 +24,7 @@ PhoenixDisplay::PhoenixDisplay(IGfx& gfx, PhoenixModel& model)
   pages_.push_back(makeLogicPage(model));
   pages_.push_back(makeFilterPage(model));
   pages_.push_back(makeDrumPage(model));
+  pages_.push_back(makeSpacePage(model));
   pages_.push_back(makeMixPage(model));
   pages_.push_back(makeConfigPage(model));
   pages_.push_back(makeProjectPage(model));
