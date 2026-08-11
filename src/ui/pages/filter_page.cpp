@@ -123,7 +123,7 @@ class FilterPage : public IPage {
     f.input = FILT_IN_COMP;
     f.freq = 0.0f;
     f.res = 0.0f;
-    for (int i = 0; i < bank_count_; ++i) zeroModRow(f.mod[bank_index_[i]]);
+    zeroBank(f.mod, bank_index_, bank_count_);
   }
 
   void maxField() override {
@@ -148,9 +148,7 @@ class FilterPage : public IPage {
     f.input = FILT_IN_COUNT - 1;
     f.freq = 1.0f;
     f.res = 1.0f;
-    for (int i = 0; i < bank_count_; ++i) {
-      maxModRow(f.mod[bank_index_[i]], FDEST_COUNT);
-    }
+    maxBank(f.mod, bank_index_, bank_count_, FDEST_COUNT);
   }
 
   void randomizeField() override {
@@ -190,10 +188,8 @@ class FilterPage : public IPage {
   }
  private:
   ModRow& bankRow() {
-    int i = nav_.row() - kBankRow0;
-    if (i < 0) i = 0;
-    if (i >= bank_count_) i = bank_count_ > 0 ? bank_count_ - 1 : 0;
-    return model_.filter.mod[bank_index_[i]];
+    return bankRowAt(model_.filter.mod, bank_index_, bank_count_,
+                     nav_.row() - kBankRow0);
   }
 
   // The bank lists only rows whose source this mode shows, so the row table is

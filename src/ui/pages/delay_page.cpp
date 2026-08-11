@@ -59,7 +59,9 @@ class DelayPage : public IPage {
                  nav_.at(nav_row, 0), bg, "%dms", static_cast<int>(t.time_ms));
       drawFieldF(scr, 16, row, nav_row, 1, off ? PEN_FAINT : PEN_BRIGHT,
                  nav_.at(nav_row, 1), bg, "%d", static_cast<int>(t.level * 100.0f));
-      drawField(scr, 24, row, nav_row, 2, panLabel(t.pan),
+      char pan_buf[8];
+      panLabel(pan_buf, sizeof(pan_buf), t.pan);
+      drawField(scr, 24, row, nav_row, 2, pan_buf,
                 off ? PEN_FAINT : PEN_VIOLET, nav_.at(nav_row, 2), bg);
       // A row of dots with the tap sitting where it is panned, so the field is
       // readable as a picture and not only as a number.
@@ -91,12 +93,11 @@ class DelayPage : public IPage {
     }
     if (ev.code != KEY_LEFT && ev.code != KEY_RIGHT) return false;
     int dir = ev.code == KEY_RIGHT ? 1 : -1;
-    float step = ev.shift ? 0.01f : 0.05f;
 
     if (nav_.row() == kTopRow) {
       float* v = nav_.field() == 0 ? &d.mix
                : nav_.field() == 1 ? &d.feedback : &d.damp;
-      adjust(v, static_cast<float>(dir) * step);
+      adjustUnit(v, dir, ev.shift);
       return true;
     }
     DelayTap& t = d.tap[nav_.row() - kTapRow0];
@@ -107,7 +108,7 @@ class DelayPage : public IPage {
       if (t.time_ms < 1.0f) t.time_ms = 1.0f;
       if (t.time_ms > kMaxTimeMs) t.time_ms = kMaxTimeMs;
     } else if (nav_.field() == 1) {
-      adjust(&t.level, static_cast<float>(dir) * step);
+      adjustUnit(&t.level, dir, ev.shift);
     } else {
       t.pan += static_cast<float>(dir) * (ev.shift ? 0.05f : 0.25f);
       if (t.pan < -1.0f) t.pan = -1.0f;
@@ -180,7 +181,7 @@ class DelayPage : public IPage {
       d.tap[i].level = 0.0f;
       d.tap[i].pan = 0.0f;
     }
-    for (int i = 0; i < bank_count_; ++i) zeroModRow(d.mod[bank_index_[i]]);
+    zeroBank(d.mod, bank_index_, bank_count_);
   }
 
   void maxPage() override {
@@ -188,8 +189,9 @@ class DelayPage : public IPage {
     d.mix = 1.0f;
     d.feedback = 1.0f;
     d.damp = 1.0f;
-    // Not the times: four taps all at two seconds is one tap, four times over.
+    // Not the times: four taps all at a second is one tap, four times over.
     for (int i = 0; i < kDelayTaps; ++i) d.tap[i].level = 1.0f;
+    maxBank(d.mod, bank_index_, bank_count_, DDEST_COUNT);
   }
 
   void randomizeField() override {
@@ -227,34 +229,30 @@ class DelayPage : public IPage {
       d.tap[i].level = 0.2f + model_.randomUnit() * 0.8f;
       d.tap[i].pan = model_.randomUnit() * 2.0f - 1.0f;
     }
+    for (int i = 0; i < bank_count_; ++i) {
+      ModRow& m = d.mod[bank_index_[i]];
+      m.amount = model_.randomUnit() * 2.0f - 1.0f;
+      m.mode = static_cast<uint8_t>(model_.random() % DDEST_COUNT);
+    }
   }
 
  private:
-  // Matches the buffer in delay.h. Letting the field climb past what the line
-  // can hold would show a time it silently does not deliver.
-  static constexpr float kMaxTimeMs = 1000.0f;
+  static constexpr float kMaxTimeMs = static_cast<float>(kDelayMaxMs);
 
-  static void adjust(float* v, float d) {
-    *v += d;
-    if (*v < 0.0f) *v = 0.0f;
-    if (*v > 1.0f) *v = 1.0f;
-  }
-
-  static const char* panLabel(float pan) {
+  // Into the caller's buffer, not a function-local static. The static form
+  // works only while there is exactly one pan field in flight; the house idiom
+  // (drawFieldF) formats at the call site for the same reason.
+  static void panLabel(char* buf, size_t n, float pan) {
     int p = static_cast<int>(pan * 100.0f);
-    if (p <= -95) return "L";
-    if (p >= 95) return "R";
-    if (p > -6 && p < 6) return "C";
-    static char buf[8];
-    snprintf(buf, sizeof(buf), "%c%d", p < 0 ? 'L' : 'R', p < 0 ? -p : p);
-    return buf;
+    if (p <= -95) { snprintf(buf, n, "L"); return; }
+    if (p >= 95) { snprintf(buf, n, "R"); return; }
+    if (p > -6 && p < 6) { snprintf(buf, n, "C"); return; }
+    snprintf(buf, n, "%c%d", p < 0 ? 'L' : 'R', p < 0 ? -p : p);
   }
 
   ModRow& bankRow() {
-    int i = nav_.row() - kBankRow0;
-    if (i < 0) i = 0;
-    if (i >= bank_count_) i = bank_count_ > 0 ? bank_count_ - 1 : 0;
-    return model_.delay.mod[bank_index_[i]];
+    return bankRowAt(model_.delay.mod, bank_index_, bank_count_,
+                     nav_.row() - kBankRow0);
   }
 
   void refreshRows() {

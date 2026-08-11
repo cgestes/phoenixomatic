@@ -17,7 +17,6 @@
 // comparator or a fate channel rather than to a threshold on its own level.
 #pragma once
 
-#include <cstddef>
 #include <cstdint>
 
 enum SpaceMode : uint8_t { SPACE_ROOM = 0, SPACE_SHIMMER, SPACE_IRON, SPACE_MODE_COUNT };
@@ -40,8 +39,10 @@ class Space {
 
  private:
   static constexpr int kLines = 4;
-  // 150 ms at 22050 is the longest line SIZE will ask for.
-  static constexpr int kMaxLine = 3400;
+  // 150 ms at 22050 is the longest line SIZE will ask for, and only line 0
+  // asks for all of it — kLineFrac scales the rest down. Sizing every line for
+  // the longest wasted 16 KB no setting could reach.
+  static constexpr int kMaxLine = 3308;
   static constexpr int kDiffusers = 4;
   static constexpr int kMaxDiffuse = 320;
   static constexpr int kShiftLen = 2048;
@@ -53,14 +54,18 @@ class Space {
   float size_ = 0.5f, decay_ = 0.6f, damp_ = 0.5f, shimmer_ = 0.0f, drive_ = 0.0f;
   float shift_rate_ = 2.0f;
 
-  float line_[kLines][kMaxLine] = {};
+  // Ragged on purpose: [kLines][kMaxLine] pays for the longest line four
+  // times over. One block, with an offset and a cap per line.
+  static constexpr int kLineCap[kLines] = {3308, 2700, 2095, 1512};
+  static constexpr int kLineTotal = 3308 + 2700 + 2095 + 1512;
+  float line_[kLineTotal] = {};
+  int line_off_[kLines] = {0, 3308, 3308 + 2700, 3308 + 2700 + 2095};
   int write_[kLines] = {0, 0, 0, 0};
   int len_[kLines] = {0, 0, 0, 0};
   float lp_[kLines] = {0.0f, 0.0f, 0.0f, 0.0f};
 
   float diff_[kDiffusers][kMaxDiffuse] = {};
   int diff_write_[kDiffusers] = {0, 0, 0, 0};
-  int diff_len_[kDiffusers] = {0, 0, 0, 0};
 
   // Two read pointers half a buffer apart, running at shift_rate_ times the
   // write speed and crossfaded so the seam never lands on a hard edge. The
@@ -70,6 +75,15 @@ class Space {
   int shift_write_ = 0;
   float shift_read_ = 0.0f;
 
-  // IRON's gate is an envelope, not a switch: a hard cut would click.
+  // IRON's gate is an envelope, not a switch: a hard cut would click. Its
+  // coefficient depends only on the sample rate, so it is resolved in init
+  // rather than exp()'d every sample.
   float gate_env_ = 0.0f;
+  float gate_k_ = 0.015f;
+
+  // Resolved in the setters. All three are per-block values that were being
+  // recomputed per sample, two of them inside the four-line loop.
+  float damp_coeff_ = 0.5f;
+  float fb_gain_ = 0.67f;
+  float drive_pre_ = 1.0f, drive_post_ = 1.0f;
 };

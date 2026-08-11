@@ -81,6 +81,29 @@ inline void maxModRow(ModRow& row, int mode_count) {
   maxModField(row, MOD_FIELD_MODE, mode_count);
 }
 
+// The row a bank cursor is on, clamped. Every page with a bank wrote this
+// same four-line lookup against the index visibleModRows() just filled.
+inline ModRow& bankRowAt(ModRow* rows, const int* index, int count, int i) {
+  if (i < 0) i = 0;
+  if (i >= count) i = count > 0 ? count - 1 : 0;
+  return rows[index[i]];
+}
+
+// Whole-bank operations, for the SHIFT+O / SHIFT+I / SHIFT+R page keys.
+//
+// These were open-coded at every call site, and they had already drifted:
+// DELAY's maxPage and randomizePage skipped the bank entirely, SPACE
+// randomised amounts but not modes, FILTER did both — three behaviours for one
+// keypress, none of them chosen. A named operation makes the drift impossible
+// rather than merely visible in review.
+inline void zeroBank(ModRow* rows, const int* index, int count) {
+  for (int i = 0; i < count; ++i) zeroModRow(rows[index[i]]);
+}
+
+inline void maxBank(ModRow* rows, const int* index, int count, int mode_count) {
+  for (int i = 0; i < count; ++i) maxModRow(rows[index[i]], mode_count);
+}
+
 inline void zeroModField(ModRow& row, int field) {
   if (field == MOD_FIELD_MODE) row.mode = 0;
   else row.amount = 0.0f;

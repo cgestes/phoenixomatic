@@ -2,10 +2,10 @@
 
 #include <cmath>
 
-namespace {
-constexpr float kPi = 3.14159265f;
+#include "dsp_math.h"
 
-inline float clamp1(float v) { return v < -1.0f ? -1.0f : (v > 1.0f ? 1.0f : v); }
+namespace {
+
 }  // namespace
 
 void Filter::init(float sample_rate) {

@@ -210,7 +210,7 @@ class OscPage : public IPage {
     o.div = 1;
     o.mult = 1;
     o.dtune = 0;
-    for (int i = 0; i < bank_count_; ++i) zeroModRow(o.mod[bank_index_[i]]);
+    zeroBank(o.mod, bank_index_, bank_count_);
   }
 
   void maxField() override {
@@ -233,9 +233,7 @@ class OscPage : public IPage {
     o.div = kRatioMax;
     o.mult = kRatioMax;
     o.dtune = 100;
-    for (int i = 0; i < bank_count_; ++i) {
-      maxModRow(o.mod[bank_index_[i]], MOD_TYPE_COUNT);
-    }
+    maxBank(o.mod, bank_index_, bank_count_, MOD_TYPE_COUNT);
   }
 
   void randomizeRow() override { nav_.forEachField([this] { randomizeField(); }); }
@@ -253,10 +251,8 @@ class OscPage : public IPage {
   }
  private:
   ModRow& bankRow() {
-    int i = nav_.row() - kBankRow0;
-    if (i < 0) i = 0;
-    if (i >= bank_count_) i = bank_count_ > 0 ? bank_count_ - 1 : 0;
-    return model_.osc[voice_].mod[bank_index_[i]];
+    return bankRowAt(model_.osc[voice_].mod, bank_index_, bank_count_,
+                     nav_.row() - kBankRow0);
   }
 
   // The bank only lists rows whose source this mode shows, so the row table

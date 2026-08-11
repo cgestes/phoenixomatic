@@ -2,11 +2,12 @@
 
 #include <cmath>
 
+#include "dsp_math.h"
+
 #include "../core/model.h"
 #include "audio_config.h"
 
 namespace {
-constexpr float kTwoPi = 6.28318530718f;
 // Exponential FM depth at full travel, in octaves. Two keeps a sequencer row
 // at +100 spanning its notes rather than launching the oscillator out of the
 // audible band.
@@ -20,7 +21,6 @@ constexpr float kLinDepth = kOctavesFullScale;
 // One-pole highpass coefficient for AC coupling, ~2 Hz at 22050.
 constexpr float kDcCoeff = 0.9994f;
 
-inline float clamp1(float v) { return v < -1.0f ? -1.0f : (v > 1.0f ? 1.0f : v); }
 }  // namespace
 
 void OscVoice::init(float sample_rate) {

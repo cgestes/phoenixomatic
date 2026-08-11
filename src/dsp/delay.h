@@ -15,10 +15,20 @@
 // not what a level control should do.
 #pragma once
 
-#include <cstddef>
-#include <cstdint>
+#include "audio_config.h"
 
 inline constexpr int kDelayTaps = 4;
+
+// The longest a tap can be, and therefore the size of the line. The panel
+// reads this rather than carrying its own copy — a field that climbs past what
+// the buffer holds shows a time it silently does not deliver.
+//
+// Whole milliseconds, and the buffer length is integer arithmetic from it.
+// Deriving the length by truncating a float expression looks equivalent and is
+// not: constexpr float evaluation gave 22049.99977 and the cast ate a sample,
+// which moved every long tap onto the wrong side of its interpolation and
+// silenced it.
+inline constexpr int kDelayMaxMs = 1000;
 
 class MultiDelay {
  public:
@@ -36,9 +46,9 @@ class MultiDelay {
   void process(float in, float* left, float* right);
 
  private:
-  // A second, which is as much as the Cardputer's SRAM will spare next to
-  // SPACE. Longer than this wants PSRAM.
-  static constexpr int kMaxDelay = 22050;
+  // As much as the Cardputer's SRAM will spare next to SPACE; longer wants
+  // PSRAM. Derived from kDelayMaxMs so the two cannot drift.
+  static constexpr int kMaxDelay = kSampleRate * kDelayMaxMs / 1000;
 
   float readAt(float samples_back) const;
 
@@ -46,11 +56,16 @@ class MultiDelay {
   float buf_[kMaxDelay] = {};
   int write_ = 0;
 
-  float time_ms_[kDelayTaps] = {120.0f, 240.0f, 360.0f, 480.0f};
-  float level_[kDelayTaps] = {0.8f, 0.6f, 0.45f, 0.3f};
-  float pan_[kDelayTaps] = {-0.7f, 0.4f, -0.3f, 0.8f};
+  // No defaults worth writing: applyParams pushes every tap each block, so
+  // anything here is unobservable — and the copy that was here had already
+  // drifted from the one in PhoenixModel that actually ships.
+  float base_[kDelayTaps] = {};        // tap time in samples, pre-scaled
+  float level_[kDelayTaps] = {};
+  float gain_l_[kDelayTaps] = {};      // equal-power pan, resolved in setTap
+  float gain_r_[kDelayTaps] = {};
+  float max_base_ = 1.0f;              // longest tap: where feedback is read
   float feedback_ = 0.35f;
-  float damp_ = 0.4f;
+  float damp_coeff_ = 0.41f;   // resolved by dampCoeff(), not the raw dial
   float time_scale_ = 1.0f;
   float fb_lp_ = 0.0f;
 };

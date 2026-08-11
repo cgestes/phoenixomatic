@@ -2,8 +2,9 @@
 
 #include <cmath>
 
+#include "dsp_math.h"
+
 namespace {
-constexpr float kTwoPi = 6.28318530718f;
 
 // Decay knob 0..1 mapped to a per-sample multiplier. The exponent keeps the
 // short end usable instead of cramming every useful value into the first 10%.

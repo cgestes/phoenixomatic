@@ -140,6 +140,15 @@ class RowNav {
 inline uint8_t rowBg(bool row_focused) { return row_focused ? PEN_PANEL : PEN_BG; }
 
 // `nav_row` / `nav_field` are what a click on this text resolves back to.
+// The unit-value nudge every page uses, and with it the one statement of the
+// machine's step convention: coarse 5%, SHIFT 1%. That pair of literals was
+// written out at eleven call sites.
+inline void adjustUnit(float* v, int dir, bool fine) {
+  *v += static_cast<float>(dir) * (fine ? 0.01f : 0.05f);
+  if (*v < 0.0f) *v = 0.0f;
+  if (*v > 1.0f) *v = 1.0f;
+}
+
 inline void drawField(TextScreen& scr, int col, int row, int nav_row, int nav_field,
                       const char* text, uint8_t pen, bool focused, uint8_t bg) {
   int len = 0;

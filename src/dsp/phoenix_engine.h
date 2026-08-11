@@ -99,6 +99,7 @@ class PhoenixEngine {
   float dc_block_x_ = 0.0f, dc_block_y_ = 0.0f;
   // Quantisation levels for CRUSH; 0 means off.
   float crush_levels_ = 0.0f;
+  float crush_step_ = 0.0f;   // its reciprocal; the hot path multiplies
   float dc_block_xr_ = 0.0f, dc_block_yr_ = 0.0f;
   int space_gate_hold_ = 0;
   int gate_hold_samples_ = 1;

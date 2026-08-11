@@ -22,8 +22,6 @@ class SpacePage : public IPage {
 
   const char* title() const override { return "SPACE"; }
 
-  int outputInstrument() const override { return -1; }
-
   void draw(TextScreen& scr) override {
     refreshRows();
     SpaceState& sp = model_.space;
@@ -96,8 +94,6 @@ class SpacePage : public IPage {
     }
     if (ev.code != KEY_LEFT && ev.code != KEY_RIGHT) return false;
     int dir = ev.code == KEY_RIGHT ? 1 : -1;
-    float step = ev.shift ? 0.01f : 0.05f;
-    float d = static_cast<float>(dir) * step;
 
     if (nav_.row() == kTopRow) {
       if (nav_.field() == 0) {
@@ -106,14 +102,14 @@ class SpacePage : public IPage {
         nav_mode_ = 0xFF;
         refreshRows();
       } else {
-        adjust(&sp.mix, d);
+        adjustUnit(&sp.mix, dir, ev.shift);
       }
       return true;
     }
     if (nav_.row() == kToneRow) {
       float* v = nav_.field() == 0 ? &sp.size
                : nav_.field() == 1 ? &sp.decay : &sp.damp;
-      adjust(v, d);
+      adjustUnit(v, dir, ev.shift);
       return true;
     }
     if (sp.mode == SPACE_SHIMMER) {
@@ -121,12 +117,12 @@ class SpacePage : public IPage {
         sp.shimmer_pitch =
             static_cast<uint8_t>((sp.shimmer_pitch + kShimmerCount + dir) % kShimmerCount);
       } else {
-        adjust(&sp.shimmer, d);
+        adjustUnit(&sp.shimmer, dir, ev.shift);
       }
     } else if (nav_.field() == 0) {
       sp.gate_src = static_cast<uint8_t>((sp.gate_src + GATE_COUNT + dir) % GATE_COUNT);
     } else {
-      adjust(&sp.drive, d);
+      adjustUnit(&sp.drive, dir, ev.shift);
     }
     return true;
   }
@@ -201,7 +197,7 @@ class SpacePage : public IPage {
     sp.shimmer_pitch = 3;
     sp.drive = 0.0f;
     sp.gate_src = GATE_CMP_GT;
-    for (int i = 0; i < bank_count_; ++i) zeroModRow(sp.mod[bank_index_[i]]);
+    zeroBank(sp.mod, bank_index_, bank_count_);
   }
 
   void maxPage() override {
@@ -212,7 +208,7 @@ class SpacePage : public IPage {
     sp.damp = 1.0f;
     sp.shimmer = 1.0f;
     sp.drive = 1.0f;
-    for (int i = 0; i < bank_count_; ++i) maxModRow(sp.mod[bank_index_[i]], SPDEST_COUNT);
+    maxBank(sp.mod, bank_index_, bank_count_, SPDEST_COUNT);
   }
 
   void randomizeField() override {
@@ -256,25 +252,19 @@ class SpacePage : public IPage {
     sp.decay = model_.randomUnit() * 0.85f;
     sp.damp = model_.randomUnit();
     for (int i = 0; i < bank_count_; ++i) {
-      sp.mod[bank_index_[i]].amount = model_.randomUnit() * 2.0f - 1.0f;
+      ModRow& m = sp.mod[bank_index_[i]];
+      m.amount = model_.randomUnit() * 2.0f - 1.0f;
+      m.mode = static_cast<uint8_t>(model_.random() % SPDEST_COUNT);
     }
   }
 
  private:
-  static void adjust(float* v, float d) {
-    *v += d;
-    if (*v < 0.0f) *v = 0.0f;
-    if (*v > 1.0f) *v = 1.0f;
-  }
-
   bool hasExtra() const { return model_.space.mode != SPACE_ROOM; }
   int bankRow0() const { return hasExtra() ? kExtraRow + 1 : kExtraRow; }
 
   ModRow& bankRow() {
-    int i = nav_.row() - bankRow0();
-    if (i < 0) i = 0;
-    if (i >= bank_count_) i = bank_count_ > 0 ? bank_count_ - 1 : 0;
-    return model_.space.mod[bank_index_[i]];
+    return bankRowAt(model_.space.mod, bank_index_, bank_count_,
+                     nav_.row() - bankRow0());
   }
 
   static const char* modeHint(uint8_t mode) {

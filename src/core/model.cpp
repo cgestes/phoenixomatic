@@ -377,9 +377,7 @@ void PhoenixModel::applyMachineMode() {
       else if (!benjolin) rows[i].on = true;
     }
   };
-  for (int v = 0; v < 2; ++v) apply(osc[v].mod, kOscModRows);
-  apply(comp.mod, kCompModRows);
-  apply(filter.mod, kFilterModRows);
+  forEachModBank(apply);
 
   if (!benjolin) return;
 

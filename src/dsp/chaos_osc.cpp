@@ -2,6 +2,8 @@
 
 #include <cmath>
 
+#include "dsp_math.h"
+
 #include "../core/model.h"
 
 namespace {
@@ -11,9 +13,6 @@ namespace {
 // one that is nearly an LFO.
 constexpr float kCoreRate[3] = {1.0f, 4.3f, 17.0f};
 
-inline float clamp1(float v) {
-  return v < -1.0f ? -1.0f : (v > 1.0f ? 1.0f : v);
-}
 
 }  // namespace
 

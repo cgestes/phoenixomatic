@@ -138,14 +138,14 @@ int captureAll(SDLDisplay& gfx, PhoenixModel& model, PhoenixDisplay& ui,
   // The engine is the only thing that moves state now, so drive it directly
   // instead of waiting on an audio device. One second of audio, and a peak /
   // RMS report so "it renders" and "it makes a sound" are separate claims.
-  int16_t buf[kBlockSize * 2];
+  int16_t buf[kBlockSize * kChannels];
   double sum_sq = 0.0, diff_sq = 0.0;
   int peak = 0;
   size_t total = 0;
   for (int b = 0; b < kSampleRate / static_cast<int>(kBlockSize); ++b) {
     engine.render(buf, kBlockSize);
     for (size_t i = 0; i < kBlockSize; ++i) {
-      int l = buf[i * 2], r = buf[i * 2 + 1];
+      int l = buf[i * kChannels], r = buf[i * kChannels + 1];
       int a = l < 0 ? -l : l, c = r < 0 ? -r : r;
       if (a > peak) peak = a;
       if (c > peak) peak = c;

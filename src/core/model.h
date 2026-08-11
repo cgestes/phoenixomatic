@@ -383,7 +383,7 @@ enum DelayDest : uint8_t { DDEST_TIME = 0, DDEST_FEED, DDEST_DAMP, DDEST_MIX, DD
 extern const char* const kDelayDestLabel[DDEST_COUNT];
 
 struct DelayTap {
-  float time_ms = 120.0f;   // 1..2000
+  float time_ms = 120.0f;   // 1 .. kDelayMaxMs
   float level = 0.6f;
   float pan = 0.0f;         // -1 left, +1 right
 };
@@ -418,7 +418,7 @@ extern const char* const kSpaceModeLabel[3];
 
 struct SpaceState {
   uint8_t mode = 0;          // SpaceMode
-  float mix = 0.0f;          // dry at boot; it is an effect, not a voice; it is an effect, not a voice
+  float mix = 0.0f;          // dry at boot; it is an effect, not a voice
   float size = 0.5f;
   float decay = 0.6f;
   float damp = 0.5f;
@@ -537,6 +537,22 @@ class PhoenixModel {
   // Shared RNG so pages can randomise without carrying their own state.
   uint32_t random();
   float randomUnit();
+
+  // Every attenuverter bank on the machine, in one place. Sweeps that must
+  // not miss one walk this rather than a hand-written list — the list is how
+  // DELAY and SPACE ended up outside the mode's hidden-source bypass, with the
+  // pages dropping rows the engine went on applying. That exact failure is
+  // already written up in DESIGN.md for the comparator; it recurred because
+  // the mechanism stayed hand-rolled.
+  template <typename F>
+  void forEachModBank(F fn) {
+    for (int v = 0; v < 2; ++v) fn(osc[v].mod, kOscModRows);
+    for (int v = 0; v < 2; ++v) fn(seq[v].mod, kSeqModRows);
+    fn(comp.mod, kCompModRows);
+    fn(filter.mod, kFilterModRows);
+    fn(delay.mod, kDelayModRows);
+    fn(space.mod, kSpaceModRows);
+  }
 
   // Enforces whatever the current mode implies. Safe to call repeatedly.
   void applyMachineMode();

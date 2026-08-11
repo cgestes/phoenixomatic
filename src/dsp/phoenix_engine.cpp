@@ -2,6 +2,8 @@
 
 #include <cmath>
 
+#include "dsp_math.h"
+
 #include "audio_config.h"
 
 namespace {
@@ -36,7 +38,6 @@ inline float shapeComp(float a, float b, uint8_t shape, float drive) {
 }
 
 
-inline float clamp1(float v) { return v < -1.0f ? -1.0f : (v > 1.0f ? 1.0f : v); }
 
 // How far the filter's bank can drag the cutoff at full travel.
 constexpr float kFilterModOctaves = kOctavesFullScale;
@@ -107,6 +108,7 @@ void PhoenixEngine::applyParams() {
   } else {
     float bits = 12.0f - static_cast<float>(model_.crush) * 0.105f;
     crush_levels_ = std::exp2(bits - 1.0f);
+    crush_step_ = 1.0f / crush_levels_;
   }
 
   for (int i = 0; i < 2; ++i) {
@@ -258,8 +260,8 @@ void PhoenixEngine::render(int16_t* out, size_t frames) {
 
   for (size_t n = 0; n < frames; ++n) {
     if (!running) {
-      out[n * 2] = 0;
-      out[n * 2 + 1] = 0;
+      out[n * kChannels] = 0;
+      out[n * kChannels + 1] = 0;
       continue;
     }
 
@@ -466,16 +468,16 @@ void PhoenixEngine::render(int16_t* out, size_t frames) {
     // it, turning the volume down would use fewer levels and crush harder,
     // which is not what a volume control is for.
     if (crush_levels_ > 0.0f) {
-      s = std::round(s * crush_levels_) / crush_levels_;
+      s = std::round(s * crush_levels_) * crush_step_;
     }
 
     // --- delay --------------------------------------------------------------
     // Delay before reverb, the usual order: repeats that then get a tail
     // sound like a room; a tail that then repeats sounds like a fault.
-    float dry_l = s, dry_r = s;
+    float dry_l, dry_r;
     {
       const DelayState& dl = model_.delay;
-      float scale = 1.0f, feed = dl.feedback, damp = dl.damp, mix = dl.mix;
+      float octaves = 0.0f, feed = dl.feedback, damp = dl.damp, mix = dl.mix;
       for (int i = 0; i < kDelayModRows; ++i) {
         const ModRow& m = dl.mod[i];
         if (!m.active()) continue;
@@ -484,12 +486,13 @@ void PhoenixEngine::render(int16_t* out, size_t frames) {
           case DDEST_FEED: feed += v; break;
           case DDEST_DAMP: damp += v; break;
           case DDEST_MIX:  mix += v; break;
-          // Multiplied, not added: modulating a delay time is a tape speed
-          // change, and tape speed is a ratio.
-          default:         scale *= std::exp2(v); break;
+          // Summed here, exponentiated once below: modulating a delay time
+          // is a tape speed change and tape speed is a ratio, but four rows
+          // multiplying is four exp2 calls for what one can answer.
+          default:         octaves += v; break;
         }
       }
-      delay_.setTimeScale(scale);
+      delay_.setTimeScale(octaves == 0.0f ? 1.0f : std::exp2(octaves));
       delay_.setFeedback(feed);
       delay_.setDamp(damp);
       float wl = 0.0f, wr = 0.0f;
@@ -522,11 +525,14 @@ void PhoenixEngine::render(int16_t* out, size_t frames) {
       space_.setSize(size);
       space_.setDecay(decay);
       space_.setDamp(damp);
-      space_.process((dry_l + dry_r) * 0.5f,
-                     gateEdge(sp.gate_src) || space_gate_hold_ > 0, &wet_l, &wet_r);
-      // A gate source is an instant, not a duration, so IRON holds it open for
-      // a fixed window — otherwise the tail would be shut before it started.
-      if (gateEdge(sp.gate_src)) space_gate_hold_ = gate_hold_samples_;
+      // A gate source is an instant, not a duration, so IRON holds it open
+      // for a fixed window — otherwise the tail would be shut before it
+      // started. Asked once: gateEdge walks a switch and, for fate sources, an
+      // integer divide.
+      const bool edge = gateEdge(sp.gate_src);
+      space_.process((dry_l + dry_r) * 0.5f, edge || space_gate_hold_ > 0,
+                     &wet_l, &wet_r);
+      if (edge) space_gate_hold_ = gate_hold_samples_;
       else if (space_gate_hold_ > 0) --space_gate_hold_;
 
       if (mix < 0.0f) mix = 0.0f;
@@ -540,7 +546,6 @@ void PhoenixEngine::render(int16_t* out, size_t frames) {
 
     wet_l *= master;
     wet_r *= master;
-    s *= master;
 
     // The comparator is a square sitting on whatever offset it landed on, so
     // the sum carries DC. Block it or the speaker eats the headroom. One
@@ -550,8 +555,8 @@ void PhoenixEngine::render(int16_t* out, size_t frames) {
     dc_block_yr_ = wet_r - dc_block_xr_ + 0.9985f * dc_block_yr_;
     dc_block_xr_ = wet_r;
 
-    out[n * 2] = static_cast<int16_t>(clamp1(dc_block_y_) * 32000.0f);
-    out[n * 2 + 1] = static_cast<int16_t>(clamp1(dc_block_yr_) * 32000.0f);
+    out[n * kChannels] = static_cast<int16_t>(clamp1(dc_block_y_) * 32000.0f);
+    out[n * kChannels + 1] = static_cast<int16_t>(clamp1(dc_block_yr_) * 32000.0f);
   }
 
   model_.comp.a_gt_b = comp_gt_;

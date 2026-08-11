@@ -11,7 +11,7 @@ void audioCallback(void* userdata, Uint8* stream, int len) {
   auto* engine = static_cast<PhoenixEngine*>(userdata);
   auto* out = reinterpret_cast<int16_t*>(stream);
   // Two channels, so a frame is two samples.
-  size_t frames = static_cast<size_t>(len) / (2 * sizeof(int16_t));
+  size_t frames = static_cast<size_t>(len) / (kChannels * sizeof(int16_t));
   if (engine) {
     engine->render(out, frames);
   } else {
@@ -33,7 +33,7 @@ bool SdlAudio::open(int index) {
   SDL_AudioSpec want{};
   want.freq = kSampleRate;
   want.format = AUDIO_S16SYS;
-  want.channels = 2;
+  want.channels = kChannels;
   want.samples = static_cast<Uint16>(kBlockSize);
   want.callback = audioCallback;
   want.userdata = engine_;
