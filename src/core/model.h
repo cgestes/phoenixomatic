@@ -208,7 +208,7 @@ struct Osc {
   int div = 1;                 // frequency is kRootHz * mult / div
   int mult = 1;
   int dtune = 0;               // cents off the exact ratio
-  float level = 0.74f;
+  float level = 0.80f;
   bool mute = false;
   ModRow mod[kOscModRows];
   int focus = 0;
@@ -341,12 +341,12 @@ enum CompDest : uint8_t { CDEST_OFFSET = 0, CDEST_DRIVE, CDEST_COUNT };
 extern const char* const kCompDestLabel[CDEST_COUNT];
 
 struct Comparator {
-  float offset = -0.20f;
+  float offset = 0.0f;
   uint8_t shape = CSHAPE_PWM;
   float drive = 0.35f;
   ModRow mod[kCompModRows];
   int focus = 0;
-  float level = 0.31f;
+  float level = 0.80f;
   bool mute = false;
   bool a_gt_b = false;     // live
   float a = 0.0f, b = 0.0f;
@@ -511,7 +511,7 @@ struct FilterState {
   uint8_t input = FILT_IN_COMP;  // the PWM, as the original has it
   float freq = 0.35f;            // 0..1, mapped exponentially
   float res = 0.55f;
-  float level = 0.6f;
+  float level = 0.80f;
   bool mute = false;
   ModRow mod[kFilterModRows];
   int focus = 0;
@@ -529,7 +529,7 @@ struct Drum {
   uint8_t trig_src = GATE_FATE1_A;
   float chance = 1.0f;
   int div = 1;              // 1..kDrumMaxDiv
-  float level = 0.8f;
+  float level = 0.80f;
   bool mute = false;
   bool live = false;       // fired on this step
   int tune = 52, decay = 68, p3 = 31, p4 = 44, p5 = 20;

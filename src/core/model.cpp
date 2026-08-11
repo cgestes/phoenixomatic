@@ -104,7 +104,6 @@ PhoenixModel::PhoenixModel() {
   // square is what gives a rungler varied bits instead of long runs.
   osc[0].div = 8;  osc[0].mult = 1;  osc[0].dtune = 0;   osc[0].wave = WAVE_TRI;
   osc[1].div = 1;  osc[1].mult = 8;  osc[1].dtune = 35;  osc[1].wave = WAVE_SAW;
-  osc[1].level = 0.52f;
 
   // --- sequencer banks: the other sequencer, both oscillators, both chaos.
   const char* seq_names[2][kSeqModRows] = {
@@ -230,7 +229,7 @@ PhoenixModel::PhoenixModel() {
   };
   const float drum_chance[kDrumVoices] = { 1.00f, 0.80f, 0.65f, 0.30f };
   const int drum_div[kDrumVoices] = { 1, 2, 1, 4 };
-  const float drum_level[kDrumVoices] = { 0.88f, 0.61f, 0.44f, 0.50f };
+  const float drum_level[kDrumVoices] = { 0.80f, 0.80f, 0.80f, 0.80f };
   for (int i = 0; i < kDrumVoices; ++i) {
     drum[i].name = drum_names[i];
     drum[i].trig_src = drum_src[i];
