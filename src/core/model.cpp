@@ -36,6 +36,13 @@ const char* const kCompShapeLabel[CSHAPE_COUNT] = {
     "PWM", "LIM", "CLIP", "FOLD", "RECT", "MIN", "MAX" };
 const char* const kCompDestLabel[CDEST_COUNT] = { "OFFSET", "DRIVE" };
 
+const char* const kDirtDestLabel[DIDEST_COUNT] = { "DRIVE", "CRUSH", "DOWN", "MIX" };
+const char* const kDirtModeLabel[4] = { "SOFT", "SAVAGE", "BRUTAL", "ANNIHIL" };
+const char* const kGlitchDestLabel[GDEST_COUNT] = { "LEN", "CHANCE", "PITCH", "MIX" };
+const char* const kGrainDestLabel[GRDEST_COUNT] = { "SIZE", "DENSITY", "SPREAD", "MIX" };
+const char* const kFxDestLabel[FXDEST_COUNT] = { "RATE", "DEPTH", "FEED", "MIX" };
+const char* const kFxModeLabel[4] = { "PHASER", "FLANGER", "CHORUS", "ENSEMBL" };
+
 const char* const kDelayDestLabel[DDEST_COUNT] = { "TIME", "FEED", "DAMP", "MIX" };
 
 const char* const kSpaceDestLabel[SPDEST_COUNT] = { "SIZE", "DECAY", "DAMP", "MIX" };

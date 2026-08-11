@@ -64,6 +64,9 @@ PhoenixEngine::PhoenixEngine(PhoenixModel& model, float sample_rate)
   }
   filter_.init(sample_rate_);
   delay_.init(sample_rate_);
+  dirt_.init(sample_rate_);
+  fx_.init(sample_rate_);
+  looper_.init(sample_rate_);
   space_.init(sample_rate_);
   // ~70ms, so a single-sample pulse is still visible on a 25fps panel.
   led_hold_samples_ = static_cast<int>(sample_rate_ * 0.07f);
@@ -85,6 +88,14 @@ float PhoenixEngine::randUnit() {
 
 void PhoenixEngine::applyParams() {
   {
+    dirt_.setMode(model_.dirt.mode);
+    looper_.setGlitchReverse(model_.glitch.reverse);
+    looper_.setGlitchPitch(shimmerRatio(model_.glitch.pitch));
+    looper_.setGrainPitch(shimmerRatio(model_.grain.pitch));
+    fx_.setMode(model_.fx.mode);
+  }
+
+  {
     // Tap times, levels and positions change slowly; only the modulated
     // scalars are worth touching per sample.
     const DelayState& dl = model_.delay;
@@ -99,16 +110,6 @@ void PhoenixEngine::applyParams() {
     space_.setShimmer(sp.shimmer);
     space_.setShimmerRatio(shimmerRatio(sp.shimmer_pitch));
     space_.setDrive(sp.drive);
-  }
-
-  // 0 is off; from there 12 bits down to about 1.5, so the dial spends its
-  // travel where the grit is audible rather than in the inaudible top bits.
-  if (model_.crush <= 0) {
-    crush_levels_ = 0.0f;
-  } else {
-    float bits = 12.0f - static_cast<float>(model_.crush) * 0.105f;
-    crush_levels_ = std::exp2(bits - 1.0f);
-    crush_step_ = 1.0f / crush_levels_;
   }
 
   for (int i = 0; i < 2; ++i) {
@@ -256,7 +257,6 @@ void PhoenixEngine::render(int16_t* out, size_t frames) {
 
   const bool running = model_.playing;
   const float master = model_.master;
-  const float drive = 1.0f + static_cast<float>(model_.drive) * 0.04f;
 
   for (size_t n = 0; n < frames; ++n) {
     if (!running) {
@@ -461,14 +461,108 @@ void PhoenixEngine::render(int16_t* out, size_t frames) {
       model_.drum[i].live = drum_hold_[i] > 0;
     }
 
-    // --- output -------------------------------------------------------------
-    float s = std::tanh(voice * drive);
+    // --- dirt ---------------------------------------------------------------
+    // Drive, bit crushing and decimation, with a shape to choose. This is
+    // where the old inline tanh-and-round lived; it has a module and a page
+    // now, which is how CRUSH stopped being a control that did nothing.
+    float s;
+    {
+      const DirtState& dt = model_.dirt;
+      float drv = dt.drive, cru = dt.crush, dwn = dt.down, dmix = dt.mix;
+      for (int i = 0; i < kDirtModRows; ++i) {
+        const ModRow& m = dt.mod[i];
+        if (!m.active()) continue;
+        float v = m.amount * bus_[m.src];
+        switch (m.mode) {
+          case DIDEST_CRUSH: cru += v; break;
+          case DIDEST_DOWN:  dwn += v; break;
+          case DIDEST_MIX:   dmix += v; break;
+          default:           drv += v; break;
+        }
+      }
+      dirt_.setDrive(drv);
+      dirt_.setCrush(cru);
+      dirt_.setDownsample(dwn);
+      dirt_.setMix(dmix);
+      s = dirt_.process(voice);
+    }
 
-    // CRUSH: quantise to fewer bits. Applied before MASTER on purpose — after
-    // it, turning the volume down would use fewer levels and crush harder,
-    // which is not what a volume control is for.
-    if (crush_levels_ > 0.0f) {
-      s = std::round(s * crush_levels_) * crush_step_;
+    // --- fx -----------------------------------------------------------------
+    // Modulation before the time effects: chorus a signal then delay it, not
+    // the other way round.
+    float a_l, a_r;
+    {
+      const FxState& fx = model_.fx;
+      float rate = fx.rate, depth = fx.depth, feed = fx.feedback, fmix = fx.mix;
+      for (int i = 0; i < kFxModRows; ++i) {
+        const ModRow& m = fx.mod[i];
+        if (!m.active()) continue;
+        float v = m.amount * bus_[m.src];
+        switch (m.mode) {
+          case FDEST_DEPTH: depth += v; break;
+          case FDEST_FEED:  feed += v; break;
+          case FDEST_MIX:   fmix += v; break;
+          default:          rate += v; break;
+        }
+      }
+      fx_.setRate(rate);
+      fx_.setDepth(depth);
+      fx_.setFeedback(feed);
+      fx_.setMix(fmix);
+      fx_.process(s, &a_l, &a_r);
+    }
+
+    // --- glitch and grain ---------------------------------------------------
+    // One recorder, two readers, running whether or not either is switched on
+    // — so turning one up replays audio that is already there rather than a
+    // second of silence.
+    looper_.write((a_l + a_r) * 0.5f);
+    {
+      const GlitchState& gl = model_.glitch;
+      float len = gl.len_ms, ch = gl.chance, gmix = gl.mix;
+      for (int i = 0; i < kGlitchModRows; ++i) {
+        const ModRow& m = gl.mod[i];
+        if (!m.active()) continue;
+        float v = m.amount * bus_[m.src];
+        switch (m.mode) {
+          case GDEST_CHANCE: ch += v; break;
+          case GDEST_MIX:    gmix += v; break;
+          case GDEST_PITCH:  break;    // a list, not a number to add to
+          default:           len += v * 200.0f; break;
+        }
+      }
+      looper_.setGlitchLength(len);
+      // The gate says when to grab, CHANCE says whether it does. With no
+      // clock, the comparator's own edge is the only honest downbeat.
+      bool grab = gateEdge(gl.gate_src) && randUnit() < clamp01(ch);
+      float wl, wr;
+      looper_.glitch(grab, &wl, &wr);
+      float m01 = clamp01(gmix);
+      a_l = a_l * (1.0f - m01) + wl * m01;
+      a_r = a_r * (1.0f - m01) + wr * m01;
+    }
+    {
+      const GrainState& gr = model_.grain;
+      float size = gr.size_ms, den = gr.density, spr = gr.spread, gmix = gr.mix;
+      for (int i = 0; i < kGrainModRows; ++i) {
+        const ModRow& m = gr.mod[i];
+        if (!m.active()) continue;
+        float v = m.amount * bus_[m.src];
+        switch (m.mode) {
+          case GRDEST_DENSITY: den += v; break;
+          case GRDEST_SPREAD:  spr += v; break;
+          case GRDEST_MIX:     gmix += v; break;
+          default:             size += v * 100.0f; break;
+        }
+      }
+      looper_.setGrainSize(size);
+      looper_.setGrainDensity(den);
+      looper_.setGrainSpread(spr);
+      float wl, wr;
+      looper_.grain(&wl, &wr);
+      float m01 = clamp01(gmix);
+      a_l = a_l * (1.0f - m01) + wl * m01;
+      a_r = a_r * (1.0f - m01) + wr * m01;
     }
 
     // --- delay --------------------------------------------------------------
@@ -477,6 +571,7 @@ void PhoenixEngine::render(int16_t* out, size_t frames) {
     float dry_l, dry_r;
     {
       const DelayState& dl = model_.delay;
+      const float mono = (a_l + a_r) * 0.5f;
       float octaves = 0.0f, feed = dl.feedback, damp = dl.damp, mix = dl.mix;
       for (int i = 0; i < kDelayModRows; ++i) {
         const ModRow& m = dl.mod[i];
@@ -496,11 +591,11 @@ void PhoenixEngine::render(int16_t* out, size_t frames) {
       delay_.setFeedback(feed);
       delay_.setDamp(damp);
       float wl = 0.0f, wr = 0.0f;
-      delay_.process(s, &wl, &wr);
+      delay_.process(mono, &wl, &wr);
       if (mix < 0.0f) mix = 0.0f;
       if (mix > 1.0f) mix = 1.0f;
-      dry_l = s * (1.0f - mix) + wl * mix;
-      dry_r = s * (1.0f - mix) + wr * mix;
+      dry_l = a_l * (1.0f - mix) + wl * mix;
+      dry_r = a_r * (1.0f - mix) + wr * mix;
     }
 
     // --- space --------------------------------------------------------------

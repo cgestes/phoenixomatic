@@ -375,6 +375,68 @@ struct FateChannel {
   int count = 0;
 };
 
+// DIRT — drive, bit crushing, decimation and three shapes borrowed from
+// Liquidateur. DRIVE and CRUSH used to sit loose in the output stage with no
+// page; that is how CRUSH stayed unimplemented without anyone noticing.
+inline constexpr int kDirtModRows = 4;
+enum DirtDest : uint8_t { DIDEST_DRIVE = 0, DIDEST_CRUSH, DIDEST_DOWN, DIDEST_MIX, DIDEST_COUNT };
+extern const char* const kDirtDestLabel[DIDEST_COUNT];
+extern const char* const kDirtModeLabel[4];
+
+struct DirtState {
+  uint8_t mode = 0;
+  float drive = 0.08f;      // where the old MIX DRIVE of 8 landed
+  float crush = 0.0f;
+  float down = 0.0f;
+  float mix = 1.0f;         // wet by default: it is the output stage
+  ModRow mod[kDirtModRows];
+};
+
+// GLITCH — grab the last slice and loop it. Milliseconds, not beats: there is
+// no tempo here, only the comparator's edges.
+inline constexpr int kGlitchModRows = 4;
+enum GlitchDest : uint8_t { GDEST_LEN = 0, GDEST_CHANCE, GDEST_PITCH, GDEST_MIX, GDEST_COUNT };
+extern const char* const kGlitchDestLabel[GDEST_COUNT];
+
+struct GlitchState {
+  float mix = 0.0f;
+  float len_ms = 90.0f;
+  float chance = 0.35f;     // how often a gate actually grabs
+  uint8_t pitch = 3;        // index into kShimmerSemis, shared with SHIMMER
+  bool reverse = false;
+  uint8_t gate_src = GATE_CMP_GT;
+  ModRow mod[kGlitchModRows];
+};
+
+// GRAIN — overlapping windowed reads of the same buffer GLITCH uses.
+inline constexpr int kGrainModRows = 4;
+enum GrainDest : uint8_t { GRDEST_SIZE = 0, GRDEST_DENSITY, GRDEST_SPREAD, GRDEST_MIX, GRDEST_COUNT };
+extern const char* const kGrainDestLabel[GRDEST_COUNT];
+
+struct GrainState {
+  float mix = 0.0f;
+  float size_ms = 50.0f;
+  float density = 0.5f;
+  float spread = 0.4f;
+  uint8_t pitch = 3;
+  ModRow mod[kGrainModRows];
+};
+
+// FX — phaser, flanger, chorus, ensemble: one swept delay at four lengths.
+inline constexpr int kFxModRows = 4;
+enum FxDest : uint8_t { FDEST_RATE = 0, FDEST_DEPTH, FDEST_FEED, FDEST_MIX, FXDEST_COUNT };
+extern const char* const kFxDestLabel[FXDEST_COUNT];
+extern const char* const kFxModeLabel[4];
+
+struct FxState {
+  uint8_t mode = 0;
+  float rate = 0.25f;
+  float depth = 0.6f;
+  float feedback = 0.35f;
+  float mix = 0.0f;
+  ModRow mod[kFxModRows];
+};
+
 // DELAY — one line, four taps, each with a time, a level and a place in the
 // stereo field. See src/dsp/delay.h for why it is one buffer and not four.
 inline constexpr int kDelayModRows = 4;
@@ -569,6 +631,10 @@ class PhoenixModel {
   Seq seq[2];
   Comparator comp;
   FilterState filter;
+  DirtState dirt;
+  GlitchState glitch;
+  GrainState grain;
+  FxState fx;
   DelayState delay;
   SpaceState space;
   FateChannel fate[kFateChannels];
@@ -579,8 +645,6 @@ class PhoenixModel {
   uint8_t machine_mode = MODE_BENJOLIN;
   float rate_offset = -4.0f;
   float master = 0.74f;
-  int drive = 8;   // leaves the drums room to punch through
-  int crush = 0;
   bool playing = true;
 
   // Measured, not set: how often the comparator is actually flipping. This is

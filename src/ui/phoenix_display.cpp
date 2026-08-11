@@ -24,6 +24,11 @@ PhoenixDisplay::PhoenixDisplay(IGfx& gfx, PhoenixModel& model)
   pages_.push_back(makeLogicPage(model));
   pages_.push_back(makeFilterPage(model));
   pages_.push_back(makeDrumPage(model));
+  // In signal order, which is the order the sound goes through them.
+  pages_.push_back(makeDirtPage(model));
+  pages_.push_back(makeFxPage(model));
+  pages_.push_back(makeGlitchPage(model));
+  pages_.push_back(makeGrainPage(model));
   pages_.push_back(makeDelayPage(model));
   pages_.push_back(makeSpacePage(model));
   pages_.push_back(makeMixPage(model));

@@ -37,6 +37,9 @@ SOURCES := \
   ../src/dsp/drum_voices.cpp \
   ../src/dsp/filter.cpp \
   ../src/dsp/delay.cpp \
+  ../src/dsp/dirt.cpp \
+  ../src/dsp/fx.cpp \
+  ../src/dsp/looper.cpp \
   ../src/dsp/space.cpp \
   ../src/dsp/phoenix_engine.cpp \
   ../src/ui/text_screen.cpp \
@@ -51,6 +54,10 @@ SOURCES := \
   ../src/ui/pages/logic_page.cpp \
   ../src/ui/pages/filter_page.cpp \
   ../src/ui/pages/drum_page.cpp \
+  ../src/ui/pages/dirt_page.cpp \
+  ../src/ui/pages/fx_page.cpp \
+  ../src/ui/pages/glitch_page.cpp \
+  ../src/ui/pages/grain_page.cpp \
   ../src/ui/pages/delay_page.cpp \
   ../src/ui/pages/space_page.cpp \
   ../src/ui/pages/mix_page.cpp \

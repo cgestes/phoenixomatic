@@ -24,6 +24,9 @@
 #include "drum_voices.h"
 #include "filter.h"
 #include "delay.h"
+#include "dirt.h"
+#include "fx.h"
+#include "looper.h"
 #include "space.h"
 #include "osc.h"
 
@@ -56,6 +59,10 @@ class PhoenixEngine {
   OscVoice osc_[2];
   DrumVoice drum_[kDrumVoices];
   Filter filter_;
+  Dirt dirt_;
+  Fx fx_;
+  Looper looper_;
+  int glitch_hold_ = 0;
   MultiDelay delay_;
   Space space_;
 
@@ -98,8 +105,6 @@ class PhoenixEngine {
   uint32_t rng_state_ = 0x2545F491u;
   float dc_block_x_ = 0.0f, dc_block_y_ = 0.0f;
   // Quantisation levels for CRUSH; 0 means off.
-  float crush_levels_ = 0.0f;
-  float crush_step_ = 0.0f;   // its reciprocal; the hot path multiplies
   float dc_block_xr_ = 0.0f, dc_block_yr_ = 0.0f;
   int space_gate_hold_ = 0;
   int gate_hold_samples_ = 1;

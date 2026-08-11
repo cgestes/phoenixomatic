@@ -54,13 +54,6 @@ class MixPage : public IPage {
     drawFieldF(scr, 25, 11, masterRow(), 0, PEN_BRIGHT, nav_.at(masterRow(), 0), mbg, "%d",
                static_cast<int>(model_.master * 100.0f));
 
-    bool orow = nav_.atRow(outRow());
-    uint8_t obg = rowBg(orow);
-    if (orow) scr.highlight(1, 13, kScreenCols - 2, PEN_PANEL);
-    scr.text(2, 13, "DRIVE", PEN_DIM, obg);
-    drawFieldF(scr, 8, 13, outRow(), 0, PEN_BRIGHT, nav_.at(outRow(), 0), obg, "%d", model_.drive);
-    scr.text(13, 13, "CRUSH", PEN_DIM, obg);
-    drawFieldF(scr, 19, 13, outRow(), 1, PEN_BRIGHT, nav_.at(outRow(), 1), obg, "%d", model_.crush);
 
   }
 
@@ -75,16 +68,12 @@ class MixPage : public IPage {
     const int here =
         nav_.row() < strip_count_
             ? 2 + nav_.row() + (strip_index_[nav_.row()] >= PhoenixModel::INST_KIK ? 1 : 0)
-            : (nav_.row() == masterRow() ? 12 : 14);
+            : 12;
     if (nav_.row() < strip_count_) {
       if (nav_.field() == 1) return ParamHint{};          // mute is a state
       return withRow(ParamHint{HINT_MIX, *constLevel(strip_index_[nav_.row()])}, here);
     }
-    if (nav_.row() == masterRow()) return withRow(ParamHint{HINT_MIX, model_.master}, here);
-    if (nav_.field() == 0) {
-      return withRow(ParamHint{HINT_DRIVE, static_cast<float>(model_.drive) / 100.0f}, here);
-    }
-    return withRow(ParamHint{HINT_CRUSH, static_cast<float>(model_.crush) / 100.0f}, here);
+    return withRow(ParamHint{HINT_MIX, model_.master}, here);
   }
 
   void setCursor(int row, int field) override { nav_.setCursor(row, field); }
@@ -106,14 +95,7 @@ class MixPage : public IPage {
       }
       return true;
     }
-    if (nav_.row() == masterRow()) {
-      adjust(&model_.master, dir, ev.shift);
-      return true;
-    }
-    int* v = nav_.field() == 0 ? &model_.drive : &model_.crush;
-    *v += dir * (ev.shift ? 1 : 5);
-    if (*v < 0) *v = 0;
-    if (*v > 100) *v = 100;
+    adjust(&model_.master, dir, ev.shift);
     return true;
   }
 
@@ -131,8 +113,7 @@ class MixPage : public IPage {
       else *constLevelMut(i) = 0.0f;
       return;
     }
-    if (nav_.row() == masterRow()) { model_.master = 0.0f; return; }
-    if (nav_.field() == 0) model_.drive = 0; else model_.crush = 0;
+    model_.master = 0.0f;
   }
 
   void randomizeField() override {
@@ -142,19 +123,12 @@ class MixPage : public IPage {
       else *constLevelMut(i) = 0.3f + model_.randomUnit() * 0.7f;
       return;
     }
-    if (nav_.row() == masterRow()) {
-      model_.master = 0.4f + model_.randomUnit() * 0.6f;
-      return;
-    }
-    int* v = nav_.field() == 0 ? &model_.drive : &model_.crush;
-    *v = static_cast<int>(model_.random() % 60u);
+    model_.master = 0.4f + model_.randomUnit() * 0.6f;
   }
 
   void zeroPage() override {
     for (int s = 0; s < strip_count_; ++s) *constLevelMut(strip_index_[s]) = 0.0f;
     model_.master = 0.0f;
-    model_.drive = 0;
-    model_.crush = 0;
   }
 
   void maxField() override {
@@ -165,8 +139,7 @@ class MixPage : public IPage {
       else *constLevelMut(i) = 1.0f;
       return;
     }
-    if (nav_.row() == masterRow()) { model_.master = 1.0f; return; }
-    if (nav_.field() == 0) model_.drive = 100; else model_.crush = 100;
+    model_.master = 1.0f;
   }
 
   void maxPage() override {
@@ -191,7 +164,6 @@ class MixPage : public IPage {
   }
 
   int masterRow() const { return strip_count_; }
-  int outRow() const { return strip_count_ + 1; }
 
   // Voices the mode does not have get no strip, the same rule the footer and
   // the mod banks follow. Rebuilt only when the mode changes.
@@ -204,8 +176,7 @@ class MixPage : public IPage {
     }
     for (int i = 0; i < strip_count_; ++i) fields_[i] = 2;  // level, mute
     fields_[masterRow()] = 1;
-    fields_[outRow()] = 2;                                  // drive, crush
-    nav_.configure(fields_, strip_count_ + 2);
+    nav_.configure(fields_, strip_count_ + 1);
   }
 
   // Names and levels come from the model, so this page and the footer strip
@@ -220,7 +191,7 @@ class MixPage : public IPage {
 
   PhoenixModel& model_;
   RowNav nav_;
-  uint8_t fields_[kMaxStrips + 2] = {};
+  uint8_t fields_[kMaxStrips + 1] = {};
   int strip_index_[kMaxStrips] = {};
   int strip_count_ = 0;
   uint8_t nav_mode_ = 0xFF;

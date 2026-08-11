@@ -32,7 +32,11 @@ The third decision is the one that defines the instrument. See §3.
 | 5 | Filter | 1 | Resonant multimode (LP/BP/HP), fed by the comparator's pulse train and swept by the rungler. The Benjolin's voice. |
 | 5 | Gate channel — **FATE** | 4 | Divider **then** coin toss, in series. Three taps each |
 | 6 | Drum voice | 4 | KIK, SNR, HH, OH — each with trigger source, chance, divider |
-| 7 | **DELAY** | 1 | Four taps off one line, each with a time, a level and a place in the stereo field |
+| 7 | **DIRT** | 1 | Drive, bit crushing, decimation and three shapes from Liquidateur |
+| 8 | **FX** | 1 | Phaser, flanger, chorus, ensemble — one swept delay at four lengths |
+| 9 | **GLITCH** | 1 | Beat repeat, on a machine with no beat |
+| 10 | **GRAIN** | 1 | Overlapping windowed reads of the same buffer GLITCH uses |
+| 11 | **DELAY** | 1 | Four taps off one line, each with a time, a level and a place in the stereo field |
 | 8 | **SPACE** | 1 | One delay network, three characters: `ROOM`, `SHIMMER`, `IRON`. The only stereo thing on the machine |
 
 ### 2.0a Gate sources
@@ -175,6 +179,53 @@ they use the full panel instead. `LEVEL` on the
 DELAY taps deliberately draws all four taps rather than the one under the cursor — it is a
 balance, not a value. Bank rows draw no sketch, because an attenuverter already draws its own
 track and a second picture of the same number is noise.
+
+### 2.0a3 The effect chain
+
+`voice → DIRT → FX → GLITCH → GRAIN → DELAY → SPACE → master`. Distortion first, modulation next,
+time effects last — the order a desk puts them in, and the reason is audible: chorus a signal then
+delay it and you hear one chorused sound repeating; delay it then chorus it and you hear the
+chorus smear every repeat differently.
+
+**DIRT.** `DRIVE` and `CRUSH` had no module and no page — they were two locals in the output
+stage, which is how `CRUSH` sat unimplemented for weeks without anyone noticing. They are a module
+now, with `DOWN` (decimation) and four shapes: `SOFT` is the `tanh` that was always there,
+`SAVAGE` clips asymmetrically into a sine fold, `BRUTAL` runs clip → bit reduction → wavefold, and
+`ANNIHILATE` is ring modulation, `tanh`, a fold and a sample-and-hold that speeds up with the
+amount. The last three are from Liquidateur, with three changes: its fold looped `while (|x| > 1)`,
+which never returns for a large enough input; its ring modulator evaluated `sin()` at a fixed
+"simplified time", so it was a constant gain rather than a modulator; and its sample-and-hold used
+file-scope statics, so every instance shared one. The gain law is the reference's `1 + level*4`,
+which also keeps the panel number meaning what it did before — the old inline stage was
+`1 + drive*0.04` on a 0…100 field, so `DRIVE 8` lands exactly where it always did.
+
+**GLITCH and GRAIN share one buffer.** Both are "hold the last second and play pieces of it back";
+giving each its own recorder would have cost 86 KB twice for the same samples. The recorder runs
+whether or not either is switched on, so turning one up replays audio that is already there
+instead of a second of silence. `GLITCH`'s slice length is in milliseconds because this machine
+has no tempo — there is no beat to repeat, only an interval, and a gate decides when a new slice
+is taken while `CHANCE` decides whether that gate is taken at all.
+
+**FX** is one swept delay at three lengths plus a phaser that has no delay at all. `FEEDBACK` is
+what separates flanger from chorus, so it greys out on the two modes that do not use it.
+
+Measured — every mode against the clean signal, rms of the difference and stereo width:
+
+| | moved | L-R | | | moved | L-R |
+|---|---|---|---|---|---|---|
+| `SAVAGE` | 5680 | 0 | | `phaser` | 3048 | 2405 |
+| `BRUTAL` | 6430 | 0 | | `flanger` | 3146 | 1055 |
+| `ANNIHILATE` | 10016 | 0 | | `chorus` | 2839 | 0 |
+| `CRUSH` | 544 | 0 | | `ensemble` | 3268 | 1869 |
+| `DOWN` | 2175 | 0 | | `GLITCH` | 4454 | 0 |
+| | | | | `GRAIN` | 3811 | 609 |
+
+Chorus is centred by design — it is one voice, and `ENSEMBLE` is the same thing at three phases
+spread across the field, which is the only difference between them.
+
+**Memory.** `DELAY` 86 KB, `SPACE` 50 KB, the shared capture 86 KB, `FX` 3.5 KB — about 226 KB of
+buffers. Comfortable on desktop and web; a large fraction of an ESP32-S3's internal SRAM, and the
+first thing to shorten if the Cardputer build ever runs out.
 
 ### 2.0b DELAY
 
