@@ -120,11 +120,34 @@ The schematic replaced the caption text the band used to carry. The field's own 
 the row above, so the words were the part saying least — and a picture of a room says "size"
 faster than the word does.
 
+**Its ground is plain** — the cells are blanked to the page background and that is the whole
+treatment. A tint and a border were tried first and were worse than nothing: neither survived the
+things that draw over the panel, so the result read as damage to the page rather than as something
+laid on top. The border was also drawn two pixels outside the cells that ever get repainted, so it
+stayed on screen after the panel went.
+
+**`PhoenixDisplay` draws it, not the pages.** It has to come after the page's own draw or the page
+paints its rows back over it; it has to come after the page's overlay or the scope and the chaos
+plot cut through it; and every sub-page needs the clearing call or the sketch stays burned on. All
+three went wrong while ten pages each owned the call. Pages now only answer what the cursor is on.
+
+**It takes whichever band the edited row is not in.** Two positions, upper and lower; a page stamps
+the screen row it wants kept clear and `hintRow()` picks the far one. A panel that covers the
+number you are turning is worse than no panel — which is exactly what a fixed band did to tap T4
+on DELAY. Checked across every page: 81 hints carry a row to avoid and none land on it.
+
 **It is an overlay, up only while you are turning something.** `PhoenixDisplay` compares the
 sketch's value before and after dispatching a key, so the column pairs, the arrows and `O`/`I`/`R`
 all raise it without anywhere holding a list of which keys count as an edit — a list that would be
 wrong the first time a page gained a control. It fades after about a second and a half, and the
 page's own bottom line comes back.
+
+The panel raises on any change to the hint's **signature**, which folds the kind, both scalars, the
+tap count and the tap array. Comparing two fields only meant the two sketches with the strongest
+case for existing never appeared at all: a delay tap's `LEVEL` lives in the tap array and the
+filter's `MODE` in `tap_count`. The tap array is gathered inside `focusedHint()` rather than in
+`draw()`, because the comparison happens either side of a keypress and `draw()` does not run in
+between — filled during draw, both samples held the same stale values.
 
 The band gets **one forced repaint on the frame after it expires**. The overlay paints pixels over
 cells and `TextScreen` only repaints cells whose contents changed, so without that the sketch

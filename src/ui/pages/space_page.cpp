@@ -81,8 +81,6 @@ class SpacePage : public IPage {
     // The page's own line is always drawn now — the panel floats over the
     // middle of the screen rather than sitting on the bottom rows.
     scr.text(2, 13, modeHint(sp.mode), PEN_FAINT);
-    bool up = model_.hint_flash > 0.0f;
-    if (up || model_.hint_clearing) drawHintPanel(scr, focusedHint(), up);
   }
 
   // What the cursor is on, as a picture. The bank rows deliberately have no
@@ -115,11 +113,6 @@ class SpacePage : public IPage {
       }
     }
     return ParamHint{};
-  }
-
-  void drawOverlay(IGfx& gfx) override {
-    if (model_.hint_flash <= 0.0f) return;
-    drawHintOverlay(gfx, focusedHint(), model_.hint_flash);
   }
 
   void setCursor(int row, int field) override { nav_.setCursor(row, field); }

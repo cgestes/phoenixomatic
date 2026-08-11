@@ -59,8 +59,6 @@ class FilterPage : public IPage {
 
     scr.text(2, 13, "PWM in, rungler on cutoff \x88 the voice", PEN_FAINT);
 
-    bool hint_up = model_.hint_flash > 0.0f;
-    if (hint_up || model_.hint_clearing) drawHintPanel(scr, focusedHint(), hint_up);
   }
 
   int outputInstrument() const override { return PhoenixModel::INST_FILTER; }
@@ -74,11 +72,6 @@ class FilterPage : public IPage {
     h.tap_count = f.mode;
     if (nav_.row() == kTopRow && nav_.field() == 1) return ParamHint{};   // IN
     return h;
-  }
-
-  void drawOverlay(IGfx& gfx) override {
-    if (model_.hint_flash <= 0.0f) return;
-    drawHintOverlay(gfx, focusedHint(), model_.hint_flash);
   }
 
   void setCursor(int row, int field) override { nav_.setCursor(row, field); }

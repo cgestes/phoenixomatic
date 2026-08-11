@@ -46,6 +46,21 @@ struct ParamHint {
   const float* taps = nullptr;   // HINT_TAPS: 4 triples of time_ms, level, pan
   int tap_count = 0;
   const char* caption = nullptr; // one short line, drawn under the sketch
+  // The screen row the control being edited sits on, so the panel can go in
+  // whichever band is not that one. -1 means "anywhere".
+  int8_t avoid_row = -1;
+
+  // Everything a redraw depends on, folded into one number. The change
+  // detector used to compare a and b only, which meant a hint whose value
+  // lives in tap_count or the taps array never raised the panel at all.
+  float signature() const {
+    float sig = static_cast<float>(kind) * 7.7f + a * 3.1f + b * 1.9f +
+                static_cast<float>(tap_count) * 0.7f;
+    if (taps) {
+      for (int i = 0; i < tap_count * 3; ++i) sig += taps[i] * (0.11f + i * 0.013f);
+    }
+    return sig;
+  }
 };
 
 class TextScreen;
@@ -56,9 +71,19 @@ class TextScreen;
 // less thing to track. It sits over the middle, covering whatever is there
 // while it is up.
 inline constexpr int kHintCol = 7;
-inline constexpr int kHintRow = 6;
 inline constexpr int kHintCols = 25;
 inline constexpr int kHintRows = 2;
+
+// Two bands, and the panel takes whichever one the edited control is not in.
+// A panel that covers the number you are turning is worse than no panel.
+inline constexpr int kHintRowUpper = 2;
+inline constexpr int kHintRowLower = 10;
+
+inline int hintRow(int avoid_screen_row) {
+  // Page rows sit one screen row lower; the comparison is in screen rows
+  // because that is what a page knows about its own layout.
+  return avoid_screen_row >= 8 ? kHintRowUpper : kHintRowLower;
+}
 
 // The text pass: clears the panel, tints it, and writes whatever words the
 // schematic needs. `up` false only clears — call it on the frame after the

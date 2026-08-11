@@ -47,8 +47,6 @@ class SeqPage : public IPage {
     drawModBank(scr, kScrBank, s.mod, kSeqModRows, focus_row, nav_.field(),
                 kSeqDestLabel, "DEST", kBankRow0);
 
-    bool hint_up = model_.hint_flash > 0.0f;
-    if (hint_up || model_.hint_clearing) drawHintPanel(scr, focusedHint(), hint_up);
   }
 
   ParamHint focusedHint() const override {
@@ -68,11 +66,6 @@ class SeqPage : public IPage {
       return ParamHint{HINT_MIX, static_cast<float>(n) / static_cast<float>(kSeqNoteMax)};
     }
     return ParamHint{};
-  }
-
-  void drawOverlay(IGfx& gfx) override {
-    if (model_.hint_flash <= 0.0f) return;
-    drawHintOverlay(gfx, focusedHint(), model_.hint_flash);
   }
 
   void setCursor(int row, int field) override { nav_.setCursor(row, field); }

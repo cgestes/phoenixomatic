@@ -77,47 +77,51 @@ class DelayPage : public IPage {
     drawModBankIndexed(scr, 7, d.mod, bank_index_, bank_count_, focus_row,
                        nav_.field(), kDelayDestLabel, "DEST", kBankRow0);
 
-    // The sketch needs the taps as flat triples; gathered here, where they are
-    // already in hand, rather than in the const hint accessor.
+    // The page's own line is always drawn now — the panel floats over the
+    // middle of the screen rather than sitting on the bottom rows.
+    scr.text(2, 13, "four taps, one line \x88 TIME bends it", PEN_FAINT);
+  }
+
+  // Stamps the row to keep clear onto a hint, so each return does not have to.
+  static ParamHint withRow(ParamHint h, int row) {
+    h.avoid_row = static_cast<int8_t>(row);
+    return h;
+  }
+
+  ParamHint focusedHint() const override {
+    const DelayState& d = model_.delay;
+    // Gathered here rather than in draw(): the change detector compares this
+    // hint either side of a keypress, and draw() does not run in between — so
+    // filling the array during draw left both samples holding the same stale
+    // values and a tap's LEVEL never raised the panel at all.
     for (int i = 0; i < kDelayTaps; ++i) {
       tap_sketch_[i * 3] = d.tap[i].time_ms;
       tap_sketch_[i * 3 + 1] = d.tap[i].level;
       tap_sketch_[i * 3 + 2] = d.tap[i].pan;
     }
-
-    // The page's own line is always drawn now — the panel floats over the
-    // middle of the screen rather than sitting on the bottom rows.
-    scr.text(2, 13, "four taps, one line \x88 TIME bends it", PEN_FAINT);
-    bool up = model_.hint_flash > 0.0f;
-    if (up || model_.hint_clearing) drawHintPanel(scr, focusedHint(), up);
-  }
-
-  ParamHint focusedHint() const override {
-    const DelayState& d = model_.delay;
+    // Screen row of whatever is focused, so the panel takes the other band.
+    // It used to be fixed at rows 6-7, which is tap T4 — the panel explaining
+    // a value covered that value.
+    const int here = nav_.row() == kTopRow ? 1 : 3 + (nav_.row() - kTapRow0);
     if (nav_.row() == kTopRow) {
-      if (nav_.field() == 0) return ParamHint{HINT_MIX, d.mix, 0.0f, nullptr, 0, "dry / wet"};
+      if (nav_.field() == 0) return withRow(ParamHint{HINT_MIX, d.mix, 0.0f, nullptr, 0, "dry / wet"}, here);
       if (nav_.field() == 1) {
-        return ParamHint{HINT_FEEDBACK, d.feedback, 0.0f, nullptr, 0, "each repeat quieter"};
+        return withRow(ParamHint{HINT_FEEDBACK, d.feedback, 0.0f, nullptr, 0, "each repeat quieter"}, here);
       }
-      return ParamHint{HINT_DAMP, d.damp, 0.0f, nullptr, 0, "top lost each repeat"};
+      return withRow(ParamHint{HINT_DAMP, d.damp, 0.0f, nullptr, 0, "top lost each repeat"}, here);
     }
     if (nav_.row() >= kTapRow0 && nav_.row() < kBankRow0) {
       const DelayTap& t = d.tap[nav_.row() - kTapRow0];
       if (nav_.field() == 0) {
-        return ParamHint{HINT_TIME, t.time_ms, kMaxTimeMs, nullptr, 0, "how far apart"};
+        return withRow(ParamHint{HINT_TIME, t.time_ms, kMaxTimeMs, nullptr, 0, "how far apart"}, here);
       }
-      if (nav_.field() == 2) return ParamHint{HINT_PAN, t.pan, 0.0f, nullptr, 0, "where it lands"};
+      if (nav_.field() == 2) return withRow(ParamHint{HINT_PAN, t.pan, 0.0f, nullptr, 0, "where it lands"}, here);
       // LEVEL is the one field where seeing all four taps together beats
       // seeing this one alone — it is a balance, not a value.
-      return ParamHint{HINT_TAPS, 0.0f, longestTap(), tap_sketch_, kDelayTaps,
-                       "the four taps"};
+      return withRow(ParamHint{HINT_TAPS, 0.0f, longestTap(), tap_sketch_, kDelayTaps,
+                       "the four taps"}, here);
     }
     return ParamHint{};
-  }
-
-  void drawOverlay(IGfx& gfx) override {
-    if (model_.hint_flash <= 0.0f) return;
-    drawHintOverlay(gfx, focusedHint(), model_.hint_flash);
   }
 
   void setCursor(int row, int field) override { nav_.setCursor(row, field); }

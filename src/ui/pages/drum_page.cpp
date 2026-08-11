@@ -70,11 +70,6 @@ class DrumPage : public IPage {
     return ParamHint{};
   }
 
-  void drawOverlay(IGfx& gfx) override {
-    if (model_.hint_flash <= 0.0f) return;
-    drawHintOverlay(gfx, focusedHint(), model_.hint_flash);
-  }
-
   void setCursor(int row, int field) override { nav_.setCursor(row, field); }
   int focusedField() const override { return nav_.field(); }
 
@@ -273,8 +268,6 @@ class DrumPage : public IPage {
     }
     scr.text(2, 13, "5-8 mute these voices", PEN_FAINT);
 
-    bool hint_up = model_.hint_flash > 0.0f;
-    if (hint_up || model_.hint_clearing) drawHintPanel(scr, focusedHint(), hint_up);
   }
 
   void drawVoices(TextScreen& scr) {

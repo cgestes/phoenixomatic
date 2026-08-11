@@ -237,10 +237,24 @@ void PhoenixDisplay::update(float dt) {
   drawHeader();
   screen_.setRowOffset(kPageRowOffset);
   page->draw(screen_);
+
+  // The parameter panel is drawn here rather than by each page, and after the
+  // page, for three reasons the pages kept getting wrong: it has to come last
+  // or the page paints its own rows back over it; every sub-page needs the
+  // clearing call or the sketch stays burned on screen; and a page that owns
+  // the call can forget it. Pages only say what the cursor is on.
+  bool hint_up = model_.hint_flash > 0.0f;
+  if (hint_up || model_.hint_clearing) {
+    drawHintPanel(screen_, page->focusedHint(), hint_up);
+  }
+
   screen_.setRowOffset(0);
   drawMixFooter();
   screen_.flush();
   page->drawOverlay(gfx_);
+  // Likewise last in the overlay pass: the scope and the chaos plot are drawn
+  // by the page and would otherwise cut straight through the panel.
+  if (hint_up) drawHintOverlay(gfx_, page->focusedHint(), model_.hint_flash);
   gfx_.flush();
 }
 
@@ -254,12 +268,9 @@ void PhoenixDisplay::adjustFocused(int dir, bool fine) {
   UIEvent ev;
   ev.key = dir > 0 ? RowNav::kFieldUp[field] : RowNav::kFieldDown[field];
   ev.shift = fine;
-  ParamHint before = page->focusedHint();
+  float before = page->focusedHint().signature();
   page->handleKey(ev);
-  ParamHint after = page->focusedHint();
-  if (after.kind == before.kind && (after.a != before.a || after.b != before.b)) {
-    model_.hint_flash = 1.0f;
-  }
+  if (page->focusedHint().signature() != before) model_.hint_flash = 1.0f;
 }
 
 void PhoenixDisplay::mouseDown(int x, int y) {
@@ -408,11 +419,8 @@ bool PhoenixDisplay::handleKey(const UIEvent& ev) {
   // O / I / R alike, without anywhere having a list of which keys count as an
   // edit — a list that would be wrong the first time a page adds a control.
   IPage* page = pages_[page_index_].get();
-  ParamHint before = page->focusedHint();
+  float before = page->focusedHint().signature();
   bool handled = handleGlobalKey(ev) || page->handleKey(ev);
-  ParamHint after = page->focusedHint();
-  if (after.kind == before.kind && (after.a != before.a || after.b != before.b)) {
-    model_.hint_flash = 1.0f;
-  }
+  if (page->focusedHint().signature() != before) model_.hint_flash = 1.0f;
   return handled;
 }

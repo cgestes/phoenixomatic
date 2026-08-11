@@ -84,14 +84,9 @@ class OscPage : public IPage {
 
     scr.reserve(kScopeCol, kScopeRow, kScopeCols, kScopeRows);
 
-    bool hint_up = model_.hint_flash > 0.0f;
-    if (hint_up || model_.hint_clearing) drawHintPanel(scr, focusedHint(), hint_up);
   }
 
   void drawOverlay(IGfx& gfx) override {
-    if (model_.hint_flash > 0.0f) {
-      drawHintOverlay(gfx, focusedHint(), model_.hint_flash);
-    }
     Osc& o = model_.osc[voice_];
     int x0 = TextScreen::pixelX(kScopeCol);
     int y0 = TextScreen::pixelY(kScopeRow);
@@ -135,18 +130,25 @@ class OscPage : public IPage {
     return voice_ == 0 ? PhoenixModel::INST_OSC1 : PhoenixModel::INST_OSC2;
   }
 
+  static ParamHint withRow(ParamHint h, int row) {
+    h.avoid_row = static_cast<int8_t>(row);
+    return h;
+  }
+
   ParamHint focusedHint() const override {
+    // Only the tuning row carries hints, and it is screen row 1.
+    const int here = 1;
     const Osc& o = model_.osc[voice_];
     if (nav_.row() >= kBankRow0) return ParamHint{};
     switch (nav_.field()) {
-      case 0: return ParamHint{HINT_WAVE, static_cast<float>(o.wave)};
+      case 0: return withRow(ParamHint{HINT_WAVE, static_cast<float>(o.wave)}, here);
       // DIV and MULT are one setting with two halves, so both show the ratio.
       case 1:
-      case 2: return ParamHint{HINT_RATIO, static_cast<float>(o.div),
-                               static_cast<float>(o.mult)};
+      case 2: return withRow(ParamHint{HINT_RATIO, static_cast<float>(o.div),
+                               static_cast<float>(o.mult)}, here);
       // Detune as the interval it actually is, cents and all.
-      default: return ParamHint{HINT_INTERVAL,
-                                std::exp2(static_cast<float>(o.dtune) / 1200.0f)};
+      default: return withRow(ParamHint{HINT_INTERVAL,
+                                std::exp2(static_cast<float>(o.dtune) / 1200.0f)}, here);
     }
   }
 

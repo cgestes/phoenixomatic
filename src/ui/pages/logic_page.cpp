@@ -46,9 +46,6 @@ class LogicPage : public IPage {
   }
 
   void drawOverlay(IGfx& gfx) override {
-    if (model_.hint_flash > 0.0f) {
-      drawHintOverlay(gfx, focusedHint(), model_.hint_flash);
-    }
     if (sub_ != 0) return;
     int x0 = TextScreen::pixelX(kTraceCol);
     int y0 = TextScreen::pixelY(kTraceRow);
@@ -290,8 +287,6 @@ class LogicPage : public IPage {
 
     scr.reserve(kTraceCol, kTraceRow, kTraceCols, kTraceRows);
 
-    bool hint_up = model_.hint_flash > 0.0f;
-    if (hint_up || model_.hint_clearing) drawHintPanel(scr, focusedHint(), hint_up);
 
     bool orow = nav_.atRow(kCompOffsetRow);
     uint8_t obg = rowBg(orow);

@@ -50,8 +50,6 @@ class HomePage : public IPage {
     scr.text(21, 1, "OUT", PEN_DIM);
     scr.reserve(kScopeCol, kScopeRow, kScopeCols, kScopeRows);
 
-    bool hint_up = model_.hint_flash > 0.0f;
-    if (hint_up || model_.hint_clearing) drawHintPanel(scr, focusedHint(), hint_up);
 
     scr.text(2, 8, "CMP", PEN_DIM);
     scr.textf(6, 8, PEN_BRIGHT, "%.0fHz", static_cast<double>(model_.comp_hz));
@@ -85,9 +83,6 @@ class HomePage : public IPage {
   }
 
   void drawOverlay(IGfx& gfx) override {
-    if (model_.hint_flash > 0.0f) {
-      drawHintOverlay(gfx, focusedHint(), model_.hint_flash);
-    }
     phoenix_sprite::draw(gfx, TextScreen::pixelX(kBirdCol),
                          TextScreen::pixelY(kBirdRow) - 1, flap_, heat_);
 

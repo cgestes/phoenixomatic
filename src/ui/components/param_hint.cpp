@@ -259,7 +259,11 @@ void pwm(IGfx& g, const Box& b, float offset, IGfxColor c) {
     int yy = mid - static_cast<int>(v * amp);
     g.drawLine(b.x + i - 1, prev, b.x + i, yy, c);
     prev = yy;
-    g.fillRect(b.x + i, yy < thr ? base - 3 : base, 1, 3, yy < thr ? COLOR_HOT : COLOR_FAINT);
+    // Anchored to the last row inside the box, not started from it: three
+    // pixels from base would paint two rows below the panel, onto cells
+    // nothing ever repaints.
+    g.fillRect(b.x + i, base - (yy < thr ? 5 : 2), 1, 3,
+               yy < thr ? COLOR_HOT : COLOR_FAINT);
   }
 }
 
@@ -267,13 +271,16 @@ void crush(IGfx& g, const Box& b, float amount, IGfxColor c) {
   // A wave and the levels it is still allowed to take.
   int mid = b.y + b.h / 2;
   int amp = b.h / 2 - 1;
-  float bits = 12.0f - amount * 10.5f;
-  float levels = std::exp2(bits - 1.0f);
-  if (levels > 16.0f) levels = 16.0f;
+  // Mapped so the picture moves across the whole dial. Taking the engine's
+  // own bit depth and clamping it to what fits meant every value from 0 to 66
+  // drew the identical staircase — the control looked broken.
+  bool off = amount <= 0.005f;
+  float levels = off ? 0.0f : 1.0f + (1.0f - amount) * 11.0f;
   for (int i = 0; i < b.w; ++i) {
     float u = static_cast<float>(i) / static_cast<float>(b.w - 1);
     float v = std::sin(u * 6.2831853f);
-    v = std::round(v * levels) / levels;
+    // At zero the wave is drawn clean, because at zero nothing is crushed.
+    if (!off) v = std::round(v * levels) / levels;
     g.fillRect(b.x + i, mid - static_cast<int>(v * amp), 1, 1, c);
   }
   g.fillRect(b.x, mid, b.w, 1, COLOR_RULE);
@@ -480,6 +487,19 @@ void iconBalance(IGfx& g, const Box& b, float amount, IGfxColor c) {
   g.fillRect(x - 1, y - 4, 3, 8, COLOR_BRIGHT);
 }
 
+// Which kinds have a schematic at all. The sketch for a filter response or a
+// waveform already says what it is; a pictogram explaining a picture is noise.
+bool hasIcon(uint8_t kind) {
+  switch (kind) {
+    case HINT_SIZE: case HINT_DECAY: case HINT_DAMP: case HINT_FEEDBACK:
+    case HINT_TIME: case HINT_PAN: case HINT_TAPS: case HINT_INTERVAL:
+    case HINT_DRIVE: case HINT_GATE: case HINT_MIX:
+      return true;
+    default:
+      return false;
+  }
+}
+
 void drawIcon(IGfx& g, const Box& b, const ParamHint& h, IGfxColor c) {
   switch (h.kind) {
     case HINT_SIZE:     iconRoom(g, b, h.a, c); break;
@@ -501,47 +521,42 @@ void drawIcon(IGfx& g, const Box& b, const ParamHint& h, IGfxColor c) {
 void drawHintLabels(TextScreen& scr, int col, int row, const ParamHint& hint) {
   if (hint.kind != HINT_FEEDBACK) return;
   // Cells the cable deliberately leaves empty; see iconLoop.
-  scr.text(col, row + 1, "IN", PEN_DIM, PEN_PANEL);
+  scr.text(col, row + 1, "IN", PEN_DIM);
   scr.textf(col + 4, row, PEN_HOT, "%d%%", static_cast<int>(hint.a * 100.0f + 0.5f));
-  scr.text(col + 9, row + 1, "OUT", PEN_DIM, PEN_PANEL);
+  scr.text(col + 9, row + 1, "OUT", PEN_DIM);
 }
 
 }  // namespace
 
 void drawHintPanel(TextScreen& scr, const ParamHint& hint, bool up) {
+  // Both bands are touched on the way down: the panel may have been in either
+  // one, and touching the wrong one would leave the sketch on screen.
   if (!up || hint.kind == HINT_NONE) {
-    // Coming down: repaint the cells, but keep what the page already drew
-    // there. Blanking would leave the page's own content missing for a frame.
-    scr.touch(kHintCol, kHintRow, kHintCols, kHintRows);
+    scr.touch(kHintCol, kHintRowUpper, kHintCols, kHintRows);
+    scr.touch(kHintCol, kHintRowLower, kHintCols, kHintRows);
     return;
   }
-  // Going up: blank first, then tint and label over the top.
-  scr.reserve(kHintCol, kHintRow, kHintCols, kHintRows);
-  // A tinted ground, so it reads as something laid over the page rather than
-  // as the page having gone wrong.
-  for (int r = 0; r < kHintRows; ++r) {
-    scr.highlight(kHintCol, kHintRow + r, kHintCols, PEN_PANEL);
-  }
-  drawHintLabels(scr, kHintCol, kHintRow, hint);
+  // Plain ground: reserve blanks to the page background and that is the whole
+  // treatment. A tint and a border made it read as damage rather than as
+  // something laid on top — and neither survived the things that draw over it.
+  int row = hintRow(hint.avoid_row);
+  scr.reserve(kHintCol, row, kHintCols, kHintRows);
+  drawHintLabels(scr, kHintCol, row, hint);
 }
 
 void drawHintOverlay(IGfx& gfx, const ParamHint& hint, float flash) {
   if (hint.kind == HINT_NONE) return;
   int x = TextScreen::pixelX(kHintCol);
-  int y = TextScreen::pixelY(kHintRow);
+  int y = TextScreen::pixelY(hintRow(hint.avoid_row));
   int w = kHintCols * kCellW;
   int h = kHintRows * kCellH;
 
-  // An edge, so the panel has a boundary and does not read as pixels that have
-  // leaked into the page.
-  gfx.fillRect(x - 2, y - 2, w + 4, 1, COLOR_RULE);
-  gfx.fillRect(x - 2, y + h + 1, w + 4, 1, COLOR_RULE);
-  gfx.fillRect(x - 2, y - 2, 1, h + 4, COLOR_RULE);
-  gfx.fillRect(x + w + 1, y - 2, 1, h + 4, COLOR_RULE);
-
   IGfxColor c = lit(flash, COLOR_COOL, COLOR_HOT);
-  const int kIconW = hint.kind == HINT_FEEDBACK ? 72 : 36;
-  if (w > kIconW + 40) {
+  // Only give up the room when there is actually a schematic to put in it.
+  // Eight of the kinds have none, and reserving for them left a third of the
+  // panel empty on most pages.
+  const int kIconW = hasIcon(hint.kind) ? (hint.kind == HINT_FEEDBACK ? 72 : 36) : 0;
+  if (kIconW > 0 && w > kIconW + 40) {
     Box icon{x, y, kIconW, h};
     drawIcon(gfx, icon, hint, c);
     x += kIconW + 8;
