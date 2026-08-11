@@ -38,8 +38,11 @@ const char* const kCompDestLabel[CDEST_COUNT] = { "OFFSET", "DRIVE" };
 
 const char* const kSpaceDestLabel[SPDEST_COUNT] = { "SIZE", "DECAY", "DAMP", "MIX" };
 const char* const kSpaceModeLabel[3] = { "ROOM", "SHIMMER", "IRON" };
+// Spelled out rather than named as intervals. "+12TH" is a twelfth — an
+// octave and a fifth — but it reads as "+12 semitones", which is an octave,
+// so the label said the one thing it did not mean.
 const char* const kShimmerLabel[kShimmerCount] = {
-    "-1 OCT", "-5TH", "+5TH", "+1 OCT", "+12TH", "+2 OCT" };
+    "-1 OCT", "-5TH", "+5TH", "+1 OCT", "+1OCT+5", "+2 OCT" };
 
 const char* const kNoteName[12] = { "C",  "C#", "D",  "D#", "E",  "F",
                                     "F#", "G",  "G#", "A",  "A#", "B" };

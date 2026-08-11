@@ -81,15 +81,20 @@ short — about 70 KB of buffers all told, and roughly thirty operations a sampl
 against the write pointer, so the interval is just that rate and nothing in it cares whether the
 rate is above or below 1 — down costs exactly what up costs:
 
-| | `-1 OCT` | `-5TH` | `+5TH` | `+1 OCT` | `+12TH` | `+2 OCT` |
+| | `-1 OCT` | `-5TH` | `+5TH` | `+1 OCT` | `+1OCT+5` | `+2 OCT` |
 |---|---|---|---|---|---|---|
 | rate | 0.500 | 0.667 | 1.498 | 2.000 | 2.997 | 4.000 |
 | from 220 Hz | 110 | 147 | 330 | 440 | 659 | 880 |
 
 Verified by feeding a 220 Hz burst and measuring the tail at each named interval against a decoy a
 tritone away: the named partial wins in every case. Downward intervals are the interesting
-addition — an octave down under a drone thickens it where an octave up thins it, and `+12TH`
-(octave and a fifth) is the interval that stacks into a chord rather than a drone.
+addition — an octave down under a drone thickens it where an octave up thins it, and `+1OCT+5`
+is the interval that stacks into a chord rather than a drone.
+
+That last one was labelled `+12TH` first, which is its correct name — a twelfth is an octave and
+a fifth — and completely wrong as a label, because it reads as "+12 semitones" and twelve
+semitones is an octave. The interval names collide with the semitone counts everywhere in the
+top half of the list, so the labels spell the interval out instead.
 
 `IRON`'s gate is the point of it. The tail is opened by one of the machine's own **gate sources** —
 `CMP A>B`, a `FATE` tap, `RUNG-A` — so a gated reverb here is locked to the comparator rather than
