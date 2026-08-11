@@ -112,10 +112,16 @@ The schematic replaced the caption text the band used to carry. The field's own 
 the row above, so the words were the part saying least — and a picture of a room says "size"
 faster than the word does.
 
-**It brightens when the value moves, not when a key is pressed.** `PhoenixDisplay` compares the
-sketch's value before and after dispatching, so the column pairs, the arrows and `O`/`I`/`R` all
-flash it without anywhere holding a list of which keys count as an edit — a list that would be
-wrong the first time a page gained a control. The flash fades over about a second.
+**It is an overlay, up only while you are turning something.** `PhoenixDisplay` compares the
+sketch's value before and after dispatching a key, so the column pairs, the arrows and `O`/`I`/`R`
+all raise it without anywhere holding a list of which keys count as an edit — a list that would be
+wrong the first time a page gained a control. It fades after about a second and a half, and the
+page's own bottom line comes back.
+
+The band gets **one forced repaint on the frame after it expires**. The overlay paints pixels over
+cells and `TextScreen` only repaints cells whose contents changed, so without that the sketch
+would stay on screen after it stopped being drawn — the pixels are not the cells' business and
+nothing would have marked them dirty.
 
 **The vocabulary is shared; the placement is not.** A page returns a `ParamHint` from
 `focusedHint()` and reserves its own rectangle, which is what makes this generalise: adding hints

@@ -239,7 +239,7 @@ void iconLoop(IGfx& g, const Box& b, float amount, IGfxColor c) {
   int mid = lo + 3;
 
   int box_l = x0 + 3 * cell;
-  int box_r = x0 + 14 * cell;
+  int box_r = x0 + 8 * cell;
 
   // In, with a head, so the direction is not a guess. Starts two cells in,
   // clear of the word IN sitting on the same row.
@@ -262,10 +262,10 @@ void iconLoop(IGfx& g, const Box& b, float amount, IGfxColor c) {
   // them — so the number labels the cable rather than parking next to it.
   // Faint at zero, so an open loop looks open.
   IGfxColor cable = amount > 0.005f ? c : COLOR_FAINT;
-  int up_x = x0 + 15 * cell;
+  int up_x = box_r + 2;
   int down_x = x0 + 2 * cell + 2;
-  int gap_l = x0 + 7 * cell;
-  int gap_r = x0 + 13 * cell;
+  int gap_l = x0 + 4 * cell - 1;
+  int gap_r = x0 + 8 * cell;
 
   g.drawLine(up_x, lo, up_x, top, cable);
   g.drawLine(up_x, top, gap_r, top, cable);
@@ -384,7 +384,7 @@ void drawParamHint(IGfx& gfx, int x, int y, int w, int h, const ParamHint& hint,
   // what the control is wired to; the second says where it is set.
   // FEEDBACK gets more room than the rest: it is the one schematic carrying
   // words, and IN / % / OUT need cells to sit in.
-  const int kIconW = hint.kind == HINT_FEEDBACK ? 102 : 54;
+  const int kIconW = hint.kind == HINT_FEEDBACK ? 72 : 36;
   if (w > kIconW + 40) {
     Box icon{x, y, kIconW, h};
     drawIcon(gfx, icon, hint, c);
@@ -417,6 +417,6 @@ void drawHintLabels(TextScreen& scr, int col, int row, const ParamHint& hint) {
   // Cells 8..12 are the gap the cable leaves for the number; 0..1 and 16..18
   // are outside its run entirely.
   scr.text(col, row + 1, "IN", PEN_DIM);
-  scr.textf(col + 8, row, PEN_HOT, "%d%%", static_cast<int>(hint.a * 100.0f + 0.5f));
-  scr.text(col + 16, row + 1, "OUT", PEN_DIM);
+  scr.textf(col + 4, row, PEN_HOT, "%d%%", static_cast<int>(hint.a * 100.0f + 0.5f));
+  scr.text(col + 9, row + 1, "OUT", PEN_DIM);
 }

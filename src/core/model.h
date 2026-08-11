@@ -587,9 +587,15 @@ class PhoenixModel {
   // the only "tempo" the machine has, and it is a readout.
   float comp_hz = 0.0f;
 
-  // Brightens the parameter sketch just after an edit, then fades. The eye
-  // should go to the thing that moved.
+  // How long the parameter explanation stays up after an edit. It is an
+  // overlay now rather than a permanent panel: it appears while you are
+  // turning something and gets out of the way afterwards.
   float hint_flash = 0.0f;
+  // True for exactly the frame after it expires. The overlay paints pixels
+  // over cells, and TextScreen only repaints cells that changed — so without
+  // one forced repaint the sketch would still be on screen after it stopped
+  // being drawn.
+  bool hint_clearing = false;
   int step_counter = 0;     // comparator edges since start
   float fate_led = 0.0f;    // any fate channel firing, for the bus strip
   double time = 0.0;

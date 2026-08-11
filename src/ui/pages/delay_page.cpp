@@ -20,7 +20,7 @@ constexpr int kBankRow0 = kTapRow0 + kDelayTaps;
 // Same rectangle as SPACE, so the sketch does not move between the two.
 constexpr int kHintCol = 2;
 constexpr int kHintRow = 12;
-constexpr int kHintCols = 37;
+constexpr int kHintCols = 25;
 constexpr int kHintRows = 2;
 
 class DelayPage : public IPage {
@@ -91,13 +91,17 @@ class DelayPage : public IPage {
     }
 
     ParamHint hint = focusedHint();
-    if (hint.kind != HINT_NONE) {
+    if (hint.kind != HINT_NONE && model_.hint_flash > 0.0f) {
       // Reserve first, then label: reserve() blanks the cells and marks them
       // for repaint, so the words have to be written after it. The schematic
       // then keeps clear of whichever cells the words took.
       scr.reserve(kHintCol, kHintRow, kHintCols, kHintRows);
       drawHintLabels(scr, kHintCol, kHintRow, hint);
     } else {
+      // One forced repaint on the frame after it expires, or the overlay's
+      // pixels would sit there unrepainted. Reserve blanks, so the page's own
+      // line goes back afterwards.
+      if (model_.hint_clearing) scr.reserve(kHintCol, kHintRow, kHintCols, kHintRows);
       scr.text(2, 13, "four taps, one line \x88 TIME bends it", PEN_FAINT);
     }
   }
@@ -127,7 +131,7 @@ class DelayPage : public IPage {
 
   void drawOverlay(IGfx& gfx) override {
     ParamHint hint = focusedHint();
-    if (hint.kind == HINT_NONE) return;
+    if (hint.kind == HINT_NONE || model_.hint_flash <= 0.0f) return;
     drawParamHint(gfx, TextScreen::pixelX(kHintCol), TextScreen::pixelY(kHintRow),
                   kHintCols * kCellW, kHintRows * kCellH, hint, model_.hint_flash);
   }
