@@ -38,6 +38,8 @@ const char* const kCompDestLabel[CDEST_COUNT] = { "OFFSET", "DRIVE" };
 
 const char* const kSpaceDestLabel[SPDEST_COUNT] = { "SIZE", "DECAY", "DAMP", "MIX" };
 const char* const kSpaceModeLabel[3] = { "ROOM", "SHIMMER", "IRON" };
+const char* const kShimmerLabel[kShimmerCount] = {
+    "-1 OCT", "-5TH", "+5TH", "+1 OCT", "+12TH", "+2 OCT" };
 
 const char* const kNoteName[12] = { "C",  "C#", "D",  "D#", "E",  "F",
                                     "F#", "G",  "G#", "A",  "A#", "B" };

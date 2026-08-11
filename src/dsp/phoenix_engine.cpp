@@ -86,6 +86,7 @@ void PhoenixEngine::applyParams() {
     const SpaceState& sp = model_.space;
     space_.setMode(sp.mode);
     space_.setShimmer(sp.shimmer);
+    space_.setShimmerRatio(shimmerRatio(sp.shimmer_pitch));
     space_.setDrive(sp.drive);
   }
 

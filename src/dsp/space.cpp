@@ -65,6 +65,9 @@ void Space::setSize(float v) {
 void Space::setDecay(float v) { decay_ = clamp01(v); }
 void Space::setDamp(float v) { damp_ = clamp01(v); }
 void Space::setShimmer(float v) { shimmer_ = clamp01(v); }
+void Space::setShimmerRatio(float r) {
+  shift_rate_ = r < 0.05f ? 0.05f : (r > 8.0f ? 8.0f : r);
+}
 void Space::setDrive(float v) { drive_ = clamp01(v); }
 
 float Space::delayRead(int line, int offset) const {
@@ -123,7 +126,7 @@ void Space::process(float in, bool gate_open, float* left, float* right) {
     shift_[shift_write_] = tail;
     shift_write_ = (shift_write_ + 1) % kShiftLen;
 
-    shift_read_ += 2.0f;
+    shift_read_ += shift_rate_;
     while (shift_read_ >= static_cast<float>(kShiftLen)) {
       shift_read_ -= static_cast<float>(kShiftLen);
     }

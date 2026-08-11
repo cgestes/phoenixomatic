@@ -58,8 +58,11 @@ class SpacePage : public IPage {
       uint8_t ebg = rowBg(er);
       if (er) scr.highlight(1, 3, kScreenCols - 2, PEN_PANEL);
       if (sp.mode == SPACE_SHIMMER) {
-        scr.text(1, 3, "OCTAVE", PEN_DIM, ebg);
-        drawFieldF(scr, 8, 3, kExtraRow, 0, PEN_VIOLET, nav_.at(kExtraRow, 0), ebg,
+        scr.text(1, 3, "PITCH", PEN_DIM, ebg);
+        drawField(scr, 7, 3, kExtraRow, 0, kShimmerLabel[sp.shimmer_pitch],
+                  PEN_VIOLET, nav_.at(kExtraRow, 0), ebg);
+        scr.text(16, 3, "BLEND", PEN_DIM, ebg);
+        drawFieldF(scr, 22, 3, kExtraRow, 1, PEN_VIOLET, nav_.at(kExtraRow, 1), ebg,
                    "%d%%", static_cast<int>(sp.shimmer * 100.0f));
       } else {
         scr.text(1, 3, "GATE", PEN_DIM, ebg);
@@ -114,7 +117,12 @@ class SpacePage : public IPage {
       return true;
     }
     if (sp.mode == SPACE_SHIMMER) {
-      adjust(&sp.shimmer, d);
+      if (nav_.field() == 0) {
+        sp.shimmer_pitch =
+            static_cast<uint8_t>((sp.shimmer_pitch + kShimmerCount + dir) % kShimmerCount);
+      } else {
+        adjust(&sp.shimmer, d);
+      }
     } else if (nav_.field() == 0) {
       sp.gate_src = static_cast<uint8_t>((sp.gate_src + GATE_COUNT + dir) % GATE_COUNT);
     } else {
@@ -151,7 +159,8 @@ class SpacePage : public IPage {
       else if (nav_.field() == 1) sp.decay = 0.0f;
       else sp.damp = 0.0f;
     } else if (sp.mode == SPACE_SHIMMER) {
-      sp.shimmer = 0.0f;
+      // The origin is the familiar octave up, not the bottom of the list.
+      if (nav_.field() == 0) sp.shimmer_pitch = 3; else sp.shimmer = 0.0f;
     } else if (nav_.field() == 0) {
       sp.gate_src = GATE_CMP_GT;
     } else {
@@ -172,7 +181,8 @@ class SpacePage : public IPage {
       else if (nav_.field() == 1) sp.decay = 1.0f;
       else sp.damp = 1.0f;
     } else if (sp.mode == SPACE_SHIMMER) {
-      sp.shimmer = 1.0f;
+      if (nav_.field() == 0) sp.shimmer_pitch = kShimmerCount - 1;
+      else sp.shimmer = 1.0f;
     } else if (nav_.field() == 0) {
       sp.gate_src = GATE_COUNT - 1;
     } else {
@@ -188,6 +198,7 @@ class SpacePage : public IPage {
     sp.decay = 0.0f;
     sp.damp = 0.0f;
     sp.shimmer = 0.0f;
+    sp.shimmer_pitch = 3;
     sp.drive = 0.0f;
     sp.gate_src = GATE_CMP_GT;
     for (int i = 0; i < bank_count_; ++i) zeroModRow(sp.mod[bank_index_[i]]);
@@ -225,7 +236,11 @@ class SpacePage : public IPage {
       else if (nav_.field() == 1) sp.decay = model_.randomUnit() * 0.85f;
       else sp.damp = model_.randomUnit();
     } else if (sp.mode == SPACE_SHIMMER) {
-      sp.shimmer = model_.randomUnit();
+      if (nav_.field() == 0) {
+        sp.shimmer_pitch = static_cast<uint8_t>(model_.random() % kShimmerCount);
+      } else {
+        sp.shimmer = model_.randomUnit();
+      }
     } else if (nav_.field() == 0) {
       sp.gate_src = static_cast<uint8_t>(model_.random() % GATE_COUNT);
     } else {
@@ -264,7 +279,7 @@ class SpacePage : public IPage {
 
   static const char* modeHint(uint8_t mode) {
     switch (mode) {
-      case SPACE_SHIMMER: return "the tail feeds itself an octave up";
+      case SPACE_SHIMMER: return "the tail feeds itself, transposed";
       case SPACE_IRON:    return "short, driven, gated by the machine";
       default:            return "diffused and damped \x88 a plain room";
     }
@@ -281,7 +296,7 @@ class SpacePage : public IPage {
     int r = 0;
     fields_[r++] = 2;                                   // MODE, MIX
     fields_[r++] = 3;                                   // SIZE, DECAY, DAMP
-    if (hasExtra()) fields_[r++] = model_.space.mode == SPACE_SHIMMER ? 1 : 2;
+    if (hasExtra()) fields_[r++] = 2;   // both modes carry two now
     for (int i = 0; i < bank_count_; ++i) fields_[r++] = 2;
     nav_.configure(fields_, r);
   }

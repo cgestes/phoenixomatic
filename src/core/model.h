@@ -380,6 +380,18 @@ struct FateChannel {
 inline constexpr int kSpaceModRows = 4;
 
 enum SpaceDest : uint8_t { SPDEST_SIZE = 0, SPDEST_DECAY, SPDEST_DAMP, SPDEST_MIX, SPDEST_COUNT };
+
+// What SHIMMER feeds back. An octave up is the familiar one, but the shifter
+// does not care which way it reads — down is as cheap as up, and a fifth is
+// the interval that stacks into a chord instead of a drone.
+inline constexpr int kShimmerCount = 6;
+inline constexpr int kShimmerSemis[kShimmerCount] = {-12, -7, 7, 12, 19, 24};
+extern const char* const kShimmerLabel[kShimmerCount];
+
+inline float shimmerRatio(int i) {
+  int semis = kShimmerSemis[(i < 0 || i >= kShimmerCount) ? 3 : i];
+  return std::exp2(static_cast<float>(semis) / 12.0f);
+}
 extern const char* const kSpaceDestLabel[SPDEST_COUNT];
 extern const char* const kSpaceModeLabel[3];
 
@@ -389,7 +401,8 @@ struct SpaceState {
   float size = 0.5f;
   float decay = 0.6f;
   float damp = 0.5f;
-  float shimmer = 0.5f;      // SHIMMER only
+  float shimmer = 0.5f;      // SHIMMER only: how much rejoins the loop
+  uint8_t shimmer_pitch = 3; // index into kShimmerSemis; 3 is +1 octave
   float drive = 0.4f;        // IRON only
   uint8_t gate_src = GATE_CMP_GT;   // IRON only
   ModRow mod[kSpaceModRows];

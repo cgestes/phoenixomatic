@@ -31,7 +31,8 @@ class Space {
   void setSize(float v);      // 0..1
   void setDecay(float v);     // 0..1, feedback gain
   void setDamp(float v);      // 0..1, how fast the highs go
-  void setShimmer(float v);   // 0..1, how much octave-up rejoins the loop
+  void setShimmer(float v);   // 0..1, how much of the shifted copy rejoins
+  void setShimmerRatio(float r);   // read speed: 2 is an octave up, 0.5 down
   void setDrive(float v);     // 0..1, saturation inside the loop (IRON)
 
   // One sample in, two out. `gate_open` only matters in IRON.
@@ -50,6 +51,7 @@ class Space {
   float sample_rate_ = 22050.0f;
   uint8_t mode_ = SPACE_ROOM;
   float size_ = 0.5f, decay_ = 0.6f, damp_ = 0.5f, shimmer_ = 0.0f, drive_ = 0.0f;
+  float shift_rate_ = 2.0f;
 
   float line_[kLines][kMaxLine] = {};
   int write_[kLines] = {0, 0, 0, 0};
@@ -60,8 +62,10 @@ class Space {
   int diff_write_[kDiffusers] = {0, 0, 0, 0};
   int diff_len_[kDiffusers] = {0, 0, 0, 0};
 
-  // Octave-up: two read pointers half a buffer apart, each running at twice
-  // the write speed, crossfaded so the seam never lands on a hard edge.
+  // Two read pointers half a buffer apart, running at shift_rate_ times the
+  // write speed and crossfaded so the seam never lands on a hard edge. The
+  // rate is the only thing that decides the interval, and nothing in here
+  // cares whether it is above or below 1.
   float shift_[kShiftLen] = {};
   int shift_write_ = 0;
   float shift_read_ = 0.0f;
