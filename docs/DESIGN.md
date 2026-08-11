@@ -32,7 +32,8 @@ The third decision is the one that defines the instrument. See §3.
 | 5 | Filter | 1 | Resonant multimode (LP/BP/HP), fed by the comparator's pulse train and swept by the rungler. The Benjolin's voice. |
 | 5 | Gate channel — **FATE** | 4 | Divider **then** coin toss, in series. Three taps each |
 | 6 | Drum voice | 4 | KIK, SNR, HH, OH — each with trigger source, chance, divider |
-| 7 | **SPACE** | 1 | One delay network, three characters: `ROOM`, `SHIMMER`, `IRON`. The only stereo thing on the machine |
+| 7 | **DELAY** | 1 | Four taps off one line, each with a time, a level and a place in the stereo field |
+| 8 | **SPACE** | 1 | One delay network, three characters: `ROOM`, `SHIMMER`, `IRON`. The only stereo thing on the machine |
 
 ### 2.0a Gate sources
 
@@ -64,7 +65,41 @@ presses away that way and a thousand the other, and doubling is how you actually
 drum divisions. Verified against a 2136 Hz source over 30 seconds: `/256` → 250 hits, `/512` →
 125, `/1024` → 62.
 
-### 2.0b SPACE, and why the output is stereo
+### 2.0b DELAY
+
+**Four taps off a single buffer, not four delay lines.** The memory goes on the longest time you
+can ask for, not on how many taps read it, so four taps cost what one costs: 1 second at 22050 is
+88 KB and that is the whole module. The `TIME` field stops at 1000 ms for exactly that reason —
+letting it climb past what the line holds would show a number it silently does not deliver.
+
+Reads are **interpolated**, because `TIME` is a modulation destination. Sliding a read pointer
+through a buffer is what makes a delay bend in pitch, and without interpolation that bend is a
+staircase of clicks. `TIME` modulation is applied as a **multiplier**, not an offset: changing a
+delay time is a tape speed change and tape speed is a ratio.
+
+**Feedback is taken from a fixed point** — the longest tap's time — rather than from the summed
+taps. Sum the taps and their levels become part of the feedback gain, so turning one tap down
+would shorten the repeat tail. A level control should change what you hear, not how long it lasts.
+
+Measured, one impulse in, taps at 100 / 250 / 400 / 700 ms with feedback off:
+
+| Expected | Found | L | R |
+|---|---|---|---|
+| 100 ms | 100.0 ms | 0.609 | 0.000 |
+| 250 ms | 250.0 ms | 0.260 | 0.159 |
+| 400 ms | 400.0 ms | 0.318 | 0.519 |
+| 700 ms | 700.0 ms | 0.000 | 0.609 |
+
+Equal-power panning, so a tap swept across the field keeps its weight instead of dipping through
+the middle — the hard-panned taps read 0.609/0.000 and 0.000/0.609, the same magnitude either
+side. At **100% feedback** the line sustains without climbing: peak 0.609 over ten seconds, still
+0.254 at the end, because the write is soft-clipped.
+
+`DELAY` sits **before** `SPACE`. Repeats that then get a tail sound like a room; a tail that then
+repeats sounds like a fault. `SPACE` is fed the delay's mono sum but mixed against its *stereo*
+output, so the taps' positions survive the reverb instead of being collapsed by it.
+
+### 2.0c SPACE, and why the output is stereo
 
 Three effects would have been three modules. They are one, because they want the same skeleton:
 a **four-line feedback delay network** with a Householder mixing matrix and a one-pole damper per

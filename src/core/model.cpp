@@ -36,6 +36,8 @@ const char* const kCompShapeLabel[CSHAPE_COUNT] = {
     "PWM", "LIM", "CLIP", "FOLD", "RECT", "MIN", "MAX" };
 const char* const kCompDestLabel[CDEST_COUNT] = { "OFFSET", "DRIVE" };
 
+const char* const kDelayDestLabel[DDEST_COUNT] = { "TIME", "FEED", "DAMP", "MIX" };
+
 const char* const kSpaceDestLabel[SPDEST_COUNT] = { "SIZE", "DECAY", "DAMP", "MIX" };
 const char* const kSpaceModeLabel[3] = { "ROOM", "SHIMMER", "IRON" };
 // Spelled out rather than named as intervals. "+12TH" is a twelfth — an
@@ -163,6 +165,27 @@ PhoenixModel::PhoenixModel() {
     filter.mod[i].src = filt_srcs[i];
     filter.mod[i].mode = FDEST_FREQ;
   }
+  {
+    // Four taps spread across the field, times that are not multiples of each
+    // other so the repeats interleave instead of stacking on the beat.
+    const float t_ms[4] = {120.0f, 190.0f, 310.0f, 470.0f};
+    const float t_lvl[4] = {0.80f, 0.60f, 0.45f, 0.30f};
+    const float t_pan[4] = {-0.70f, 0.40f, -0.30f, 0.80f};
+    for (int i = 0; i < 4; ++i) {
+      delay.tap[i].time_ms = t_ms[i];
+      delay.tap[i].level = t_lvl[i];
+      delay.tap[i].pan = t_pan[i];
+    }
+    const char* dly_names[kDelayModRows] = { "CHAOS-A", "CHAOS-B", "SEQ-1", "CMP" };
+    const SourceId dly_srcs[kDelayModRows] = { SRC_CHA, SRC_CHB, SRC_SQ1, SRC_CMP };
+    for (int i = 0; i < kDelayModRows; ++i) {
+      delay.mod[i].name = dly_names[i];
+      delay.mod[i].src = dly_srcs[i];
+      delay.mod[i].mode = DDEST_TIME;
+    }
+    delay.mod[1].mode = DDEST_FEED;
+  }
+
   {
     const char* space_names[kSpaceModRows] = { "CHAOS-A", "CHAOS-B", "OSC-2", "CMP" };
     const SourceId space_srcs[kSpaceModRows] = { SRC_CHA, SRC_CHB, SRC_OS2, SRC_CMP };

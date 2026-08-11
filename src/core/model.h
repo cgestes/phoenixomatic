@@ -375,6 +375,27 @@ struct FateChannel {
   int count = 0;
 };
 
+// DELAY — one line, four taps, each with a time, a level and a place in the
+// stereo field. See src/dsp/delay.h for why it is one buffer and not four.
+inline constexpr int kDelayModRows = 4;
+
+enum DelayDest : uint8_t { DDEST_TIME = 0, DDEST_FEED, DDEST_DAMP, DDEST_MIX, DDEST_COUNT };
+extern const char* const kDelayDestLabel[DDEST_COUNT];
+
+struct DelayTap {
+  float time_ms = 120.0f;   // 1..2000
+  float level = 0.6f;
+  float pan = 0.0f;         // -1 left, +1 right
+};
+
+struct DelayState {
+  float mix = 0.0f;         // dry at boot, like SPACE
+  float feedback = 0.35f;
+  float damp = 0.4f;
+  DelayTap tap[4];
+  ModRow mod[kDelayModRows];
+};
+
 // SPACE — reverb, shimmer and a gated metal ring, sharing one delay network.
 // See src/dsp/space.h for why they are one module rather than three.
 inline constexpr int kSpaceModRows = 4;
@@ -532,6 +553,7 @@ class PhoenixModel {
   Seq seq[2];
   Comparator comp;
   FilterState filter;
+  DelayState delay;
   SpaceState space;
   FateChannel fate[kFateChannels];
   Drum drum[kDrumVoices];

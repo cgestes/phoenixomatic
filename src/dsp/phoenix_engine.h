@@ -23,6 +23,7 @@
 #include "chaos_osc.h"
 #include "drum_voices.h"
 #include "filter.h"
+#include "delay.h"
 #include "space.h"
 #include "osc.h"
 
@@ -55,6 +56,7 @@ class PhoenixEngine {
   OscVoice osc_[2];
   DrumVoice drum_[kDrumVoices];
   Filter filter_;
+  MultiDelay delay_;
   Space space_;
 
   // The patch bus: one live value per source, exactly the eight the footer

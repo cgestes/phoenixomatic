@@ -36,6 +36,7 @@ SOURCES := \
   ../src/dsp/osc.cpp \
   ../src/dsp/drum_voices.cpp \
   ../src/dsp/filter.cpp \
+  ../src/dsp/delay.cpp \
   ../src/dsp/space.cpp \
   ../src/dsp/phoenix_engine.cpp \
   ../src/ui/text_screen.cpp \
@@ -49,6 +50,7 @@ SOURCES := \
   ../src/ui/pages/logic_page.cpp \
   ../src/ui/pages/filter_page.cpp \
   ../src/ui/pages/drum_page.cpp \
+  ../src/ui/pages/delay_page.cpp \
   ../src/ui/pages/space_page.cpp \
   ../src/ui/pages/mix_page.cpp \
   ../src/ui/pages/config_page.cpp \

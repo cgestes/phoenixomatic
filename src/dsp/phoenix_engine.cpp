@@ -62,6 +62,7 @@ PhoenixEngine::PhoenixEngine(PhoenixModel& model, float sample_rate)
                   0xBEEFu + static_cast<uint32_t>(i) * 2654435761u);
   }
   filter_.init(sample_rate_);
+  delay_.init(sample_rate_);
   space_.init(sample_rate_);
   // ~70ms, so a single-sample pulse is still visible on a 25fps panel.
   led_hold_samples_ = static_cast<int>(sample_rate_ * 0.07f);
@@ -82,6 +83,15 @@ float PhoenixEngine::randUnit() {
 }
 
 void PhoenixEngine::applyParams() {
+  {
+    // Tap times, levels and positions change slowly; only the modulated
+    // scalars are worth touching per sample.
+    const DelayState& dl = model_.delay;
+    for (int i = 0; i < kDelayTaps; ++i) {
+      delay_.setTap(i, dl.tap[i].time_ms, dl.tap[i].level, dl.tap[i].pan);
+    }
+  }
+
   {
     const SpaceState& sp = model_.space;
     space_.setMode(sp.mode);
@@ -459,6 +469,37 @@ void PhoenixEngine::render(int16_t* out, size_t frames) {
       s = std::round(s * crush_levels_) / crush_levels_;
     }
 
+    // --- delay --------------------------------------------------------------
+    // Delay before reverb, the usual order: repeats that then get a tail
+    // sound like a room; a tail that then repeats sounds like a fault.
+    float dry_l = s, dry_r = s;
+    {
+      const DelayState& dl = model_.delay;
+      float scale = 1.0f, feed = dl.feedback, damp = dl.damp, mix = dl.mix;
+      for (int i = 0; i < kDelayModRows; ++i) {
+        const ModRow& m = dl.mod[i];
+        if (!m.active()) continue;
+        float v = m.amount * bus_[m.src];
+        switch (m.mode) {
+          case DDEST_FEED: feed += v; break;
+          case DDEST_DAMP: damp += v; break;
+          case DDEST_MIX:  mix += v; break;
+          // Multiplied, not added: modulating a delay time is a tape speed
+          // change, and tape speed is a ratio.
+          default:         scale *= std::exp2(v); break;
+        }
+      }
+      delay_.setTimeScale(scale);
+      delay_.setFeedback(feed);
+      delay_.setDamp(damp);
+      float wl = 0.0f, wr = 0.0f;
+      delay_.process(s, &wl, &wr);
+      if (mix < 0.0f) mix = 0.0f;
+      if (mix > 1.0f) mix = 1.0f;
+      dry_l = s * (1.0f - mix) + wl * mix;
+      dry_r = s * (1.0f - mix) + wr * mix;
+    }
+
     // --- space --------------------------------------------------------------
     // After the drive, because a reverb belongs after distortion and not
     // inside it, and before MASTER so the wet/dry balance does not shift when
@@ -481,7 +522,8 @@ void PhoenixEngine::render(int16_t* out, size_t frames) {
       space_.setSize(size);
       space_.setDecay(decay);
       space_.setDamp(damp);
-      space_.process(s, gateEdge(sp.gate_src) || space_gate_hold_ > 0, &wet_l, &wet_r);
+      space_.process((dry_l + dry_r) * 0.5f,
+                     gateEdge(sp.gate_src) || space_gate_hold_ > 0, &wet_l, &wet_r);
       // A gate source is an instant, not a duration, so IRON holds it open for
       // a fixed window — otherwise the tail would be shut before it started.
       if (gateEdge(sp.gate_src)) space_gate_hold_ = gate_hold_samples_;
@@ -489,9 +531,11 @@ void PhoenixEngine::render(int16_t* out, size_t frames) {
 
       if (mix < 0.0f) mix = 0.0f;
       if (mix > 1.0f) mix = 1.0f;
+      // Mixed against the *delay's* stereo, not the mono voice: using the
+      // mono sum as dry would collapse everything the taps just panned.
       float dry = 1.0f - mix;
-      wet_l = s * dry + wet_l * mix;
-      wet_r = s * dry + wet_r * mix;
+      wet_l = dry_l * dry + wet_l * mix;
+      wet_r = dry_r * dry + wet_r * mix;
     }
 
     wet_l *= master;
