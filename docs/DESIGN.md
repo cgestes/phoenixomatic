@@ -85,6 +85,27 @@ the bottom two rows: caption on the left, sketch on the right.
 | `DRIVE` | the transfer curve |
 | `GATE` | a tail with holes in it |
 
+Left of each sketch is a **schematic of the mechanism**, which answers a different question: the
+sketch says *where this is set*, the schematic says *what it is wired to*.
+
+| | Schematic |
+|---|---|
+| `SIZE` | a room, whose walls grow with the value, with a source and a ray bouncing off one |
+| `DECAY` | a source and the arcs still coming off it |
+| `DAMP` | an EQ, top band pulled down |
+| `FEEDBACK` | a box with its output cabled back over the top to its input |
+| `TIME` | two ticks and the distance between them |
+| `PAN` | two speakers and where the sound sits between them |
+| `TAPS` | one in, four out at different distances |
+| `INTERVAL` | two note heads, the second an interval from the first |
+| `DRIVE` | a wave meeting the rails it is squashed against |
+| `GATE` | a signal arriving at a gate that is only sometimes open |
+| `MIX` | a crossfader between two sources |
+
+The schematic replaced the caption text the band used to carry. The field's own name is already on
+the row above, so the words were the part saying least — and a picture of a room says "size"
+faster than the word does.
+
 **It brightens when the value moves, not when a key is pressed.** `PhoenixDisplay` compares the
 sketch's value before and after dispatching, so the column pairs, the arrows and `O`/`I`/`R` all
 flash it without anywhere holding a list of which keys count as an edit — a list that would be

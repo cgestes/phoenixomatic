@@ -174,13 +174,189 @@ void gated(IGfx& g, const Box& b, float amount, IGfxColor c) {
   }
 }
 
+
+// --- the schematics --------------------------------------------------------
+//
+// The left half of the band is a pictogram of the mechanism, not a plot of the
+// value: a room for SIZE, a cable looping back for FEEDBACK, an EQ for DAMP.
+// It answers "what is this control wired to", where the sketch beside it
+// answers "and where is it set". Together they replace the caption text the
+// band used to carry — the field's own name is already on the row above, so
+// the words were the part saying least.
+
+void iconRoom(IGfx& g, const Box& b, float amount, IGfxColor c) {
+  // Walls that grow with SIZE, a source inside, and a ray bouncing off one.
+  int w = static_cast<int>((0.35f + 0.65f * amount) * (b.w - 2));
+  int h = b.h - 3;
+  int x = b.x, y = b.y + 1;
+  g.drawLine(x, y, x + w, y, c);
+  g.drawLine(x, y + h, x + w, y + h, c);
+  g.drawLine(x, y, x, y + h, c);
+  g.drawLine(x + w, y, x + w, y + h, c);
+  int sx = x + 3, sy = y + h / 2;
+  g.fillRect(sx, sy - 1, 2, 2, COLOR_BRIGHT);
+  g.drawLine(sx + 2, sy, x + w - 1, y + 1, COLOR_DIM);
+  g.drawLine(x + w - 1, y + 1, sx + 4, y + h - 1, COLOR_DIM);
+}
+
+void iconArcs(IGfx& g, const Box& b, float amount, IGfxColor c) {
+  // A source and the arcs still coming off it: how long it goes on.
+  int y = b.y + b.h / 2;
+  g.fillRect(b.x, y - 3, 3, 7, c);
+  int lit_arcs = 1 + static_cast<int>(amount * 3.99f);
+  for (int i = 0; i < 4; ++i) {
+    int x = b.x + 6 + i * 5;
+    IGfxColor col = i < lit_arcs ? c : COLOR_FAINT;
+    g.drawLine(x, y - 4 + i, x, y + 4 - i, col);
+  }
+}
+
+void iconEq(IGfx& g, const Box& b, float amount, IGfxColor c) {
+  // Three sliders with the top band pulled down — an EQ, which is what DAMP
+  // is doing to every pass round the loop.
+  for (int i = 0; i < 3; ++i) {
+    int x = b.x + 4 + i * 7;
+    g.drawLine(x, b.y + 1, x, b.y + b.h - 2, COLOR_FAINT);
+    float cut = i == 0 ? 0.15f : (i == 1 ? 0.15f + amount * 0.35f : 0.15f + amount * 0.7f);
+    int knob = b.y + 1 + static_cast<int>(cut * (b.h - 4));
+    g.fillRect(x - 2, knob, 5, 2, c);
+  }
+}
+
+void iconLoop(IGfx& g, const Box& b, float amount, IGfxColor c) {
+  // A box with its output cabled back to its input. The cable brightens with
+  // how much comes back.
+  int y = b.y + b.h - 5;
+  int bx = b.x + 4, bw = b.w - 12;
+  g.drawLine(bx, y - 3, bx + bw, y - 3, c);
+  g.drawLine(bx, y + 3, bx + bw, y + 3, c);
+  g.drawLine(bx, y - 3, bx, y + 3, c);
+  g.drawLine(bx + bw, y - 3, bx + bw, y + 3, c);
+  g.drawLine(b.x, y, bx, y, COLOR_DIM);
+  IGfxColor cable = amount > 0.02f ? c : COLOR_FAINT;
+  int top = b.y + 1;
+  g.drawLine(bx + bw, y - 4, bx + bw, top, cable);
+  g.drawLine(bx + bw, top, bx - 2, top, cable);
+  g.drawLine(bx - 2, top, bx - 2, y, cable);
+  g.drawLine(bx - 2, y, bx, y, cable);
+}
+
+void iconGap(IGfx& g, const Box& b, float amount, IGfxColor c) {
+  // Two ticks and the distance between them.
+  int y = b.y + b.h / 2;
+  int gap = 4 + static_cast<int>(amount * (b.w - 12));
+  g.drawLine(b.x + 2, y - 5, b.x + 2, y + 5, c);
+  g.drawLine(b.x + 2 + gap, y - 5, b.x + 2 + gap, y + 5, c);
+  g.drawLine(b.x + 3, y, b.x + 1 + gap, y, COLOR_DIM);
+}
+
+void iconField(IGfx& g, const Box& b, float p, IGfxColor c) {
+  // Two speakers and where the sound sits between them.
+  g.fillRect(b.x, b.y + 4, 4, b.h - 8, COLOR_DIM);
+  g.fillRect(b.x + b.w - 5, b.y + 4, 4, b.h - 8, COLOR_DIM);
+  int y = b.y + b.h / 2;
+  g.drawLine(b.x + 5, y, b.x + b.w - 6, y, COLOR_FAINT);
+  int x = b.x + 5 + static_cast<int>((p * 0.5f + 0.5f) * (b.w - 12));
+  g.fillRect(x - 1, y - 3, 3, 6, c);
+}
+
+void iconFan(IGfx& g, const Box& b, IGfxColor c) {
+  // One in, four out at different distances: what a multi-tap line is.
+  int y = b.y + b.h / 2;
+  g.drawLine(b.x, y, b.x + 5, y, COLOR_DIM);
+  for (int i = 0; i < 4; ++i) {
+    int len = 6 + i * 4;
+    int yy = b.y + 2 + i * ((b.h - 5) / 3);
+    g.drawLine(b.x + 5, y, b.x + 5 + len, yy, c);
+  }
+}
+
+void iconTwoNotes(IGfx& g, const Box& b, float ratio, IGfxColor c) {
+  // Two note heads, the second an interval above or below the first.
+  float oct = std::log2(ratio > 0.01f ? ratio : 0.01f);
+  int y0 = b.y + b.h / 2;
+  int y1 = y0 - static_cast<int>(oct * (b.h / 5.0f));
+  if (y1 < b.y + 1) y1 = b.y + 1;
+  if (y1 > b.y + b.h - 3) y1 = b.y + b.h - 3;
+  g.drawLine(b.x + 2, y0, b.x + b.w - 4, y0, COLOR_FAINT);
+  g.fillRect(b.x + 5, y0 - 1, 4, 3, COLOR_DIM);
+  g.fillRect(b.x + b.w - 12, y1 - 1, 4, 3, c);
+  g.drawLine(b.x + 9, y0, b.x + b.w - 12, y1, COLOR_DIM);
+}
+
+void iconClip(IGfx& g, const Box& b, float amount, IGfxColor c) {
+  // A wave meeting the rails it is being squashed against.
+  int y = b.y + b.h / 2;
+  int rail = 2 + static_cast<int>((1.0f - amount) * (b.h / 2 - 3));
+  g.drawLine(b.x, y - rail, b.x + b.w - 2, y - rail, COLOR_FAINT);
+  g.drawLine(b.x, y + rail, b.x + b.w - 2, y + rail, COLOR_FAINT);
+  int prev = y;
+  for (int i = 0; i < b.w - 2; ++i) {
+    float u = static_cast<float>(i) / static_cast<float>(b.w - 3);
+    float v = std::sin(u * 6.2831853f) * (1.0f + amount * 4.0f);
+    if (v > 1.0f) v = 1.0f;
+    if (v < -1.0f) v = -1.0f;
+    int yy = y - static_cast<int>(v * rail);
+    g.drawLine(b.x + i - 1, prev, b.x + i, yy, c);
+    prev = yy;
+  }
+}
+
+void iconDoor(IGfx& g, const Box& b, IGfxColor c) {
+  // A signal arriving at a gate that is only sometimes open.
+  int y = b.y + b.h / 2;
+  g.drawLine(b.x, y, b.x + 8, y, COLOR_DIM);
+  int gx = b.x + 10;
+  g.drawLine(gx, b.y + 1, gx, y - 2, c);
+  g.drawLine(gx, y + 2, gx, b.y + b.h - 2, c);
+  g.drawLine(gx + 2, y, b.x + b.w - 2, y, c);
+  g.fillRect(gx - 3, y - 1, 3, 3, COLOR_BRIGHT);
+}
+
+void iconBalance(IGfx& g, const Box& b, float amount, IGfxColor c) {
+  // A crossfader between two sources.
+  g.fillRect(b.x, b.y + 3, 4, b.h - 7, COLOR_DIM);
+  g.fillRect(b.x + b.w - 5, b.y + 3, 4, b.h - 7, c);
+  int y = b.y + b.h / 2;
+  g.drawLine(b.x + 5, y, b.x + b.w - 6, y, COLOR_FAINT);
+  int x = b.x + 5 + static_cast<int>(amount * (b.w - 12));
+  g.fillRect(x - 1, y - 4, 3, 8, COLOR_BRIGHT);
+}
+
+void drawIcon(IGfx& g, const Box& b, const ParamHint& h, IGfxColor c) {
+  switch (h.kind) {
+    case HINT_SIZE:     iconRoom(g, b, h.a, c); break;
+    case HINT_DECAY:    iconArcs(g, b, h.a, c); break;
+    case HINT_DAMP:     iconEq(g, b, h.a, c); break;
+    case HINT_FEEDBACK: iconLoop(g, b, h.a, c); break;
+    case HINT_TIME:     iconGap(g, b, h.b > 0.0f ? h.a / h.b : 0.0f, c); break;
+    case HINT_PAN:      iconField(g, b, h.a, c); break;
+    case HINT_TAPS:     iconFan(g, b, c); break;
+    case HINT_INTERVAL: iconTwoNotes(g, b, h.a, c); break;
+    case HINT_DRIVE:    iconClip(g, b, h.a, c); break;
+    case HINT_GATE:     iconDoor(g, b, c); break;
+    case HINT_MIX:      iconBalance(g, b, h.a, c); break;
+    default: break;
+  }
+}
+
 }  // namespace
 
 void drawParamHint(IGfx& gfx, int x, int y, int w, int h, const ParamHint& hint,
                    float flash) {
   if (hint.kind == HINT_NONE || w < 8 || h < 6) return;
-  Box b{x, y, w, h};
   IGfxColor c = lit(flash, COLOR_COOL, COLOR_HOT);
+
+  // Schematic on the left, where the value sits on the right. The first says
+  // what the control is wired to; the second says where it is set.
+  constexpr int kIconW = 54;
+  if (w > kIconW + 40) {
+    Box icon{x, y, kIconW, h};
+    drawIcon(gfx, icon, hint, c);
+    x += kIconW + 8;
+    w -= kIconW + 8;
+  }
+  Box b{x, y, w, h};
 
   switch (hint.kind) {
     case HINT_DECAY:    decay(gfx, b, hint.a, c); break;

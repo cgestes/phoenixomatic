@@ -19,10 +19,9 @@ constexpr int kExtraRow = 2;   // mode-specific; absent in ROOM
 // The bottom two rows, caption left and sketch right. Both effect pages use
 // the same rectangle so the picture does not jump when you step between them,
 // and it sits below the deepest the bank reaches in either machine mode.
-constexpr int kHintCapCol = 2;
-constexpr int kHintCol = 15;
+constexpr int kHintCol = 2;
 constexpr int kHintRow = 12;
-constexpr int kHintCols = 24;
+constexpr int kHintCols = 37;
 constexpr int kHintRows = 2;
 
 class SpacePage : public IPage {
@@ -89,7 +88,6 @@ class SpacePage : public IPage {
     ParamHint hint = focusedHint();
     if (hint.kind != HINT_NONE) {
       scr.reserve(kHintCol, kHintRow, kHintCols, kHintRows);
-      if (hint.caption) scr.text(kHintCapCol, kHintRow, hint.caption, PEN_FAINT);
     } else {
       scr.text(2, 13, modeHint(sp.mode), PEN_FAINT);
     }

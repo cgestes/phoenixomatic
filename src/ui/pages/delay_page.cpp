@@ -18,10 +18,9 @@ constexpr int kTapRow0 = 1;     // four taps
 constexpr int kBankRow0 = kTapRow0 + kDelayTaps;
 
 // Same rectangle as SPACE, so the sketch does not move between the two.
-constexpr int kHintCapCol = 2;
-constexpr int kHintCol = 15;
+constexpr int kHintCol = 2;
 constexpr int kHintRow = 12;
-constexpr int kHintCols = 24;
+constexpr int kHintCols = 37;
 constexpr int kHintRows = 2;
 
 class DelayPage : public IPage {
@@ -94,7 +93,6 @@ class DelayPage : public IPage {
     ParamHint hint = focusedHint();
     if (hint.kind != HINT_NONE) {
       scr.reserve(kHintCol, kHintRow, kHintCols, kHintRows);
-      if (hint.caption) scr.text(kHintCapCol, kHintRow, hint.caption, PEN_FAINT);
     } else {
       scr.text(2, 13, "four taps, one line \x88 TIME bends it", PEN_FAINT);
     }
