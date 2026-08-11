@@ -92,7 +92,11 @@ class DelayPage : public IPage {
 
     ParamHint hint = focusedHint();
     if (hint.kind != HINT_NONE) {
+      // Reserve first, then label: reserve() blanks the cells and marks them
+      // for repaint, so the words have to be written after it. The schematic
+      // then keeps clear of whichever cells the words took.
       scr.reserve(kHintCol, kHintRow, kHintCols, kHintRows);
+      drawHintLabels(scr, kHintCol, kHintRow, hint);
     } else {
       scr.text(2, 13, "four taps, one line \x88 TIME bends it", PEN_FAINT);
     }

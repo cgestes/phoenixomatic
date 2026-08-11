@@ -3,6 +3,7 @@
 #include <cmath>
 
 #include "../../../display.h"
+#include "../text_screen.h"
 #include "../ui_colors.h"
 
 namespace {
@@ -224,21 +225,53 @@ void iconEq(IGfx& g, const Box& b, float amount, IGfxColor c) {
 }
 
 void iconLoop(IGfx& g, const Box& b, float amount, IGfxColor c) {
-  // A box with its output cabled back to its input. The cable brightens with
-  // how much comes back.
-  int y = b.y + b.h - 5;
-  int bx = b.x + 4, bw = b.w - 12;
-  g.drawLine(bx, y - 3, bx + bw, y - 3, c);
-  g.drawLine(bx, y + 3, bx + bw, y + 3, c);
-  g.drawLine(bx, y - 3, bx, y + 3, c);
-  g.drawLine(bx + bw, y - 3, bx + bw, y + 3, c);
-  g.drawLine(b.x, y, bx, y, COLOR_DIM);
-  IGfxColor cable = amount > 0.02f ? c : COLOR_FAINT;
-  int top = b.y + 1;
-  g.drawLine(bx + bw, y - 4, bx + bw, top, cable);
-  g.drawLine(bx + bw, top, bx - 2, top, cable);
-  g.drawLine(bx - 2, top, bx - 2, y, cable);
-  g.drawLine(bx - 2, y, bx, y, cable);
+  // In on the left, a box, out on the right, and the output cabled back over
+  // the top into the input. The words IN / % / OUT are written by
+  // drawHintLabels into cells this deliberately leaves empty: the overlay runs
+  // after the text flush, so anything drawn there would cover them.
+  //
+  // Offsets are in cells from the band's left edge, six pixels each, because
+  // that is what the labels are positioned in.
+  const int cell = 6;
+  int x0 = b.x;
+  int top = b.y + 2;                 // the cable's run, on the upper row
+  int lo = b.y + b.h / 2;            // the lower row
+  int mid = lo + 3;
+
+  int box_l = x0 + 3 * cell;
+  int box_r = x0 + 14 * cell;
+
+  // In, with a head, so the direction is not a guess. Starts two cells in,
+  // clear of the word IN sitting on the same row.
+  g.drawLine(x0 + 2 * cell, mid, box_l - 1, mid, COLOR_DIM);
+  g.drawLine(box_l - 4, mid - 2, box_l - 1, mid, COLOR_DIM);
+  g.drawLine(box_l - 4, mid + 2, box_l - 1, mid, COLOR_DIM);
+
+  g.drawLine(box_l, lo + 1, box_r, lo + 1, c);
+  g.drawLine(box_l, lo + 6, box_r, lo + 6, c);
+  g.drawLine(box_l, lo + 1, box_l, lo + 6, c);
+  g.drawLine(box_r, lo + 1, box_r, lo + 6, c);
+
+  // Out, likewise.
+  // Stops short of the word OUT for the same reason.
+  g.drawLine(box_r, mid, box_r + 8, mid, COLOR_DIM);
+  g.drawLine(box_r + 5, mid - 2, box_r + 8, mid, COLOR_DIM);
+  g.drawLine(box_r + 5, mid + 2, box_r + 8, mid, COLOR_DIM);
+
+  // The return, in two runs with the percentage sitting in the gap between
+  // them — so the number labels the cable rather than parking next to it.
+  // Faint at zero, so an open loop looks open.
+  IGfxColor cable = amount > 0.005f ? c : COLOR_FAINT;
+  int up_x = x0 + 15 * cell;
+  int down_x = x0 + 2 * cell + 2;
+  int gap_l = x0 + 7 * cell;
+  int gap_r = x0 + 13 * cell;
+
+  g.drawLine(up_x, lo, up_x, top, cable);
+  g.drawLine(up_x, top, gap_r, top, cable);
+  g.drawLine(gap_l, top, down_x, top, cable);
+  g.drawLine(down_x, top, down_x, mid, cable);
+  g.drawLine(down_x, mid, box_l - 4, mid, cable);
 }
 
 void iconGap(IGfx& g, const Box& b, float amount, IGfxColor c) {
@@ -349,7 +382,9 @@ void drawParamHint(IGfx& gfx, int x, int y, int w, int h, const ParamHint& hint,
 
   // Schematic on the left, where the value sits on the right. The first says
   // what the control is wired to; the second says where it is set.
-  constexpr int kIconW = 54;
+  // FEEDBACK gets more room than the rest: it is the one schematic carrying
+  // words, and IN / % / OUT need cells to sit in.
+  const int kIconW = hint.kind == HINT_FEEDBACK ? 102 : 54;
   if (w > kIconW + 40) {
     Box icon{x, y, kIconW, h};
     drawIcon(gfx, icon, hint, c);
@@ -372,4 +407,16 @@ void drawParamHint(IGfx& gfx, int x, int y, int w, int h, const ParamHint& hint,
     case HINT_GATE:     gated(gfx, b, hint.a, c); break;
     default: break;
   }
+}
+
+void drawHintLabels(TextScreen& scr, int col, int row, const ParamHint& hint) {
+  if (hint.kind != HINT_FEEDBACK) return;
+  // On the upper row, so the schematic below keeps the whole lower row. The
+  // percentage sits directly over the return cable's run, which is what makes
+  // it read as the cable's label rather than a number parked nearby.
+  // Cells 8..12 are the gap the cable leaves for the number; 0..1 and 16..18
+  // are outside its run entirely.
+  scr.text(col, row + 1, "IN", PEN_DIM);
+  scr.textf(col + 8, row, PEN_HOT, "%d%%", static_cast<int>(hint.a * 100.0f + 0.5f));
+  scr.text(col + 16, row + 1, "OUT", PEN_DIM);
 }

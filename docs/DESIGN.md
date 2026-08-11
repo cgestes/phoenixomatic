@@ -93,7 +93,7 @@ sketch says *where this is set*, the schematic says *what it is wired to*.
 | `SIZE` | a room, whose walls grow with the value, with a source and a ray bouncing off one |
 | `DECAY` | a source and the arcs still coming off it |
 | `DAMP` | an EQ, top band pulled down |
-| `FEEDBACK` | a box with its output cabled back over the top to its input |
+| `FEEDBACK` | `IN →[box]→ OUT`, the output cabled back over the top, with the percentage sitting in a gap in the cable |
 | `TIME` | two ticks and the distance between them |
 | `PAN` | two speakers and where the sound sits between them |
 | `TAPS` | one in, four out at different distances |
@@ -101,6 +101,12 @@ sketch says *where this is set*, the schematic says *what it is wired to*.
 | `DRIVE` | a wave meeting the rails it is squashed against |
 | `GATE` | a signal arriving at a gate that is only sometimes open |
 | `MIX` | a crossfader between two sources |
+
+`FEEDBACK` is the one schematic carrying words, so it gets a wider box. `IN` and `OUT` are written
+on the lower row and the percentage on the upper, in cells the cable deliberately leaves empty —
+the overlay runs after the text flush, so anything drawn there would paint over them. The cable's
+two runs stop either side of the number, which is what makes it read as the cable's label rather
+than a figure parked beside it. At 0% the cable draws faint, so an open loop looks open.
 
 The schematic replaced the caption text the band used to carry. The field's own name is already on
 the row above, so the words were the part saying least — and a picture of a room says "size"

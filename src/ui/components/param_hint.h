@@ -39,6 +39,13 @@ struct ParamHint {
   const char* caption = nullptr; // one short line, drawn under the sketch
 };
 
+class TextScreen;
+
+// The words that belong with a schematic. Drawn in the page's text pass, not
+// the overlay: the overlay runs after the cells are flushed, so anything it
+// paints would cover them. `col`/`row` are the top-left of the reserved band.
+void drawHintLabels(TextScreen& scr, int col, int row, const ParamHint& hint);
+
 // Draws into a pixel rectangle the caller has reserved. `flash` is 0..1 and
 // brightens the sketch just after an edit, so the thing that moved is the
 // thing that catches your eye.
