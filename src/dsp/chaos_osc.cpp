@@ -82,7 +82,18 @@ bool ChaosOsc::tickRungler(bool clock_high, bool data_high) {
   else if (rung_chance_ >= 1.0f) take_new = true;
   else take_new = (runglerRand() >> 8) * (1.0f / 16777216.0f) < rung_chance_;
 
-  uint32_t bit = take_new ? (data_high ? 1u : 0u) : out_bit;
+  // The Benjolin's own path, and not a setting: the bit shifted in is the data
+  // XORed with the one leaving the register. That feedback *is* the mechanism.
+  // Without it the register is a plain shift register sampling OSC-2, and at
+  // any simple ratio — where the data square is strongly correlated with the
+  // clock — it settles onto all-zeros or all-ones and stays there. Measured at
+  // x8: 14 register states and 66% of the time railed without, 152 states and
+  // 16% with.
+  //
+  // It costs no control. CHANCE still reads the same way: at 0 the bit leaving
+  // is recycled untouched and the figure loops, at 100 every clock mixes fresh
+  // data into it.
+  uint32_t bit = take_new ? ((data_high ? 1u : 0u) ^ out_bit) : out_bit;
   rung_shift_ = (rung_shift_ & ~mask) | (((rung_shift_ << 1) | bit) & mask);
 
   // Three reads of the one register, all measured from the exit so they mean

@@ -581,10 +581,10 @@ RUNGLER is the benjolin article, and it is a *loop through the oscillators*:
 ```
 OSC1 square ──clock──▶ ┌──────────────────────┐
                        │ shift reg, 8/16/32   │──┬─ top 3 ▶ TORPOR   (3-bit DAC)
-OSC2 square ──data───▶ │                      │  ├─ top 8 ▶ INERTIA
-       ▲    (CHANCE %) └──────────────────────┘  └─ top 1 ▶ APATHY   (raw pulse)
-       │                          │
-       └──── recycled bit ◀───────┘   (1 - CHANCE)
+OSC2 square ──▶ XOR ──▶│  window = STEPS      │  ├─ top 8 ▶ INERTIA
+                 ▲     └──────────────────────┘  └─ top 1 ▶ APATHY   (raw pulse)
+                 │                 │
+                 └── exit bit ◀────┘ ──▶ recycled directly when CHANCE misses
 ```
 
 CHAOS-B mirrors it — clocked by OSC2, fed by OSC1 — so the two are different runglers rather than
@@ -689,15 +689,34 @@ cost a bug both times it was done.
 
 ### CHANCE — the Turing Machine control
 
-`FEEDBACK` used to live here: `XOR`, then 0…100 for a percentage of clocks. It was removed because
-nobody could tell what it did. `CHANCE` replaces it with the control from the Music Thing Turing
-Machine, which answers a question you can actually hear:
+`FEEDBACK` used to live here: `XOR`, then 0…100 for a percentage of clocks. The *control* was
+removed because nobody could tell what it did — but the XOR itself is not a setting and is now
+always in the data path. The bit shifted in is the data XORed with the one leaving the register;
+that feedback **is** the mechanism, not a garnish on it.
+
+Dropping it along with the knob was a mistake, and it only showed at simple ratios — where the
+data square is strongly correlated with the clock, which is exactly where this machine invites you
+to tune. Measured over ten seconds, register states out of 256 and time spent railed at all-zeros
+or all-ones:
+
+| Tuning | data only | data XOR feedback |
+|---|---|---|
+| `x2` | 9 states, 11% railed | 16 states, **0%** |
+| `x8` | 14 states, 66% railed | 152 states, **16%** |
+| `x3 +35c` | 25 states, 73% railed | 256 states, **25%** |
+
+At the shipped tuning — six octaves apart, 35 cents out — it barely shows (250 states against
+256), because that gap decorrelates the data anyway. Tune to a plain interval and without the XOR
+the register parks on a rail and stays there.
+
+`CHANCE` sits on top of it, taking the control from the Music Thing Turing Machine, and answers a
+question you can actually hear:
 
 | `CHANCE` | Reads | What the register does |
 |---|---|---|
 | `0%` | `LOCKED` | Recycles the bit leaving the end. The figure repeats forever, with period exactly `STEPS`. **`O` lands here** — a locked loop is the origin, not the plain rungler. |
 | `1…99%` | `DRIFT` | Some clocks recycle, some take new data. The figure holds its shape while wandering. |
-| `100%` | `OPEN` | Every clock takes a fresh bit from the other oscillator — the plain rungler. **`I` lands here.** |
+| `100%` | `OPEN` | Every clock mixes fresh data into the feedback — the Benjolin's own rungler. **`I` lands here.** |
 
 Measured, clocking OSC-1 at ~130 Hz:
 
