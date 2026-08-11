@@ -114,6 +114,16 @@ void TextScreen::reserve(int col, int row, int cols, int rows) {
   }
 }
 
+void TextScreen::touch(int col, int row, int cols, int rows) {
+  row += row_offset_;
+  for (int r = 0; r < rows; ++r) {
+    for (int c = 0; c < cols; ++c) {
+      if (!inBounds(col + c, row + r)) continue;
+      reserved_[row + r][col + c] = true;
+    }
+  }
+}
+
 void TextScreen::markField(int col, int row, int cols, int nav_row, int nav_field,
                            int value) {
   row += row_offset_;

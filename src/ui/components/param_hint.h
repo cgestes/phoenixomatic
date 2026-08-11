@@ -41,13 +41,22 @@ struct ParamHint {
 
 class TextScreen;
 
-// The words that belong with a schematic. Drawn in the page's text pass, not
-// the overlay: the overlay runs after the cells are flushed, so anything it
-// paints would cover them. `col`/`row` are the top-left of the reserved band.
-void drawHintLabels(TextScreen& scr, int col, int row, const ParamHint& hint);
+// Where the panel floats. One position for the whole machine rather than one
+// per page: it is a transient overlay, so it does not have to fit around each
+// page's layout, and a panel that appears in the same place every time is one
+// less thing to track. It sits over the middle, covering whatever is there
+// while it is up.
+inline constexpr int kHintCol = 7;
+inline constexpr int kHintRow = 6;
+inline constexpr int kHintCols = 25;
+inline constexpr int kHintRows = 2;
 
-// Draws into a pixel rectangle the caller has reserved. `flash` is 0..1 and
-// brightens the sketch just after an edit, so the thing that moved is the
-// thing that catches your eye.
-void drawParamHint(IGfx& gfx, int x, int y, int w, int h, const ParamHint& hint,
-                   float flash);
+// The text pass: clears the panel, tints it, and writes whatever words the
+// schematic needs. `up` false only clears — call it on the frame after the
+// panel expires, or its pixels stay on screen with nothing marking those cells
+// dirty. Must run inside draw(); the overlay pass is after the cell flush and
+// would paint over anything written here.
+void drawHintPanel(TextScreen& scr, const ParamHint& hint, bool up);
+
+// The overlay pass: a border, the schematic and the value sketch.
+void drawHintOverlay(IGfx& gfx, const ParamHint& hint, float flash);

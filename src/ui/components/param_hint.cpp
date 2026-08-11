@@ -373,17 +373,49 @@ void drawIcon(IGfx& g, const Box& b, const ParamHint& h, IGfxColor c) {
   }
 }
 
+// The words a schematic needs, written where its lines leave cells empty.
+void drawHintLabels(TextScreen& scr, int col, int row, const ParamHint& hint) {
+  if (hint.kind != HINT_FEEDBACK) return;
+  // Cells the cable deliberately leaves empty; see iconLoop.
+  scr.text(col, row + 1, "IN", PEN_DIM, PEN_PANEL);
+  scr.textf(col + 4, row, PEN_HOT, "%d%%", static_cast<int>(hint.a * 100.0f + 0.5f));
+  scr.text(col + 9, row + 1, "OUT", PEN_DIM, PEN_PANEL);
+}
+
 }  // namespace
 
-void drawParamHint(IGfx& gfx, int x, int y, int w, int h, const ParamHint& hint,
-                   float flash) {
-  if (hint.kind == HINT_NONE || w < 8 || h < 6) return;
-  IGfxColor c = lit(flash, COLOR_COOL, COLOR_HOT);
+void drawHintPanel(TextScreen& scr, const ParamHint& hint, bool up) {
+  if (!up || hint.kind == HINT_NONE) {
+    // Coming down: repaint the cells, but keep what the page already drew
+    // there. Blanking would leave the page's own content missing for a frame.
+    scr.touch(kHintCol, kHintRow, kHintCols, kHintRows);
+    return;
+  }
+  // Going up: blank first, then tint and label over the top.
+  scr.reserve(kHintCol, kHintRow, kHintCols, kHintRows);
+  // A tinted ground, so it reads as something laid over the page rather than
+  // as the page having gone wrong.
+  for (int r = 0; r < kHintRows; ++r) {
+    scr.highlight(kHintCol, kHintRow + r, kHintCols, PEN_PANEL);
+  }
+  drawHintLabels(scr, kHintCol, kHintRow, hint);
+}
 
-  // Schematic on the left, where the value sits on the right. The first says
-  // what the control is wired to; the second says where it is set.
-  // FEEDBACK gets more room than the rest: it is the one schematic carrying
-  // words, and IN / % / OUT need cells to sit in.
+void drawHintOverlay(IGfx& gfx, const ParamHint& hint, float flash) {
+  if (hint.kind == HINT_NONE) return;
+  int x = TextScreen::pixelX(kHintCol);
+  int y = TextScreen::pixelY(kHintRow);
+  int w = kHintCols * kCellW;
+  int h = kHintRows * kCellH;
+
+  // An edge, so the panel has a boundary and does not read as pixels that have
+  // leaked into the page.
+  gfx.fillRect(x - 2, y - 2, w + 4, 1, COLOR_RULE);
+  gfx.fillRect(x - 2, y + h + 1, w + 4, 1, COLOR_RULE);
+  gfx.fillRect(x - 2, y - 2, 1, h + 4, COLOR_RULE);
+  gfx.fillRect(x + w + 1, y - 2, 1, h + 4, COLOR_RULE);
+
+  IGfxColor c = lit(flash, COLOR_COOL, COLOR_HOT);
   const int kIconW = hint.kind == HINT_FEEDBACK ? 72 : 36;
   if (w > kIconW + 40) {
     Box icon{x, y, kIconW, h};
@@ -409,14 +441,3 @@ void drawParamHint(IGfx& gfx, int x, int y, int w, int h, const ParamHint& hint,
   }
 }
 
-void drawHintLabels(TextScreen& scr, int col, int row, const ParamHint& hint) {
-  if (hint.kind != HINT_FEEDBACK) return;
-  // On the upper row, so the schematic below keeps the whole lower row. The
-  // percentage sits directly over the return cable's run, which is what makes
-  // it read as the cable's label rather than a number parked nearby.
-  // Cells 8..12 are the gap the cable leaves for the number; 0..1 and 16..18
-  // are outside its run entirely.
-  scr.text(col, row + 1, "IN", PEN_DIM);
-  scr.textf(col + 4, row, PEN_HOT, "%d%%", static_cast<int>(hint.a * 100.0f + 0.5f));
-  scr.text(col + 9, row + 1, "OUT", PEN_DIM);
-}

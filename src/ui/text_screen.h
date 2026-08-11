@@ -79,6 +79,10 @@ class TextScreen {
 
   // --- pixel overlays -----------------------------------------------------
   void reserve(int col, int row, int cols, int rows);
+  // Marks a run for repaint without disturbing what is in it. For the frame
+  // after an overlay stops drawing: its pixels sit on top of cells that have
+  // not changed, so nothing would otherwise repaint them away.
+  void touch(int col, int row, int cols, int rows);
   // Pixel bounds of a cell region, for pages painting overlays.
   static int pixelX(int col) { return col * kCellW; }
   // Overlays live in page coordinates, so they carry the same offset.

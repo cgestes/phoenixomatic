@@ -16,13 +16,6 @@ constexpr int kTopRow = 0;     // MODE | MIX
 constexpr int kToneRow = 1;    // SIZE | DECAY | DAMP
 constexpr int kExtraRow = 2;   // mode-specific; absent in ROOM
 
-// The bottom two rows, caption left and sketch right. Both effect pages use
-// the same rectangle so the picture does not jump when you step between them,
-// and it sits below the deepest the bank reaches in either machine mode.
-constexpr int kHintCol = 2;
-constexpr int kHintRow = 12;
-constexpr int kHintCols = 25;
-constexpr int kHintRows = 2;
 
 class SpacePage : public IPage {
  public:
@@ -85,20 +78,11 @@ class SpacePage : public IPage {
     drawModBankIndexed(scr, hasExtra() ? 5 : 4, sp.mod, bank_index_, bank_count_,
                        focus_row, nav_.field(), kSpaceDestLabel, "DEST", bank0);
 
-    ParamHint hint = focusedHint();
-    if (hint.kind != HINT_NONE && model_.hint_flash > 0.0f) {
-      // Reserve first, then label: reserve() blanks the cells and marks them
-      // for repaint, so the words have to be written after it. The schematic
-      // then keeps clear of whichever cells the words took.
-      scr.reserve(kHintCol, kHintRow, kHintCols, kHintRows);
-      drawHintLabels(scr, kHintCol, kHintRow, hint);
-    } else {
-      // One forced repaint on the frame after it expires, or the overlay's
-      // pixels would sit there unrepainted. Reserve blanks, so the page's own
-      // line goes back afterwards.
-      if (model_.hint_clearing) scr.reserve(kHintCol, kHintRow, kHintCols, kHintRows);
-      scr.text(2, 13, modeHint(sp.mode), PEN_FAINT);
-    }
+    // The page's own line is always drawn now — the panel floats over the
+    // middle of the screen rather than sitting on the bottom rows.
+    scr.text(2, 13, modeHint(sp.mode), PEN_FAINT);
+    bool up = model_.hint_flash > 0.0f;
+    if (up || model_.hint_clearing) drawHintPanel(scr, focusedHint(), up);
   }
 
   // What the cursor is on, as a picture. The bank rows deliberately have no
@@ -134,10 +118,8 @@ class SpacePage : public IPage {
   }
 
   void drawOverlay(IGfx& gfx) override {
-    ParamHint hint = focusedHint();
-    if (hint.kind == HINT_NONE || model_.hint_flash <= 0.0f) return;
-    drawParamHint(gfx, TextScreen::pixelX(kHintCol), TextScreen::pixelY(kHintRow),
-                  kHintCols * kCellW, kHintRows * kCellH, hint, model_.hint_flash);
+    if (model_.hint_flash <= 0.0f) return;
+    drawHintOverlay(gfx, focusedHint(), model_.hint_flash);
   }
 
   void setCursor(int row, int field) override { nav_.setCursor(row, field); }

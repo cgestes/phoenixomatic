@@ -17,11 +17,6 @@ constexpr int kTopRow = 0;      // MIX | FEED | DAMP
 constexpr int kTapRow0 = 1;     // four taps
 constexpr int kBankRow0 = kTapRow0 + kDelayTaps;
 
-// Same rectangle as SPACE, so the sketch does not move between the two.
-constexpr int kHintCol = 2;
-constexpr int kHintRow = 12;
-constexpr int kHintCols = 25;
-constexpr int kHintRows = 2;
 
 class DelayPage : public IPage {
  public:
@@ -90,20 +85,11 @@ class DelayPage : public IPage {
       tap_sketch_[i * 3 + 2] = d.tap[i].pan;
     }
 
-    ParamHint hint = focusedHint();
-    if (hint.kind != HINT_NONE && model_.hint_flash > 0.0f) {
-      // Reserve first, then label: reserve() blanks the cells and marks them
-      // for repaint, so the words have to be written after it. The schematic
-      // then keeps clear of whichever cells the words took.
-      scr.reserve(kHintCol, kHintRow, kHintCols, kHintRows);
-      drawHintLabels(scr, kHintCol, kHintRow, hint);
-    } else {
-      // One forced repaint on the frame after it expires, or the overlay's
-      // pixels would sit there unrepainted. Reserve blanks, so the page's own
-      // line goes back afterwards.
-      if (model_.hint_clearing) scr.reserve(kHintCol, kHintRow, kHintCols, kHintRows);
-      scr.text(2, 13, "four taps, one line \x88 TIME bends it", PEN_FAINT);
-    }
+    // The page's own line is always drawn now — the panel floats over the
+    // middle of the screen rather than sitting on the bottom rows.
+    scr.text(2, 13, "four taps, one line \x88 TIME bends it", PEN_FAINT);
+    bool up = model_.hint_flash > 0.0f;
+    if (up || model_.hint_clearing) drawHintPanel(scr, focusedHint(), up);
   }
 
   ParamHint focusedHint() const override {
@@ -130,10 +116,8 @@ class DelayPage : public IPage {
   }
 
   void drawOverlay(IGfx& gfx) override {
-    ParamHint hint = focusedHint();
-    if (hint.kind == HINT_NONE || model_.hint_flash <= 0.0f) return;
-    drawParamHint(gfx, TextScreen::pixelX(kHintCol), TextScreen::pixelY(kHintRow),
-                  kHintCols * kCellW, kHintRows * kCellH, hint, model_.hint_flash);
+    if (model_.hint_flash <= 0.0f) return;
+    drawHintOverlay(gfx, focusedHint(), model_.hint_flash);
   }
 
   void setCursor(int row, int field) override { nav_.setCursor(row, field); }

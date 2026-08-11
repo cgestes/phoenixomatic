@@ -123,9 +123,15 @@ cells and `TextScreen` only repaints cells whose contents changed, so without th
 would stay on screen after it stopped being drawn — the pixels are not the cells' business and
 nothing would have marked them dirty.
 
-**The vocabulary is shared; the placement is not.** A page returns a `ParamHint` from
-`focusedHint()` and reserves its own rectangle, which is what makes this generalise: adding hints
-to another page is a `focusedHint()` and a rectangle, not a new drawing routine. `LEVEL` on the
+**The vocabulary and the placement are both shared.** The panel floats over the middle of the
+screen, covering whatever is under it while it is up — it is transient, so it does not have to fit
+around each page's layout, and a panel that appears in the same place every time is one less thing
+to track. A page adds hints by implementing `focusedHint()` and making two coordinate-free calls:
+`drawHintPanel` in its text pass and `drawHintOverlay` in its overlay. That is the whole cost of
+adding this to another page.
+
+Both passes are needed because they run either side of the cell flush: words written in the
+overlay pass would be painted over, and pixels drawn in the text pass would be flushed away. `LEVEL` on the
 DELAY taps deliberately draws all four taps rather than the one under the cursor — it is a
 balance, not a value. Bank rows draw no sketch, because an attenuverter already draws its own
 track and a second picture of the same number is noise.
