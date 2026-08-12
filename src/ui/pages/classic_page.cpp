@@ -249,10 +249,10 @@ class ClassicPage : public IPage {
     return true;
   }
 
-  void zeroField() override { setFocused(0.0f); }
-  void minField() override { setFocused(-1.0f); }
-  void midField() override { setFocused(0.5f); }
-  void maxField() override { setFocused(1.0f); }
+  void zeroField() override { setFocused(PLACE_ZERO); }
+  void minField() override { setFocused(PLACE_MIN); }
+  void midField() override { setFocused(PLACE_MID); }
+  void maxField() override { setFocused(PLACE_MAX); }
 
   void zeroPage() override {
     for (int v = 0; v < 2; ++v) {
@@ -312,36 +312,57 @@ class ClassicPage : public IPage {
     setRatio(o, ratioIndexOf(o) + dir * stepInt(1, step));
   }
 
-  // I, O, P and SHIFT+O all mean "put this field at a place along its range",
-  // and every field on this page has one, so they go through a single spot.
-  void setFocused(float t) {
+  // Where along its range to put the focused field, named rather than passed
+  // as a number. It used to take the value itself, which quietly assumed every
+  // field ran from zero upward: O handed 0.5 to a depth that runs -1 to +1, so
+  // the "middle" key landed three quarters of the way up instead of at the
+  // centre. A depth's middle is zero, and only the field knows that.
+  enum Place { PLACE_MIN, PLACE_MID, PLACE_MAX, PLACE_ZERO };
+
+  static float bipolar(Place p) {
+    return p == PLACE_MIN ? -1.0f : (p == PLACE_MAX ? 1.0f : 0.0f);
+  }
+  static float unipolar(Place p) {
+    return p == PLACE_MAX ? 1.0f : (p == PLACE_MID ? 0.5f : 0.0f);
+  }
+
+  void setFocused(Place p) {
     if (nav_.row() == kOsc1Row || nav_.row() == kOsc2Row) {
       Osc& o = model_.osc[nav_.row()];
       if (nav_.field() == 0) {
-        setRatio(o, static_cast<int>(t * 0.5f * (kRatioCount - 1) + (kRatioCount - 1) * 0.5f));
+        // The table is ordered by pitch, so its ends and middle are the
+        // lowest, highest and middle note it offers.
+        setRatio(o, p == PLACE_MIN ? 0
+                  : p == PLACE_MAX ? kRatioCount - 1
+                                   : kRatioCount / 2);
       } else {
-        o.mod[nav_.field() == 1 ? 0 : 3].amount = t;
+        o.mod[nav_.field() == 1 ? 0 : 3].amount = bipolar(p);
       }
       return;
     }
     if (nav_.row() == kRungRow) {
       Chaos& c = model_.chaos[0];
       if (nav_.field() == 0) {
-        c.steps = kRunglerLengths[t <= 0.0f ? 0 : (t >= 1.0f ? kRunglerLengthCount - 1 : 1)];
+        c.steps = kRunglerLengths[p == PLACE_MAX ? kRunglerLengthCount - 1
+                                : p == PLACE_MID ? kRunglerLengthCount / 2 : 0];
       } else if (nav_.field() == 1) {
-        c.chance = t < 0.0f ? 0.0f : t;
+        c.chance = unipolar(p);
       } else {
-        c.clk_div = t <= 0.0f ? kRunglerDoubleSpeed
-                  : (t >= 1.0f ? kRunglerMaxDiv : kRunglerMaxDiv / 2);
+        // x2 is the fast end and lives at the bottom of the stored range, so
+        // "max" here means the slowest division rather than the largest speed.
+        c.clk_div = p == PLACE_MIN ? kRunglerDoubleSpeed
+                  : p == PLACE_MAX ? kRunglerMaxDiv
+                  : p == PLACE_MID ? kRunglerMaxDiv / 2 : 1;
       }
       return;
     }
     if (nav_.row() == kFiltRow) {
-      if (nav_.field() == 0) model_.filter.freq = t < 0.0f ? 0.0f : t;
-      else model_.filter.mod[0].amount = t;
+      if (nav_.field() == 0) model_.filter.freq = unipolar(p);
+      else model_.filter.mod[0].amount = bipolar(p);
       return;
     }
-    setMode(t <= 0.0f ? MODE_CLASSIC : MACHINE_MODE_COUNT - 1);
+    setMode(p == PLACE_MAX ? MACHINE_MODE_COUNT - 1
+          : p == PLACE_MID ? MODE_BENJOLIN : MODE_CLASSIC);
   }
 
   void setMode(uint8_t mode) {

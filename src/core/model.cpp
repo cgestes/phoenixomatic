@@ -441,6 +441,17 @@ void PhoenixModel::applyMachineMode() {
   // clock-sourced default a few lines above and put the whole kit back on the
   // comparator. The drums then hit at the same rate whatever the tempo said.
 
+  // The one-page modes bring the comparator and the filter in with them. The
+  // machine boots with only the oscillators audible on purpose -- see the mute
+  // block in the constructor -- but that reasoning is about having somewhere
+  // to start on a seventeen-screen instrument. On a single page whose whole
+  // subject is the benjolin voice, and which has no mixer to reach, a muted
+  // filter is a row that does nothing for no visible reason.
+  if (machine_mode < MODE_BENJOLIN) {
+    comp.mute = false;
+    filter.mute = false;
+  }
+
   // One chaos oscillator, and it is the rungler.
   chaos[0].mode = CHAOS_RUNGLER;
   // The drums have no page to reach them from, so they do not get to sound.

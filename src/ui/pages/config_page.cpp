@@ -98,7 +98,12 @@ class ConfigPage : public IPage {
   // The middle of each field's range. I and P are its two ends, so O
   // completes them rather than repeating I, which on a field that only
   // runs upward from zero is exactly what it used to do.
-  void midField() override { maxPage(); }
+  // The middle of the mode list, not the top. Generated from maxField, which
+  // had no number in it to halve, so O and P both landed on ADVANCED.
+  void midField() override {
+    model_.machine_mode = MACHINE_MODE_COUNT / 2;
+    model_.applyMachineMode();
+  }
 
   void maxField() override { maxPage(); }
 

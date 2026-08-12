@@ -56,7 +56,7 @@ class FunkyPage : public IPage {
   int outputInstrument() const override { return PhoenixModel::INST_FILTER; }
 
   void draw(TextScreen& scr) override {
-    scr.text(4, 1, "ELEMENT", PEN_DIM);
+    scr.text(5, 1, "ELEMENT", PEN_DIM);
     scr.text(17, 1, "NOW", PEN_DIM);
     scr.text(34, 1, "ROLLS", PEN_DIM);
 
@@ -65,26 +65,37 @@ class FunkyPage : public IPage {
       bool rf = nav_.atRow(e);
       uint8_t bg = rowBg(rf);
       if (rf) scr.highlight(1, y, kScreenCols - 2, PEN_PANEL);
-      scr.put(2, y, rf ? phx_glyphs::kTriRight : ' ', rf ? PEN_HOT : PEN_FAINT);
+      scr.put(1, y, rf ? phx_glyphs::kTriRight : ' ', rf ? PEN_HOT : PEN_FAINT);
+
+      // A lamp per line, because SPACE switches the line in and out and there
+      // has to be somewhere that says which way it is. Off is non-destructive
+      // everywhere -- a muted voice, a frozen register, a bank bypassed with
+      // its amounts intact -- so switching back gets exactly what you had.
+      bool on = elementOn(static_cast<Element>(e));
+      scr.put(3, y, on ? phx_glyphs::kLedOn : phx_glyphs::kLedDot,
+              on ? PEN_HOT : PEN_FAINT, bg);
 
       char now[17];
       describe(static_cast<Element>(e), now, sizeof(now));
       // The whole row is the field: there is one thing to do to it, and the
       // highlight should say "this element" rather than pick out a number.
-      drawField(scr, 4, y, e, 0, kElementName[e],
-                rolls_[e] ? PEN_BRIGHT : PEN_DIM, nav_.at(e, 0), bg);
-      scr.text(17, y, now, PEN_COOL, bg);
+      drawField(scr, 5, y, e, 0, kElementName[e],
+                !on ? PEN_FAINT : (rolls_[e] ? PEN_BRIGHT : PEN_DIM),
+                nav_.at(e, 0), bg);
+      scr.text(17, y, now, on ? PEN_COOL : PEN_FAINT, bg);
       // Untouched elements show nothing rather than a zero, so the ones you
       // have been shaking stand out at a glance.
       if (rolls_[e]) scr.textf(35, y, PEN_VIOLET, "%d", rolls_[e]);
     }
 
-    scr.text(2, 11, "R", PEN_HOT);
-    scr.text(4, 11, "roll it", PEN_DIM);
-    scr.text(14, 11, "O", PEN_HOT);
-    scr.text(16, 11, "put it back", PEN_DIM);
-    scr.text(28, 11, "SHIFT+R", PEN_HOT);
-    scr.text(36, 11, "all", PEN_DIM);
+    scr.text(2, 10, "R", PEN_HOT);
+    scr.text(4, 10, "roll", PEN_DIM);
+    scr.text(10, 10, "O", PEN_HOT);
+    scr.text(12, 10, "put back", PEN_DIM);
+    scr.text(22, 10, "SPACE", PEN_HOT);
+    scr.text(28, 10, "in / out", PEN_DIM);
+    scr.text(2, 11, "SHIFT+R", PEN_HOT);
+    scr.text(10, 11, "roll the lot", PEN_DIM);
 
     // The register, which is the thing the rolls are actually shaking. There is
     // no room for the phoenix on a page that is eight elements, a legend and a
@@ -127,8 +138,15 @@ class FunkyPage : public IPage {
     return true;
   }
 
+  // SPACE switches the focused line in and out, which is the same thing it
+  // does above a module's bank everywhere else in the machine. Play and stop
+  // move to the MODE row, which is not an element and had no use for the key.
   bool toggleField() override {
-    model_.togglePlay();
+    if (nav_.row() >= EL_COUNT) {
+      model_.togglePlay();
+      return true;
+    }
+    toggleElement(static_cast<Element>(nav_.row()));
     return true;
   }
 
@@ -160,6 +178,51 @@ class FunkyPage : public IPage {
   void maxPage() override { randomizePage(); }
 
  private:
+  // Whether a line is doing anything. Each element has its own idea of "off",
+  // and all of them already existed: the machine has had mutes, a freeze and
+  // per-row bypasses since long before this page.
+  bool elementOn(Element e) const {
+    switch (e) {
+      case EL_RUNGLER: return !model_.chaos[0].freeze;
+      case EL_OSC1:    return !model_.osc[0].mute;
+      case EL_OSC2:    return !model_.osc[1].mute;
+      case EL_COMP:    return !model_.comp.mute;
+      case EL_FILTER:  return !model_.filter.mute;
+      case EL_OSC1_MODS: return bankOn(model_.osc[0].mod, kOscModRows);
+      case EL_OSC2_MODS: return bankOn(model_.osc[1].mod, kOscModRows);
+      default:           return bankOn(model_.filter.mod, kFilterModRows);
+    }
+  }
+
+  static bool bankOn(const ModRow* rows, int count) {
+    for (int i = 0; i < count; ++i) if (rows[i].on) return true;
+    return false;
+  }
+
+  // Switching a bank back on re-enables only the rows this mode admits. Turning
+  // every row on regardless would un-bypass the ones applyMachineMode had
+  // deliberately switched off -- a source the mode does not show, driving
+  // something invisibly -- so the round trip did not give back what it took.
+  void setBank(ModRow* rows, int count, bool on) const {
+    for (int i = 0; i < count; ++i) {
+      rows[i].on = on && !sourceHidden(rows[i].src, model_.machine_mode);
+    }
+  }
+
+  void toggleElement(Element e) {
+    bool want = !elementOn(e);
+    switch (e) {
+      case EL_RUNGLER: model_.chaos[0].freeze = !want; break;
+      case EL_OSC1:    model_.osc[0].mute = !want; break;
+      case EL_OSC2:    model_.osc[1].mute = !want; break;
+      case EL_COMP:    model_.comp.mute = !want; break;
+      case EL_FILTER:  model_.filter.mute = !want; break;
+      case EL_OSC1_MODS: setBank(model_.osc[0].mod, kOscModRows, want); break;
+      case EL_OSC2_MODS: setBank(model_.osc[1].mod, kOscModRows, want); break;
+      default:           setBank(model_.filter.mod, kFilterModRows, want); break;
+    }
+  }
+
   float uni() { return model_.randomUnit(); }
   float bi(float lo, float hi) { return lo + uni() * (hi - lo); }
   // A depth that is worth having: away from zero on one side or the other,
@@ -217,6 +280,9 @@ class FunkyPage : public IPage {
         break;
       }
     }
+    // A roll brings the line back in. Shaking something that is switched off
+    // and hearing nothing would read as the dice being broken.
+    if (!elementOn(e)) toggleElement(e);
     if (rolls_[e] < 999) ++rolls_[e];
   }
 
