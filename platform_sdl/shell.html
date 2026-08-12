@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="br">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -45,6 +45,14 @@ td:first-child{white-space:nowrap;width:1%;padding-right:18px}
 .note{color:var(--dim)}
 .rule{border:0;border-top:1px solid var(--rule);margin:40px 0 0}
 code{color:var(--violet)}
+.langbar{display:flex;gap:8px;justify-content:center;margin:36px 0 0}
+.langbar button{font:inherit;font-size:12px;background:var(--panel);color:var(--dim);
+  border:1px solid var(--rule);border-radius:3px;padding:5px 12px;cursor:pointer}
+.langbar button:hover{color:var(--text)}
+.langbar button[aria-current="true"]{color:var(--bg);background:var(--cool);
+  border-color:var(--cool)}
+.langbar button:focus-visible{outline:2px solid var(--ember);outline-offset:2px}
+.lang[hidden]{display:none}
 .cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:0 32px}
 </style>
 </head>
@@ -60,6 +68,396 @@ code{color:var(--violet)}
   <div id="status">loading</div>
 </div>
 
+<nav class="langbar" aria-label="Language">
+  <button type="button" data-set="br" lang="br" aria-current="true">Brezhoneg</button>
+  <button type="button" data-set="fr" lang="fr">Fran&ccedil;ais</button>
+  <button type="button" data-set="en" lang="en">English</button>
+</nav>
+
+<section class="lang" data-lang="br" lang="br">
+<p class="lede" style="margin-top:32px">
+Klikit war ar banell evit reiñ dezhi ar c'hlavier. Ur benveg eo, e div vent :
+ur benjolin — daou oskilher hag ur registr o tabutal an eil gant egile — hag ur
+mekanik ledanoc'h, gant un horolaj, daou heuliader ha peder taboulin en-dro d'ar
+memes kalon. <kbd>[</kbd> ha <kbd>]</kbd> a red dre an holl skrammoù.
+</p>
+
+<h2>Alc'hwezioù</h2>
+
+<p>
+Pep tra a vez kemmet en hevelep doare, e pep lec'h. <kbd>↑</kbd> <kbd>↓</kbd> a
+fiñv etre ar renkoù, ha <kbd>←</kbd> <kbd>→</kbd> etre maeziennoù ur renk. Ne
+fiñvont nemet ar merker. Un alc'hwez all eo kemmañ un dalvoudenn, evit ma
+c'hallfec'h poentañ war un dra hep e cheñch.
+</p>
+
+<div class="cols">
+<div>
+<h3>Fiñval</h3>
+<table>
+<tr><td><kbd>↑</kbd> <kbd>↓</kbd></td><td>etre ar renkoù — miret e vez ar bann emaoc'h ennañ</td></tr>
+<tr><td><kbd>←</kbd> <kbd>→</kbd></td><td>etre maeziennoù ar renk-se</td></tr>
+<tr><td><kbd>[</kbd> <kbd>]</kbd></td><td>skramm kent / war-lerc'h, an is-pajennoù ivez</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>↑</kbd><kbd>↓</kbd></td><td>lammat war-eeun etre an is-pajennoù</td></tr>
+</table>
+
+<h3>Kemmañ un dalvoudenn</h3>
+<table>
+<tr><td><kbd>A</kbd> / <kbd>Z</kbd></td><td>sevel / diskenn, munut</td></tr>
+<tr><td><kbd>S</kbd> / <kbd>X</kbd></td><td>heñvel, rustoc'h — pemp gwech ar paz munut</td></tr>
+<tr><td><kbd>D</kbd> / <kbd>C</kbd></td><td>heñvel, lammoù bras — a-dreuz d'an holl ledander e nebeut a bouezadennoù</td></tr>
+<tr><td colspan="2" class="note">Pe stlejit gant al logodenn ; <kbd>Shift</kbd>+stlej eo an hini munut.</td></tr>
+</table>
+</div>
+
+<div>
+<h3>Lammat a-hed ul ledander</h3>
+<p class="note" style="margin-top:0">Tri alc'hwez a-renk evit tri poent en ul ledander.</p>
+<table>
+<tr><td><kbd>I</kbd></td><td>an traoñ — a-gleiz penn-da-benn war ur pan, −100 war un atenuator</td></tr>
+<tr><td><kbd>O</kbd></td><td>ar c'hreiz — 50 war ul live, kreiz war ur pan</td></tr>
+<tr><td><kbd>P</kbd></td><td>ar c'hrec'h</td></tr>
+<tr><td><kbd>Shift</kbd>+<kbd>I</kbd> / <kbd>P</kbd></td><td>heñvel evit pep maezienn ar bajenn</td></tr>
+<tr><td><kbd>Shift</kbd>+<kbd>O</kbd></td><td>a laka ar bajenn da vann. N'eo ket he c'hreiz a-ratozh — un adlañs a dalv un alc'hwez, « pep tra hanter-hent » ne dalv ket</td></tr>
+</table>
+
+<h3>Chañs, mud, treuzdougen</h3>
+<table>
+<tr><td><kbd>R</kbd> / <kbd>T</kbd> / <kbd>Shift</kbd>+<kbd>R</kbd></td><td>dre zegouezh : ar vaezienn / ar renk / ar bajenn</td></tr>
+<tr><td><kbd>Space</kbd></td><td>trec'haoliñ ar pezh a zo poentet — ur renk modulañ enni pe er-maez, ur paz da ehan, ur vouezh mudet. War ar skramm kentañ : c'hoari / paouez</td></tr>
+<tr><td><kbd>1</kbd>–<kbd>8</kbd></td><td>mudañ ur vouezh, e pep lec'h ma vefec'h. Ar bandenn en traoñ a lavar pehini eo pehini</td></tr>
+<tr><td><kbd>-</kbd> / <kbd>=</kbd> / <kbd>Esc</kbd></td><td>mudañ pep tra / dizmudañ pep tra / eilpennañ</td></tr>
+<tr><td><kbd>Backspace</kbd></td><td>lakaat ur paz heuliader da ehan</td></tr>
+</table>
+</div>
+</div>
+
+<p class="note">
+<kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> <kbd>Z</kbd> <kbd>X</kbd> <kbd>C</kbd>
+hepken a zo miret evit kemmañ, setu emañ peurrest al lizherenneg dieub evit
+berradennoù. Ar skramm <kbd>HELP</kbd> a zoug ar memes roll war ar banell.
+</p>
+
+<h2>Ar benveg, e div vent</h2>
+
+<p>
+Ar skramm <b>CONFIG</b> — hag ar vaezienn gentañ war ar bajenn a-raok — a
+gemm etrezo. Netra ne vez dilamet pa ziskennit : ur modulañ maget gant ur
+modulenn na ziskouez ket ar mekanik bihanoc'h a vez tremenet en-dro hepken,
+ket taolet kuit, hag a zistro pa bignit en-dro.
+</p>
+
+<h3>BENJOLIN — 17 skramm</h3>
+
+<p>
+Ar benveg orin, ha perak emañ ar peurrest amañ. Daou oskilher a red en ur
+c'hompareour ne c'houlenn nemet ur goulenn — hag emañ A a-us da B — hag e riblennoù
+ar respont-se eo <em>hepken</em> santad an amzer gant ar mekanik. N'eus horolaj
+ebet. Tunit an oskilherien an eil ouzh egile hag e cheñcho ar ritm, rak ar
+ritm <em>eo</em> an tunañ.
+</p>
+
+<ul>
+<li><b>OSC-1</b>, <b>OSC-2</b> — pep hini tunet evel ur feur a niveroù anterin
+ouzh ar gwrizienn, gant un dizunañ munut e kantvedennoù. Ar feur eo ar
+c'hontroll pouezus : ar feurioù eeun a stag, ar re ziaes a valeo.</li>
+<li><b>CHAOS-A</b> e mod RUNGLER — ur registr-linkañ horolajet gant un oskilher
+ha maget gant egile. Mammenn dre zegouezh ebet, setu perak e chom ur ritm
+kavet ganeoc'h. <code>STEPS</code> a laka hirder ar rodell, <code>CHANCE</code>
+pegen alies e vez degemeret ur bit nevez : da 0 e tistro ar patrom da viken, da
+100 e kemer pep horolaj roadennoù nevez.</li>
+<li><b>COMPARATOR</b> — ar sav-amzer, hag ur vouezh dre e-unan.
+<code>OFFSET</code> a rikl B dindan A : ledander ar pouls, ha neuze ar ritm.
+<code>OUT</code> a zibab ar pezh a zeu er-maez hep stekiñ ouzh an amzer : ur
+c'harrez kalet, troc'hañ boug pe kalet, ur pleger-gwagenn, ur reizher, pe
+min/max analogel.</li>
+<li><b>FILTER</b> — tren-poulsoù ar c'hompareour dre ur sil dasson liesmod,
+skubet gant ar rungler. Aze e teu mouezh ar benjolin da vat.</li>
+</ul>
+
+<p class="note">
+Kregiñ amañ : lakait ar merker war <code>RATE</code> er bajenn a-raok ha dalc'hit
+<kbd>D</kbd> pe <kbd>C</kbd>. An daou oskilher a fiñv asambles, setu e rikl an
+holl vekanik etre un tik gorrek hag ur youc'hadenn hep ma cheñchfe ar patrom.
+</p>
+
+<h3>ADVANCED — 24 skramm</h3>
+
+<p>
+Ar memes kalon gant ur studio boutin en-dro dezhi. Ar c'hompareour a red c'hoazh,
+ha gallout a rit kemer pep tra digantañ — met bremañ ez eus un dibab.
+</p>
+
+<ul>
+<li><b>CLOCK</b> — un tempo gwir, e BPM, gant daou rannerez. Setu an nemetañ
+lodenn eus ar mekanik a zalc'h an amzer dre he-unan, ha n'emañ amañ hepken. He
+fouls diazez zo ur c'hwezekvedenn ; anvet eo ar rannerezed pa gouezhont war un
+dalvoudenn (<code>/4</code> ur palefarzh, <code>/16</code> ur barrenn).</li>
+<li><b>SEQ-1</b>, <b>SEQ-2</b> — eizh paz, peder bank a eizh patrom, pep hini
+horolajet gant ar porzh a lakait dezhañ. Rannet int a-ratozh er penn-kentañ :
+SEQ-1 war an horolaj, SEQ-2 war ar c'hompareour, evit ma klevfec'h ul linenn a
+zalc'h an amzer ouzh unan na ra ket.</li>
+<li><b>DRUMS</b> — taboulin-droad, kaset, ha div charleston — serret hag digor. An is-pajenn gentañ
+eo an tennerien : pep mouezh a zibab un tenner, ur ranniñ anezhañ, hag ur chañs da
+seniñ da vat. An div all a zalc'h arventennoù ar mouezhioù.</li>
+<li><b>CHAOS-B</b> — un eil oskilher reuzeudik, evit ma c'hallfe an daou vodulañ
+traoù disheñvel.</li>
+</ul>
+
+<p class="note">
+Pep tra a gemer un tenner a c'hall e gemer eus ne vern pelec'h : an horolaj, unan
+eus an daou rannerez, unan eus riblennoù ar c'hompareour, un oskilher, pe ul
+lamm rungler. Ar roll-se eo ar mudurun etre an daou vekanik — poentit an
+taboulinoù war an horolaj hag ur mekanik-taboulin eo, poentit int war ar
+c'hompareour hag ur benjolin gant taboulinoù eo.
+</p>
+
+<h2>An efedoù, ha pelec'h e stag ur vouezh outo</h2>
+
+<p>
+C'hwec'h derez en ur chadenn, ha pep mouezh a zibab pelec'h e stag outi.
+</p>
+
+<table>
+<tr><td><b>DIRT</b></td><td>lusk, brevañ-bitoù, digresk, ha peder stumm — troc'hañ boug, unan a droc'h kaletoc'h war un tu eget war egile, a ouzhpenn harmonikoù par, ur bern troc'hañ-brevañ-plegañ, hag ur freuzer gant rannañ-boullenn</td></tr>
+<tr><td><b>FX</b></td><td>un dale skubet e peder hirder : phaser, flanger, chorus, ensemble</td></tr>
+<tr><td><b>GLITCH</b></td><td>adlavar. Ur porzh a lavar pegoulz e vez tapet un tamm ha <code>CHANCE</code> a lavar hag-eñ e vo. <code>LEN</code> a zo e milieilennoù, pe <code>SYNC</code>, a gemer an hirder eus an esaou etre poulsoù ar porzh e-unan — poentit ar porzh war an horolaj hag e teuio an tamm da vezañ un dalvoudenn nodenn</td></tr>
+<tr><td><b>GRAIN</b></td><td>lennadennoù prenestret o kejañ eus ar memes skurzer eus un eilenn a implij GLITCH</td></tr>
+<tr><td><b>DELAY</b></td><td>peder stouv eus ul linenn nemetañ, pep hini gant e amzer, e live hag e lec'h dezhi</td></tr>
+<tr><td><b>SPACE</b></td><td>dasson, e tri neuz : ur gambr blaen, ur shimmer a vag un eilad uhelaet en-dro dezhañ e-unan, hag unan porzhiet</td></tr>
+</table>
+
+<p>
+War <b>MIX</b> ez eus d'ar mouezhioù un trede bann o lavarout pelec'h e stagont :
+<code>ALL</code> evit ar chadenn a-bezh, pe <code>FX</code>, <code>GLITCH</code>,
+<code>DELAY</code>, <code>SPACE</code> evit tremen dreist d'ar pezh a zo a-raok,
+pe <code>DRY</code> evit tremen dreist da bep tra. Taboulinoù naet met er memes
+kambr hag ar peurrest : <code>DELAY</code>.
+</p>
+
+<p>
+<b>CHAIN</b>, eil is-pajenn MIX, eo an urzh e-unan. An hini kaset zo an hini
+boutin — al lusk da gentañ rak breinañ a ra ul lost dasson bet distummet, an
+efedoù-amzer da ziwezhañ, an dale a-raok an dasson — hag ur reolenn eo dre ma
+talv ar plasoù na zibab ket an arguzenn-se. Ar skurzer a-raok an dale a adlavar
+un tamm sec'h hag a laka an dale d'e respont ; war e lerc'h e adlavar al lost
+ivez.
+</p>
+
+<h2>Modulañ</h2>
+
+<p>
+War an darn vrasañ eus ar skrammoù ez eus ur bank renkoù dindan o c'hontrolloù
+o-unan. Pep renk zo ur vammenn, un dalvoudenn daouben, hag ur pal e-barzh ar
+vodulenn-se ; setu e c'hall <kbd>Space</kbd> lakaat ur renk enni hag er-maez hep
+koll ar pezh a oa lakaet enni. Eizh sinal a zo hegerz e pep lec'h : an daou
+oskilher reuzeudik, an daou oskilher-son, an daou heuliader, ar c'hompareour, hag
+an horolaj.
+</p>
+
+<p class="note">
+An dizober klok war unan bennak anezho a dalv ±10 V e komzoù ar mekanik —
+ugent eizhved war ur pal-uhelder — setu e ra un tamm bihan kalz, hag e vez
+bihan an arventennoù dedennus peurvuiañ.
+</p>
+</section>
+
+<section class="lang" data-lang="fr" lang="fr" hidden>
+<p class="lede" style="margin-top:32px">
+Cliquez sur le panneau pour lui donner le clavier. C'est un seul instrument en
+deux tailles : un benjolin, c'est-à-dire deux oscillateurs et un registre à
+décalage qui se disputent, et une machine plus large — horloge, deux séquenceurs
+et quatre percussions — construite autour du même cœur. <kbd>[</kbd> et
+<kbd>]</kbd> parcourent tous les écrans.
+</p>
+
+<h2>Touches</h2>
+
+<p>
+Tout s'édite de la même façon, partout. <kbd>↑</kbd> <kbd>↓</kbd> déplacent
+d'une ligne à l'autre et <kbd>←</kbd> <kbd>→</kbd> d'un champ à l'autre : elles
+ne font que déplacer le curseur. Changer une valeur est une touche distincte,
+pour qu'on puisse désigner quelque chose sans y toucher.
+</p>
+
+<div class="cols">
+<div>
+<h3>Se déplacer</h3>
+<table>
+<tr><td><kbd>↑</kbd> <kbd>↓</kbd></td><td>d'une ligne à l'autre — la colonne où vous êtes est conservée</td></tr>
+<tr><td><kbd>←</kbd> <kbd>→</kbd></td><td>entre les champs de cette ligne</td></tr>
+<tr><td><kbd>[</kbd> <kbd>]</kbd></td><td>écran précédent / suivant, sous-pages comprises</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>↑</kbd><kbd>↓</kbd></td><td>passer directement d'une sous-page à l'autre</td></tr>
+</table>
+
+<h3>Changer une valeur</h3>
+<table>
+<tr><td><kbd>A</kbd> / <kbd>Z</kbd></td><td>monter / descendre, pas fin</td></tr>
+<tr><td><kbd>S</kbd> / <kbd>X</kbd></td><td>idem, pas normal — cinq fois le pas fin</td></tr>
+<tr><td><kbd>D</kbd> / <kbd>C</kbd></td><td>idem, grands sauts — la plupart des plages en quelques appuis</td></tr>
+<tr><td colspan="2" class="note">Ou glissez à la souris ; <kbd>Maj</kbd>+glisser donne le pas fin.</td></tr>
+</table>
+</div>
+
+<div>
+<h3>Sauter le long d'une plage</h3>
+<p class="note" style="margin-top:0">Trois touches côte à côte pour trois points d'une plage.</p>
+<table>
+<tr><td><kbd>I</kbd></td><td>le bas — tout à gauche sur un panoramique, −100 sur un atténuverseur</td></tr>
+<tr><td><kbd>O</kbd></td><td>le milieu — 50 sur un niveau, le centre sur un panoramique</td></tr>
+<tr><td><kbd>P</kbd></td><td>le haut</td></tr>
+<tr><td><kbd>Maj</kbd>+<kbd>I</kbd> / <kbd>P</kbd></td><td>idem pour tous les champs de la page</td></tr>
+<tr><td><kbd>Maj</kbd>+<kbd>O</kbd></td><td>met la page à zéro. Volontairement pas son milieu : une remise à zéro mérite une touche, « tout à mi-course » non</td></tr>
+</table>
+
+<h3>Hasard, coupures, transport</h3>
+<table>
+<tr><td><kbd>R</kbd> / <kbd>T</kbd> / <kbd>Maj</kbd>+<kbd>R</kbd></td><td>tirer au sort le champ / la ligne / la page</td></tr>
+<tr><td><kbd>Espace</kbd></td><td>bascule ce qui est sélectionné — une ligne de modulation dedans ou dehors, un pas en silence, une voix coupée. Sur le premier écran : lecture / arrêt</td></tr>
+<tr><td><kbd>1</kbd>–<kbd>8</kbd></td><td>couper une voix, où que vous soyez. La bande du bas indique laquelle est laquelle</td></tr>
+<tr><td><kbd>-</kbd> / <kbd>=</kbd> / <kbd>Échap</kbd></td><td>tout couper / tout rétablir / inverser</td></tr>
+<tr><td><kbd>Retour arr.</kbd></td><td>remettre un pas de séquenceur en silence</td></tr>
+</table>
+</div>
+</div>
+
+<p class="note">
+Seules <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> <kbd>Z</kbd> <kbd>X</kbd>
+<kbd>C</kbd> sont réservées à l'édition : le reste de l'alphabet est libre pour
+des raccourcis. L'écran <kbd>HELP</kbd> porte la même liste sur le panneau
+lui-même.
+</p>
+
+<h2>L'instrument, en deux tailles</h2>
+
+<p>
+L'écran <b>CONFIG</b> — et le premier champ de la page d'accueil — bascule de
+l'un à l'autre. Rien n'est supprimé quand on redescend : une modulation
+alimentée par un module que la petite machine n'affiche pas est mise en dérivation
+plutôt que jetée, et elle revient quand on remonte.
+</p>
+
+<h3>BENJOLIN — 17 écrans</h3>
+
+<p>
+L'instrument d'origine, et la raison d'être de tout le reste. Deux oscillateurs
+entrent dans un comparateur qui ne pose qu'une question — A est-il au-dessus de
+B — et les fronts de cette réponse sont le <em>seul</em> sens du temps de la
+machine. Il n'y a pas d'horloge. Accordez les oscillateurs l'un par rapport à
+l'autre et le rythme change, parce que le rythme <em>est</em> l'accord.
+</p>
+
+<ul>
+<li><b>OSC-1</b>, <b>OSC-2</b> — chacun accordé en rapport de nombres entiers
+avec la fondamentale, plus un désaccord fin en cents. Le rapport est la commande
+qui compte : les rapports simples s'accrochent, les rapports biscornus errent.</li>
+<li><b>CHAOS-A</b> en mode RUNGLER — un registre à décalage cadencé par un
+oscillateur et alimenté par l'autre. Aucune source aléatoire nulle part, et
+c'est pourquoi un groove trouvé reste trouvé. <code>STEPS</code> fixe la
+longueur de la boucle, <code>CHANCE</code> la fréquence à laquelle un bit neuf
+entre : à 0 la figure se répète indéfiniment, à 100 chaque coup d'horloge prend
+des données fraîches.</li>
+<li><b>COMPARATOR</b> — la base de temps, et une voix à part entière.
+<code>OFFSET</code> fait glisser B sous A : c'est la largeur d'impulsion, donc
+le rythme. <code>OUT</code> choisit ce qui sort en audio sans toucher au tempo :
+un carré franc, un écrêtage doux ou dur, un replieur d'onde, un redresseur, ou
+un min/max analogique.</li>
+<li><b>FILTER</b> — le train d'impulsions du comparateur dans un filtre
+multimode résonant, balayé par le rungler. C'est de là que vient réellement la
+voix du benjolin.</li>
+</ul>
+
+<p class="note">
+Commencez ici : posez le curseur sur <code>RATE</code> en page d'accueil et
+maintenez <kbd>D</kbd> ou <kbd>C</kbd>. Les deux oscillateurs bougent ensemble,
+donc la machine entière glisse d'un tic lent à un hurlement sans que le motif
+change.
+</p>
+
+<h3>ADVANCED — 24 écrans</h3>
+
+<p>
+Le même cœur, avec un studio classique autour. Le comparateur tourne toujours et
+vous pouvez toujours tout lui prendre — mais il y a maintenant un choix.
+</p>
+
+<ul>
+<li><b>CLOCK</b> — un vrai tempo, en BPM, avec deux diviseurs. C'est la seule
+partie de la machine qui tienne le temps toute seule, et elle n'existe qu'ici.
+Son impulsion de base est une double-croche ; les diviseurs sont nommés quand ils
+tombent sur une valeur de note (<code>/4</code> une noire, <code>/16</code> une
+mesure).</li>
+<li><b>SEQ-1</b>, <b>SEQ-2</b> — huit pas, quatre banques de huit motifs, chacun
+cadencé par la porte qu'on lui désigne. Ils sont volontairement séparés au
+départ : SEQ-1 sur l'horloge, SEQ-2 sur le comparateur, pour qu'on entende une
+ligne qui tient le temps contre une qui ne le tient pas.</li>
+<li><b>DRUMS</b> — grosse caisse, caisse claire, charleston fermé et ouvert. La
+première sous-page est le routage : chaque voix choisit un déclencheur, une
+division de celui-ci, et une probabilité de sonner vraiment. Les deux autres
+tiennent les paramètres de voix.</li>
+<li><b>CHAOS-B</b> — un second oscillateur chaotique, pour que les deux modulent
+des choses différentes.</li>
+</ul>
+
+<p class="note">
+Tout ce qui prend un déclencheur peut le prendre de n'importe où : l'horloge,
+l'un des deux diviseurs, l'un des deux fronts du comparateur, un oscillateur, ou
+un décalage du rungler. Cette liste est la charnière entre les deux machines —
+pointez les percussions sur l'horloge et c'est une boîte à rythmes, pointez-les
+sur le comparateur et c'est un benjolin avec des percussions.
+</p>
+
+<h2>Les effets, et où une voix les rejoint</h2>
+
+<p>
+Six étages en chaîne, et chaque voix choisit où elle y entre.
+</p>
+
+<table>
+<tr><td><b>DIRT</b></td><td>saturation, réduction de bits, décimation, et quatre formes — écrêtage doux, un asymétrique qui ajoute des harmoniques paires, un empilement écrêtage-bits-repli, et un destructeur à modulation en anneau</td></tr>
+<tr><td><b>FX</b></td><td>un seul délai balayé à quatre longueurs : phaser, flanger, chorus, ensemble</td></tr>
+<tr><td><b>GLITCH</b></td><td>répétition de mesure. Une porte décide quand une tranche est saisie et <code>CHANCE</code> décide si elle l'est. <code>LEN</code> est en millisecondes, ou <code>SYNC</code>, qui prend la longueur de l'écart entre les impulsions de la porte elle-même — pointez la porte sur l'horloge et une tranche devient une valeur de note</td></tr>
+<tr><td><b>GRAIN</b></td><td>lectures fenêtrées qui se chevauchent, dans la même mémoire d'une seconde qu'utilise GLITCH</td></tr>
+<tr><td><b>DELAY</b></td><td>quatre prises sur une même ligne, chacune avec son temps, son niveau et sa place</td></tr>
+<tr><td><b>SPACE</b></td><td>réverbération, en trois caractères : une pièce simple, un shimmer qui réinjecte une copie transposée, et une version à porte</td></tr>
+</table>
+
+<p>
+Sur <b>MIX</b>, chaque voix a une troisième colonne qui nomme son point
+d'entrée : <code>ALL</code> pour toute la chaîne, ou <code>FX</code>,
+<code>GLITCH</code>, <code>DELAY</code>, <code>SPACE</code> pour sauter tout ce
+qui précède, ou <code>DRY</code> pour tout sauter. Des percussions propres mais
+dans la même pièce que le reste, c'est <code>DELAY</code>.
+</p>
+
+<p>
+<b>CHAIN</b>, la seconde sous-page de MIX, est l'ordre lui-même. Celui livré est
+l'ordre classique — la saturation d'abord, parce que saturer une queue de réverbe
+la transforme en boue ; les effets temporels en dernier, le délai avant la
+réverbe — et c'est réglable parce que les placements que cet argument ne tranche
+pas valent la peine. Le bouclage avant le délai répète une tranche sèche et
+laisse le délai lui répondre ; après, il répète aussi la queue.
+</p>
+
+<h2>Modulation</h2>
+
+<p>
+La plupart des écrans portent une banque de lignes sous leurs propres commandes.
+Chaque ligne est une source, une quantité bipolaire, et une destination à
+l'intérieur de ce module ; <kbd>Espace</kbd> met donc une ligne dedans ou dehors
+sans perdre son réglage. Huit signaux sont disponibles partout : les deux
+oscillateurs chaotiques, les deux oscillateurs audio, les deux séquenceurs, le
+comparateur, et l'horloge.
+</p>
+
+<p class="note">
+La course complète de n'importe lequel vaut ±10 V dans les termes de la machine
+— vingt octaves sur une destination de hauteur — donc un peu va très loin, et les
+réglages intéressants sont en général petits.
+</p>
+</section>
+
+<section class="lang" data-lang="en" lang="en" hidden>
 <p class="lede" style="margin-top:32px">
 Click the panel to give it the keyboard. It is one instrument in two sizes: a
 benjolin, which is two oscillators and a shift register arguing with each other,
@@ -245,6 +643,7 @@ Full travel on any of them is ±10 V in the machine's own terms — twenty octav
 on a pitch destination — so a little goes a long way and the interesting
 settings are usually small.
 </p>
+</section>
 
 <hr class="rule">
 <p class="note" style="margin-top:16px">
@@ -254,6 +653,38 @@ sample rate.
 </p>
 
 </div>
+
+<script>
+// Three full translations live in the page; the switcher shows one. Breton is
+// the default because the machine is from Brittany -- a stored choice wins over
+// it, and so does ?lang= in the URL, which is what a shared link carries.
+(function () {
+  var KEY = "phx-lang", DEFAULT = "br";
+  var picks = [].slice.call(document.querySelectorAll(".langbar button"));
+  var panes = [].slice.call(document.querySelectorAll(".lang"));
+  var known = panes.map(function (p) { return p.getAttribute("data-lang"); });
+
+  function show(code) {
+    if (known.indexOf(code) < 0) code = DEFAULT;
+    panes.forEach(function (p) { p.hidden = p.getAttribute("data-lang") !== code; });
+    picks.forEach(function (b) {
+      b.setAttribute("aria-current", b.getAttribute("data-set") === code ? "true" : "false");
+    });
+    document.documentElement.lang = code;
+    try { localStorage.setItem(KEY, code); } catch (e) {}
+  }
+
+  picks.forEach(function (b) {
+    b.addEventListener("click", function () { show(b.getAttribute("data-set")); });
+  });
+
+  var wanted = null;
+  var m = /[?&]lang=([a-z]{2})/.exec(location.search);
+  if (m) wanted = m[1];
+  if (!wanted) { try { wanted = localStorage.getItem(KEY); } catch (e) {} }
+  show(wanted || DEFAULT);
+})();
+</script>
 
 <script>
 var statusEl = document.getElementById("status"),
