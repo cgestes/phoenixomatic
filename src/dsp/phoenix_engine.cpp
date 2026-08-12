@@ -8,36 +8,8 @@
 
 namespace {
 
-// Reflect x back into [-1,1] instead of clamping at it — a triangle wavefolder,
-// period 4. Where CLIP flattens, this keeps generating new harmonics, which is
-// what makes it worth having next to CLIP rather than instead of it.
-inline float foldTri(float x) {
-  float q = (x + 1.0f) * 0.25f;
-  q -= std::floor(q);
-  float t = q * 4.0f;
-  return (t < 2.0f ? t : 4.0f - t) - 1.0f;
-}
-
-// Audio only. See CompShape in model.h for why this never feeds the timing.
-inline float shapeComp(float a, float b, uint8_t shape, float drive) {
-  if (drive < 0.0f) drive = 0.0f;
-  if (drive > 1.0f) drive = 1.0f;
-  float d = a - b;
-  float g = 1.0f + drive * 15.0f;
-  switch (shape) {
-    case CSHAPE_LIM:  return std::tanh(d * g);
-    case CSHAPE_CLIP: { float v = d * g; return v < -1.0f ? -1.0f : (v > 1.0f ? 1.0f : v); }
-    case CSHAPE_FOLD: return foldTri(d * g);
-    // Rectified: the difference folded about zero, so it runs at twice the
-    // rate the comparator flips.
-    case CSHAPE_RECT: { float v = std::fabs(d) * g - 1.0f; return v > 1.0f ? 1.0f : v; }
-    case CSHAPE_MIN:  { float v = a < b ? a : b; return v < -1.0f ? -1.0f : (v > 1.0f ? 1.0f : v); }
-    case CSHAPE_MAX:  { float v = a > b ? a : b; return v < -1.0f ? -1.0f : (v > 1.0f ? 1.0f : v); }
-    default:          return d > 0.0f ? 1.0f : -1.0f;
-  }
-}
-
-
+// shapeComp and foldTri live in model.h, beside the enum they switch on, so
+// that the LOGIC page's sketch can run the same law it is drawing.
 
 // How far the filter's bank can drag the cutoff at full travel.
 constexpr float kFilterModOctaves = kOctavesFullScale;

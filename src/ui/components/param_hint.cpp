@@ -3,6 +3,7 @@
 #include <cmath>
 
 #include "../../../display.h"
+#include "../../core/model.h"
 #include "../text_screen.h"
 #include "../ui_colors.h"
 
@@ -297,6 +298,60 @@ void steps(IGfx& g, const Box& b, int n, IGfxColor c) {
   }
 }
 
+void compShape(IGfx& g, const Box& b, int shape, float drive, IGfxColor c) {
+  // The two inputs on top, what the comparator makes of them underneath. OUT
+  // is a list of seven names and nothing else on the page says what any of
+  // them sound like — MIN and MAX in particular are meaningless as words and
+  // obvious as a picture.
+  //
+  // B moves rather than sitting flat, because it is the second oscillator and
+  // not a threshold: MIN and MAX pick between two signals, and against a level
+  // they would both just be clipping. OFFSET, which is the one that really is
+  // a threshold, has its own sketch next door.
+  const int in_mid = b.y + b.h / 4;
+  const int out_mid = b.y + b.h * 3 / 4;
+  const int amp = b.h / 4;
+
+  g.fillRect(b.x, out_mid, b.w, 1, COLOR_RULE);
+
+  int pa = in_mid, pb = in_mid, po = out_mid;
+  for (int i = 0; i < b.w; ++i) {
+    float u = static_cast<float>(i) / static_cast<float>(b.w - 1);
+    // A at three cycles against B at one: fast against slow is the arrangement
+    // the machine is usually in, and it is the one where every shape differs
+    // from every other.
+    float pha = u * 3.0f;
+    pha -= std::floor(pha);
+    float a = 4.0f * (pha < 0.5f ? pha : 1.0f - pha) - 1.0f;
+    float phb = u * 1.0f + 0.25f;
+    phb -= std::floor(phb);
+    // Not much below A's own amplitude: the band is sixteen pixels tall, and a
+    // B scaled far enough down to be tidy is a B that reads as a flat line —
+    // against which MIN and MAX are just clipping, which is the one thing this
+    // picture exists to disprove.
+    float bb = (4.0f * (phb < 0.5f ? phb : 1.0f - phb) - 1.0f) * 0.85f;
+
+    int ya = in_mid - static_cast<int>(a * static_cast<float>(amp));
+    int yb = in_mid - static_cast<int>(bb * static_cast<float>(amp));
+    // Run the engine's own law rather than a second copy of it, so the sketch
+    // cannot describe a shape the machine has stopped making.
+    float out = shapeComp(a, bb, static_cast<uint8_t>(shape), drive);
+    int yo = out_mid - static_cast<int>(out * static_cast<float>(amp));
+
+    if (i > 0) {
+      // The colours the page already uses for these two signals a few rows up:
+      // ember is A's trace, teal is B's line. Two greys told them apart by
+      // shade alone, which at eight pixels of headroom they were not.
+      g.drawLine(b.x + i - 1, pa, b.x + i, ya, COLOR_EMBER);
+      g.drawLine(b.x + i - 1, pb, b.x + i, yb, COLOR_COOL);
+      g.drawLine(b.x + i - 1, po, b.x + i, yo, c);
+    }
+    pa = ya;
+    pb = yb;
+    po = yo;
+  }
+}
+
 void ratio(IGfx& g, const Box& b, float div, float mult, IGfxColor c) {
   // Two lengths whose proportion is the tuning: what "3 over 2" looks like.
   if (div < 1.0f) div = 1.0f;
@@ -584,6 +639,7 @@ void drawHintOverlay(IGfx& gfx, const ParamHint& hint, float flash) {
     case HINT_CRUSH:    crush(gfx, b, hint.a, c); break;
     case HINT_STEPS:    steps(gfx, b, static_cast<int>(hint.a), c); break;
     case HINT_RATIO:    ratio(gfx, b, hint.a, hint.b, c); break;
+    case HINT_CSHAPE:   compShape(gfx, b, static_cast<int>(hint.a), hint.b, c); break;
     default: break;
   }
 }

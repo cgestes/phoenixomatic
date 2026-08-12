@@ -330,6 +330,40 @@ inline bool compShapeUsesDrive(uint8_t shape) {
          shape == CSHAPE_FOLD || shape == CSHAPE_RECT;
 }
 
+// Reflect x back into [-1,1] instead of clamping at it — a triangle wavefolder,
+// period 4. Where CLIP flattens, this keeps generating new harmonics, which is
+// what makes it worth having next to CLIP rather than instead of it.
+inline float foldTri(float x) {
+  float q = (x + 1.0f) * 0.25f;
+  q -= std::floor(q);
+  float t = q * 4.0f;
+  return (t < 2.0f ? t : 4.0f - t) - 1.0f;
+}
+
+// Audio only. See CompShape above for why this never feeds the timing.
+//
+// It lives here, beside the enum, rather than in the engine that calls it,
+// because the UI draws this page's sketch by running it: a picture of the
+// shape computed from a second copy of the law is a picture that can quietly
+// stop being true.
+inline float shapeComp(float a, float b, uint8_t shape, float drive) {
+  if (drive < 0.0f) drive = 0.0f;
+  if (drive > 1.0f) drive = 1.0f;
+  float d = a - b;
+  float g = 1.0f + drive * 15.0f;
+  switch (shape) {
+    case CSHAPE_LIM:  return std::tanh(d * g);
+    case CSHAPE_CLIP: { float v = d * g; return v < -1.0f ? -1.0f : (v > 1.0f ? 1.0f : v); }
+    case CSHAPE_FOLD: return foldTri(d * g);
+    // Rectified: the difference folded about zero, so it runs at twice the
+    // rate the comparator flips.
+    case CSHAPE_RECT: { float v = std::fabs(d) * g - 1.0f; return v > 1.0f ? 1.0f : v; }
+    case CSHAPE_MIN:  { float v = a < b ? a : b; return v < -1.0f ? -1.0f : (v > 1.0f ? 1.0f : v); }
+    case CSHAPE_MAX:  { float v = a > b ? a : b; return v < -1.0f ? -1.0f : (v > 1.0f ? 1.0f : v); }
+    default:          return d > 0.0f ? 1.0f : -1.0f;
+  }
+}
+
 // Where a comparator attenuverter row lands. OFFSET is the classic one,
 // moving B under A — pulse width, and therefore the rhythm. DRIVE feeds the
 // shaper, which is where the rungler earns its keep: fold depth swept by the

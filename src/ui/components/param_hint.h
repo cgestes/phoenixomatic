@@ -37,6 +37,8 @@ enum HintKind : uint8_t {
   HINT_CRUSH,      // a wave with the levels it is allowed to take
   HINT_STEPS,      // the register, a cells around
   HINT_RATIO,      // a ratio as two lengths; a is div, b is mult
+  HINT_CSHAPE,     // A and B, and what the comparator makes of them;
+                   // a is the shape index, b the drive
 };
 
 struct ParamHint {

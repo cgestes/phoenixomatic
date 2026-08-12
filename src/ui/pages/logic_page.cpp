@@ -87,8 +87,13 @@ class LogicPage : public IPage {
         // OFFSET is pulse width, which is the one thing on this page you can
         // see without hearing it.
         if (nav_.field() == 0) return ParamHint{HINT_PWM, c.offset};
-        if (nav_.field() == 1) return ParamHint{};        // OUT names a shape
-        return ParamHint{HINT_DRIVE, c.drive};
+        // OUT and DRV both draw the shape, because that is what they both
+        // change: stepping OUT swaps the law, and DRV drives whichever law is
+        // selected. DRV used to draw a generic tanh curve, which is the right
+        // picture for exactly one of the seven and a wrong one for the rest —
+        // it says nothing at all about FOLD, and DRV does not reach PWM,
+        // MIN or MAX in the first place.
+        return ParamHint{HINT_CSHAPE, static_cast<float>(c.shape), c.drive};
       }
       if (nav_.row() == compLevelRow()) return ParamHint{HINT_MIX, c.level};
       return ParamHint{};
