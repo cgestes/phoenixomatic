@@ -26,7 +26,7 @@
 // they differ in which single screen, or how many, they put in front of you.
 enum MachineMode : uint8_t {
   MODE_CLASSIC = 0,   // one page: the hardware panel, and nothing else
-  MODE_FUNKY,         // one page: a dice per module, played by rolling them
+  MODE_PHOENIXJOLIN,  // one page: a dice per module, played by rolling them
   MODE_BENJOLIN,      // the whole benjolin, every screen, effects included
   MODE_ADVANCED,      // and the clock, the sequencers and the drums
   MACHINE_MODE_COUNT
@@ -710,11 +710,24 @@ struct SpaceState {
 // destinations, so they get an attenuverter bank like everything else.
 inline constexpr int kFilterModRows = 6;
 
+// The filter's responses. Four come off one state-variable structure; ACID is
+// a four-pole ladder and a different filter entirely — see dsp/filter.h.
+//
+// Declared here rather than beside the DSP because the pages name these and
+// they include the model, not the engine. FilterInput below is here for the
+// same reason.
+enum FilterMode : uint8_t {
+  FILT_LP = 0, FILT_BP, FILT_HP,
+  FILT_NOTCH,   // both ends kept, the middle taken out
+  FILT_ACID,    // the ladder
+  FILT_MODE_COUNT
+};
+
 enum FilterInput : uint8_t {
   FILT_IN_COMP = 0, FILT_IN_OSC1, FILT_IN_OSC2, FILT_IN_BOTH, FILT_IN_COUNT
 };
 extern const char* const kFilterInputLabel[FILT_IN_COUNT];
-extern const char* const kFilterModeLabel[3];
+extern const char* const kFilterModeLabel[FILT_MODE_COUNT];
 
 // Where a filter mod row lands.
 enum FilterModDest : uint8_t { FDEST_FREQ = 0, FDEST_RES, FDEST_COUNT };

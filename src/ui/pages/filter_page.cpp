@@ -92,7 +92,8 @@ class FilterPage : public IPage {
 
     if (nav_.row() == kTopRow) {
       if (nav_.field() == 0) {
-        f.mode = static_cast<uint8_t>((f.mode + 3 + dir) % 3);
+        f.mode = static_cast<uint8_t>(
+            (f.mode + FILT_MODE_COUNT + dir) % FILT_MODE_COUNT);
       } else {
         f.input = static_cast<uint8_t>((f.input + FILT_IN_COUNT + dir) % FILT_IN_COUNT);
       }
@@ -161,7 +162,7 @@ class FilterPage : public IPage {
       return;
     }
     if (nav_.row() == kTopRow) {
-      if (nav_.field() == 0) f.mode = 1;   // LP, BP, HP — the page steps mode modulo 3
+      if (nav_.field() == 0) f.mode = FILT_MODE_COUNT / 2;
       else f.input = FILT_IN_COUNT / 2;
     } else if (nav_.field() == 0) {
       f.freq = 0.5f;
@@ -177,7 +178,7 @@ class FilterPage : public IPage {
       return;
     }
     if (nav_.row() == kTopRow) {
-      if (nav_.field() == 0) f.mode = 2;   // LP, BP, HP — the page steps mode modulo 3
+      if (nav_.field() == 0) f.mode = FILT_MODE_COUNT - 1;
       else f.input = FILT_IN_COUNT - 1;
     } else if (nav_.field() == 0) {
       f.freq = 1.0f;
@@ -188,7 +189,7 @@ class FilterPage : public IPage {
 
   void maxPage() override {
     FilterState& f = model_.filter;
-    f.mode = 2;   // LP, BP, HP — the page steps mode modulo 3
+    f.mode = FILT_MODE_COUNT - 1;
     f.input = FILT_IN_COUNT - 1;
     f.freq = 1.0f;
     f.res = 1.0f;
@@ -207,7 +208,9 @@ class FilterPage : public IPage {
       return;
     }
     if (nav_.row() == kTopRow) {
-      if (nav_.field() == 0) f.mode = static_cast<uint8_t>(model_.random() % 3);
+      if (nav_.field() == 0) {
+        f.mode = static_cast<uint8_t>(model_.random() % FILT_MODE_COUNT);
+      }
       else f.input = static_cast<uint8_t>(model_.random() % FILT_IN_COUNT);
     } else if (nav_.field() == 0) {
       f.freq = model_.randomUnit();

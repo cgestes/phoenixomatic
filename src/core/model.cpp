@@ -19,7 +19,7 @@ const char* const kOscModTypeLabel[MOD_TYPE_COUNT] = {
 };
 const char* const kSeqDestLabel[DEST_COUNT] = { "CV", "CHANCE", "SLEW", "LEN" };
 const char* const kMachineModeLabel[MACHINE_MODE_COUNT] = {
-  "CLASSIC", "FUNKY", "BENJOLIN", "ADVANCED"
+  "CLASSIC", "PHOENIXJOLIN", "BENJOLIN", "ADVANCED"
 };
 const char* const kFxEntryLabel[ENTRY_COUNT] = {
   "ALL", "FX", "GLITCH", "DELAY", "SPACE", "DRY"
@@ -67,7 +67,9 @@ const char* const kShimmerLabel[kShimmerCount] = {
 
 const char* const kNoteName[12] = { "C",  "C#", "D",  "D#", "E",  "F",
                                     "F#", "G",  "G#", "A",  "A#", "B" };
-const char* const kFilterModeLabel[3] = { "LP", "BP", "HP" };
+const char* const kFilterModeLabel[FILT_MODE_COUNT] = {
+  "LP", "BP", "HP", "NOTCH", "ACID"
+};
 const char* const kFilterDestLabel[FDEST_COUNT] = { "FREQ", "RES" };
 
 const char* const kSeqDirLabel[DIR_COUNT] = { "FWD", "REV", "PEND", "RAND" };

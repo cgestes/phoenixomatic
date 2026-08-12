@@ -19,7 +19,7 @@ PhoenixDisplay::PhoenixDisplay(IGfx& gfx, PhoenixModel& model)
     : gfx_(gfx), model_(model), screen_(gfx) {
   // The two single-page modes come first, so their one screen is screen one.
   pages_.push_back(makeClassicPage(model));
-  pages_.push_back(makeFunkyPage(model));
+  pages_.push_back(makePhoenixjolinPage(model));
   pages_.push_back(makeHomePage(model));
   pages_.push_back(makeChaosPage(model));
   pages_.push_back(makeOscPage(model));

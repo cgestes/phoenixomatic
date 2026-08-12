@@ -1,4 +1,4 @@
-// BENJOLIN FUNKY — one page, and you play it by shaking things.
+// PHOENIXJOLIN — one page, and you play it by shaking things.
 //
 // Every row is one part of the machine. R rolls that part, O puts it back to
 // how it shipped. Those are the keys they already are everywhere else, so
@@ -53,12 +53,12 @@ constexpr Ratio kRatios[] = {
 };
 constexpr int kRatioCount = static_cast<int>(sizeof(kRatios) / sizeof(kRatios[0]));
 
-class FunkyPage : public IPage {
+class PhoenixjolinPage : public IPage {
  public:
-  explicit FunkyPage(PhoenixModel& m) : model_(m) { nav_.configure(kFields, kRows); }
+  explicit PhoenixjolinPage(PhoenixModel& m) : model_(m) { nav_.configure(kFields, kRows); }
 
-  const char* title() const override { return "BENJOLIN FUNKY"; }
-  bool availableIn(uint8_t mode) const override { return mode == MODE_FUNKY; }
+  const char* title() const override { return "PHOENIXJOLIN"; }
+  bool availableIn(uint8_t mode) const override { return mode == MODE_PHOENIXJOLIN; }
   int outputInstrument() const override { return PhoenixModel::INST_FILTER; }
 
   void draw(TextScreen& scr) override {
@@ -123,7 +123,9 @@ class FunkyPage : public IPage {
     scr.text(2, 13, "MODE", PEN_DIM, mbg);
     drawField(scr, 7, 13, kModeRow, 0, kMachineModeLabel[model_.machine_mode],
               PEN_COOL, nav_.at(kModeRow, 0), mbg);
-    scr.text(20, 13, "SPACE plays", PEN_FAINT);
+    // The name is twelve cells wide, so the reminder is shortened rather
+    // than run into it -- and SPACE means something else on every other row.
+    scr.text(21, 13, "= play", PEN_FAINT);
   }
 
   void setCursor(int row, int field) override { nav_.setCursor(row, field); }
@@ -267,7 +269,7 @@ class FunkyPage : public IPage {
       }
       case EL_FILTER: {
         FilterState& f = model_.filter;
-        f.mode = static_cast<uint8_t>(model_.random() % 3u);
+        f.mode = static_cast<uint8_t>(model_.random() % FILT_MODE_COUNT);
         f.freq = bi(0.15f, 0.9f);
         f.res = bi(0.0f, 0.75f);
         f.input = static_cast<uint8_t>(model_.random() % FILT_IN_COUNT);
@@ -448,6 +450,6 @@ class FunkyPage : public IPage {
 
 }  // namespace
 
-std::unique_ptr<IPage> makeFunkyPage(PhoenixModel& m) {
-  return std::unique_ptr<IPage>(new FunkyPage(m));
+std::unique_ptr<IPage> makePhoenixjolinPage(PhoenixModel& m) {
+  return std::unique_ptr<IPage>(new PhoenixjolinPage(m));
 }
