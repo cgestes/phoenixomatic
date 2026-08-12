@@ -419,15 +419,36 @@ void PhoenixModel::applyMachineMode() {
   // differ only in how much of what is left they put on screen.
   bool benjolin = machine_mode != MODE_ADVANCED;
 
-  auto apply = [&](ModRow* rows, int count) {
+  // Every row on unless the mode hides its source. The bypass is imposed by
+  // the mode rather than chosen, so leaving a mode has to restore it -- and
+  // that has to happen for *every* mode now, not only on the way to ADVANCED,
+  // or CLASSIC's much stricter rule below would leak into whatever you
+  // switched to next. The cost is that a row you bypassed by hand comes back
+  // when you change mode, which is the smaller surprise of the two.
+  forEachModBank([&](ModRow* rows, int count) {
     for (int i = 0; i < count; ++i) {
-      // The bypass here is imposed by the mode, not chosen by the player, so
-      // leaving BENJOLIN restores it rather than leaving a row silently off.
-      if (sourceHidden(rows[i].src, machine_mode)) rows[i].on = false;
-      else if (!benjolin) rows[i].on = true;
+      rows[i].on = !sourceHidden(rows[i].src, machine_mode);
     }
-  };
-  forEachModBank(apply);
+  });
+
+  // CLASSIC is the instrument Rob Hordijk built, and that instrument has
+  // exactly four modulation paths: the shift register into each oscillator,
+  // the two oscillators into each other, and the register into the filter.
+  // Everything else this machine can patch -- a second chaos core, the
+  // sequencers, the comparator into the oscillators, self-feedback, anything
+  // touching the effects -- is a later idea and does not belong on a page that
+  // claims to be the original. Switched off rather than zeroed, so the amounts
+  // are all still there when you leave.
+  if (machine_mode == MODE_CLASSIC) {
+    forEachModBank([](ModRow* rows, int count) {
+      for (int i = 0; i < count; ++i) rows[i].on = false;
+    });
+    for (int v = 0; v < 2; ++v) {
+      osc[v].mod[0].on = true;   // CHAOS-A, which here is the rungler
+      osc[v].mod[3].on = true;   // the other oscillator
+    }
+    filter.mod[0].on = true;     // the register sweeping the cutoff
+  }
 
   if (!benjolin) return;
 

@@ -840,6 +840,15 @@ class PhoenixModel {
     fn(filter.mod, kFilterModRows);
     fn(delay.mod, kDelayModRows);
     fn(space.mod, kSpaceModRows);
+    // The four effect pages were added after this helper and never listed in
+    // it, so their banks were the one place a mode could not reach: a row fed
+    // by a source the mode hides stayed live and went on driving something
+    // invisibly, which is the exact failure this helper exists to prevent.
+    // Anything that grows a ModRow belongs here the same day.
+    fn(dirt.mod, kDirtModRows);
+    fn(fx.mod, kFxModRows);
+    fn(glitch.mod, kGlitchModRows);
+    fn(grain.mod, kGrainModRows);
   }
 
   // Enforces whatever the current mode implies. Safe to call repeatedly.

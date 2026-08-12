@@ -49,6 +49,12 @@ class PhoenixEngine {
   // Where a voice joins the chain, clamped: the field is a uint8_t and an
   // out-of-range one would index past the accumulators.
   int route(int inst) const {
+    // The classic instrument is two oscillators, a comparator and a filter.
+    // Distortion, a looper, delay and reverb are all later ideas, so in that
+    // mode every voice goes straight to the master. Done here rather than by
+    // rewriting the routing, so the routing you set up in a bigger mode is
+    // still there when you go back to it.
+    if (model_.machine_mode == MODE_CLASSIC) return ENTRY_DRY;
     uint8_t r = model_.route[inst];
     return r < ENTRY_COUNT ? r : ENTRY_DIRT;
   }

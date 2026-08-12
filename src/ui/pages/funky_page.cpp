@@ -37,13 +37,19 @@ const char* const kElementName[EL_COUNT] = {
   "COMP", "FILTER", "FILTER MODS",
 };
 
-// The same six-octave spread the shipped patch uses. A slow clock sampling a
-// fast data square is what gives the register varied bits instead of long runs
-// of one, so the two oscillators want to land far apart.
+// The whole range the model allows. The two oscillators take opposite halves
+// of it when rolled, so they land far apart -- which is what gives the register
+// varied bits rather than long runs of one.
 struct Ratio { int div, mult; };
 constexpr Ratio kRatios[] = {
-  {8,1}, {6,1}, {4,1}, {3,1}, {2,1}, {3,2}, {1,1},
-  {2,3}, {1,2}, {1,3}, {1,4}, {1,6}, {1,8},
+  // Twelve octaves, 1/64 up to 64/1, ordered by the pitch they produce so a
+  // step is a step in pitch. The far ends are where a benjolin is most itself:
+  // a very slow clock against a very fast data square is what gives the
+  // register varied bits instead of long runs of one.
+  {64,1}, {48,1}, {32,1}, {24,1}, {16,1}, {12,1}, {8,1}, {6,1}, {5,1}, {4,1},
+  {3,1}, {5,2}, {2,1}, {3,2}, {4,3}, {1,1}, {3,4}, {2,3}, {1,2}, {2,5},
+  {1,3}, {1,4}, {1,5}, {1,6}, {1,8}, {1,12}, {1,16}, {1,24}, {1,32}, {1,48},
+  {1,64},
 };
 constexpr int kRatioCount = static_cast<int>(sizeof(kRatios) / sizeof(kRatios[0]));
 
