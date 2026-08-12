@@ -22,6 +22,16 @@ const char* const kMachineModeLabel[MACHINE_MODE_COUNT] = { "BENJOLIN", "ADVANCE
 const char* const kFxEntryLabel[ENTRY_COUNT] = {
   "ALL", "FX", "GLITCH", "DELAY", "SPACE", "DRY"
 };
+// Named by the stage rather than by the routing here: on the CHAIN page the
+// first entry is the distortion itself, not "everything from here on".
+const char* const kFxEntryWhat[ENTRY_COUNT] = {
+  "DIRT    drive, crush, decimate",
+  "FX      phaser, flanger, chorus",
+  "GLITCH  beat repeat + granular",
+  "DELAY   four taps",
+  "SPACE   reverb",
+  "DRY     no effects at all",
+};
 
 const char* const kChaosModeLabel[CHAOS_MODE_COUNT] = {
   "SLOTH", "LORENZ", "ROSSLER", "RND", "RUNGLER"

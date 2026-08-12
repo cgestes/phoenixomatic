@@ -52,6 +52,19 @@ class PhoenixEngine {
     uint8_t r = model_.route[inst];
     return r < ENTRY_COUNT ? r : ENTRY_DIRT;
   }
+  // One method per chain stage, each taking the running stereo pair in place,
+  // so render() can walk them in whatever order the panel is set to.
+  void stageDirt(float* l, float* r);
+  void stageFx(float* l, float* r);
+  void stageLoop(float* l, float* r, bool* written);
+  void stageDelay(float* l, float* r);
+  void stageSpace(float* l, float* r);
+  // The effect at a position, clamped: the order is eight-bit fields the UI
+  // writes, and a bad one would run off the end of the switch.
+  uint8_t chainAt(int pos) const {
+    uint8_t fx = model_.chain[pos];
+    return fx < kChainStages ? fx : static_cast<uint8_t>(pos);
+  }
   void tickClock();
   void tickSequencers();
   void tickDrums();
@@ -66,6 +79,10 @@ class PhoenixEngine {
   DrumVoice drum_[kDrumVoices];
   Filter filter_;
   Dirt dirt_;
+  // One per channel. DIRT is a transfer function rather than a send, so it has
+  // no mono wet to mix back in and has to run twice or silently mono the
+  // signal the moment it is moved after something stereo.
+  Dirt dirt_r_;
   Fx fx_;
   Looper looper_;
   int glitch_hold_ = 0;

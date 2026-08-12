@@ -37,6 +37,7 @@ PhoenixEngine::PhoenixEngine(PhoenixModel& model, float sample_rate)
   filter_.init(sample_rate_);
   delay_.init(sample_rate_);
   dirt_.init(sample_rate_);
+  dirt_r_.init(sample_rate_);
   fx_.init(sample_rate_);
   looper_.init(sample_rate_);
   space_.init(sample_rate_);
@@ -237,6 +238,204 @@ void PhoenixEngine::tickDrums() {
     drum_hold_[i] = led_hold_samples_;
     if (!d.mute) drum_[i].trigger(0.9f);
   }
+}
+
+
+// --- the chain, one method per stage ---------------------------------------
+//
+// Extracted from one fixed sequence inside render() so the order can be a
+// setting. Each takes the running stereo pair in place.
+//
+// They share a convention the fixed chain had already settled into: the dry
+// path stays stereo and the wet one is computed from the mono sum. That is
+// what lets any of them sit after any other without collapsing what an earlier
+// stage panned -- put SPACE first and DELAY second and the reverb's stereo
+// still survives the delay.
+
+void PhoenixEngine::stageDirt(float* l, float* r) {
+  const DirtState& dt = model_.dirt;
+  float drv = dt.drive, cru = dt.crush, dwn = dt.down, dmix = dt.mix;
+  for (int i = 0; i < kDirtModRows; ++i) {
+    const ModRow& m = dt.mod[i];
+    if (!m.active()) continue;
+    float v = m.amount * bus_[m.src];
+    switch (m.mode) {
+      case DIDEST_CRUSH: cru += v; break;
+      case DIDEST_DOWN:  dwn += v; break;
+      case DIDEST_MIX:   dmix += v; break;
+      default:           drv += v; break;
+    }
+  }
+  // Two instances, one per channel. A distortion is a transfer function rather
+  // than a send, so there is no mono wet to mix in: run it on the sum and both
+  // channels come out identical, which would silently mono the signal the
+  // moment DIRT is moved after anything that made it stereo.
+  dirt_.setDrive(drv);   dirt_.setCrush(cru);
+  dirt_.setDownsample(dwn); dirt_.setMix(dmix);
+  dirt_r_.setDrive(drv); dirt_r_.setCrush(cru);
+  dirt_r_.setDownsample(dwn); dirt_r_.setMix(dmix);
+  *l = dirt_.process(*l);
+  *r = dirt_r_.process(*r);
+}
+
+void PhoenixEngine::stageFx(float* l, float* r) {
+  const FxState& fx = model_.fx;
+  float rate = fx.rate, depth = fx.depth, feed = fx.feedback, fmix = fx.mix;
+  for (int i = 0; i < kFxModRows; ++i) {
+    const ModRow& m = fx.mod[i];
+    if (!m.active()) continue;
+    float v = m.amount * bus_[m.src];
+    switch (m.mode) {
+      case FDEST_DEPTH: depth += v; break;
+      case FDEST_FEED:  feed += v; break;
+      case FDEST_MIX:   fmix += v; break;
+      default:          rate += v; break;
+    }
+  }
+  float m01 = clamp01(fmix);
+  // Skipped entirely when it is off, which is what Fx::process used to do for
+  // itself before the mix moved out here. Not just a saving: a flanger's line
+  // should be cold when you turn it up, not full of whatever went past while
+  // it was down.
+  if (m01 <= 0.0f) return;
+  fx_.setRate(rate);
+  fx_.setDepth(depth);
+  fx_.setFeedback(feed);
+  // Its own mix is bypassed and done here instead, against the incoming
+  // stereo: Fx::process mixes against the mono it was handed, which was right
+  // when nothing upstream of it could be stereo and is not any more.
+  fx_.setMix(1.0f);
+  float wl = 0.0f, wr = 0.0f;
+  fx_.process((*l + *r) * 0.5f, &wl, &wr);
+  *l = *l * (1.0f - m01) + wl * m01;
+  *r = *r * (1.0f - m01) + wr * m01;
+}
+
+void PhoenixEngine::stageLoop(float* l, float* r, bool* written) {
+  // One recorder, two readers, running whether or not either is switched on --
+  // so turning one up replays audio that is already there rather than a second
+  // of silence. GLITCH and GRAIN are one chain stage for the same reason they
+  // are one routing entry: they cannot be on opposite sides of their own
+  // buffer.
+  if (!*written) {
+    looper_.write((*l + *r) * 0.5f);
+    *written = true;
+  }
+  {
+    const GlitchState& gl = model_.glitch;
+    float len = gl.len_ms, ch = gl.chance, gmix = gl.mix;
+    for (int i = 0; i < kGlitchModRows; ++i) {
+      const ModRow& m = gl.mod[i];
+      if (!m.active()) continue;
+      float v = m.amount * bus_[m.src];
+      switch (m.mode) {
+        case GDEST_CHANCE: ch += v; break;
+        case GDEST_MIX:    gmix += v; break;
+        case GDEST_PITCH:  break;    // a list, not a number to add to
+        default:           len += v * 200.0f; break;
+      }
+    }
+    bool edge = gateEdge(gl.gate_src);
+    // How far apart this gate's pulses are, measured rather than told. That is
+    // what SYNC follows: one repeat exactly filling the gap between triggers.
+    if (edge) {
+      if (glitch_gap_ > 0) glitch_period_ = glitch_gap_;
+      glitch_gap_ = 0;
+    }
+    ++glitch_gap_;
+    if (gl.sync && glitch_period_ > 0) {
+      len = static_cast<float>(glitch_period_) * 1000.0f / sample_rate_;
+    }
+    looper_.setGlitchLength(len);
+    model_.glitch.live_ms = looper_.glitchLengthMs();
+    bool take = edge && randUnit() < clamp01(ch);
+    float wl, wr;
+    looper_.glitch(edge, take, &wl, &wr);
+    model_.glitch.live = looper_.glitchArmed() && clamp01(gmix) > 0.0f;
+    float m01 = clamp01(gmix);
+    *l = *l * (1.0f - m01) + wl * m01;
+    *r = *r * (1.0f - m01) + wr * m01;
+  }
+  {
+    const GrainState& gr = model_.grain;
+    float size = gr.size_ms, den = gr.density, spr = gr.spread, gmix = gr.mix;
+    for (int i = 0; i < kGrainModRows; ++i) {
+      const ModRow& m = gr.mod[i];
+      if (!m.active()) continue;
+      float v = m.amount * bus_[m.src];
+      switch (m.mode) {
+        case GRDEST_DENSITY: den += v; break;
+        case GRDEST_SPREAD:  spr += v; break;
+        case GRDEST_MIX:     gmix += v; break;
+        default:             size += v * 100.0f; break;
+      }
+    }
+    looper_.setGrainSize(size);
+    looper_.setGrainDensity(den);
+    looper_.setGrainSpread(spr);
+    float wl, wr;
+    looper_.grain(&wl, &wr);
+    float m01 = clamp01(gmix);
+    *l = *l * (1.0f - m01) + wl * m01;
+    *r = *r * (1.0f - m01) + wr * m01;
+  }
+}
+
+void PhoenixEngine::stageDelay(float* l, float* r) {
+  const DelayState& dl = model_.delay;
+  const float mono = (*l + *r) * 0.5f;
+  float octaves = 0.0f, feed = dl.feedback, damp = dl.damp, mix = dl.mix;
+  for (int i = 0; i < kDelayModRows; ++i) {
+    const ModRow& m = dl.mod[i];
+    if (!m.active()) continue;
+    float v = m.amount * bus_[m.src];
+    switch (m.mode) {
+      case DDEST_FEED: feed += v; break;
+      case DDEST_DAMP: damp += v; break;
+      case DDEST_MIX:  mix += v; break;
+      // Summed here, exponentiated once below: modulating a delay time is a
+      // tape speed change and tape speed is a ratio, but four rows multiplying
+      // is four exp2 calls for what one can answer.
+      default:         octaves += v; break;
+    }
+  }
+  delay_.setTimeScale(octaves == 0.0f ? 1.0f : std::exp2(octaves));
+  delay_.setFeedback(feed);
+  delay_.setDamp(damp);
+  float wl = 0.0f, wr = 0.0f;
+  delay_.process(mono, &wl, &wr);
+  float m01 = clamp01(mix);
+  *l = *l * (1.0f - m01) + wl * m01;
+  *r = *r * (1.0f - m01) + wr * m01;
+}
+
+void PhoenixEngine::stageSpace(float* l, float* r) {
+  const SpaceState& sp = model_.space;
+  float size = sp.size, decay = sp.decay, damp = sp.damp, mix = sp.mix;
+  for (int i = 0; i < kSpaceModRows; ++i) {
+    const ModRow& m = sp.mod[i];
+    if (!m.active()) continue;
+    float v = m.amount * bus_[m.src];
+    switch (m.mode) {
+      case SPDEST_DECAY: decay += v; break;
+      case SPDEST_DAMP:  damp += v; break;
+      case SPDEST_MIX:   mix += v; break;
+      default:           size += v; break;
+    }
+  }
+  space_.setSize(size);
+  space_.setDecay(decay);
+  space_.setDamp(damp);
+  // A gate source is an instant, not a duration, so IRON holds it open for a
+  // fixed window -- otherwise the tail would be shut before it started.
+  const bool edge = gateEdge(sp.gate_src);
+  float wl = 0.0f, wr = 0.0f;
+  space_.process((*l + *r) * 0.5f, edge || space_gate_hold_ > 0, &wl, &wr);
+  if (edge) space_gate_hold_ = gate_hold_samples_;
+  else if (space_gate_hold_ > 0) --space_gate_hold_;
+  float m01 = clamp01(mix);
+  *l = *l * (1.0f - m01) + wl * m01;
+  *r = *r * (1.0f - m01) + wr * m01;
 }
 
 void PhoenixEngine::render(int16_t* out, size_t frames) {
@@ -469,217 +668,29 @@ void PhoenixEngine::render(int16_t* out, size_t frames) {
       model_.drum[i].live = drum_hold_[i] > 0;
     }
 
-    // --- dirt ---------------------------------------------------------------
-    // Drive, bit crushing and decimation, with a shape to choose. This is
-    // where the old inline tanh-and-round lived; it has a module and a page
-    // now, which is how CRUSH stopped being a control that did nothing.
-    float s;
-    {
-      const DirtState& dt = model_.dirt;
-      float drv = dt.drive, cru = dt.crush, dwn = dt.down, dmix = dt.mix;
-      for (int i = 0; i < kDirtModRows; ++i) {
-        const ModRow& m = dt.mod[i];
-        if (!m.active()) continue;
-        float v = m.amount * bus_[m.src];
-        switch (m.mode) {
-          case DIDEST_CRUSH: cru += v; break;
-          case DIDEST_DOWN:  dwn += v; break;
-          case DIDEST_MIX:   dmix += v; break;
-          default:           drv += v; break;
-        }
+    // --- the effect chain ---------------------------------------------------
+    // Walked in the order the panel says rather than written out in one fixed
+    // sequence. Each stage takes the running stereo pair and hands it back, and
+    // the voices routed to a stage join immediately before it — so a voice
+    // still meets the effect it named, wherever that effect has been moved to.
+    float l = 0.0f, r = 0.0f;
+    bool looper_written = false;
+    for (int pos = 0; pos < kChainStages; ++pos) {
+      const uint8_t fx = chainAt(pos);
+      l += stage[fx];
+      r += stage[fx];
+      switch (fx) {
+        case ENTRY_FX:     stageFx(&l, &r); break;
+        case ENTRY_GLITCH: stageLoop(&l, &r, &looper_written); break;
+        case ENTRY_DELAY:  stageDelay(&l, &r); break;
+        case ENTRY_SPACE:  stageSpace(&l, &r); break;
+        default:           stageDirt(&l, &r); break;
       }
-      dirt_.setDrive(drv);
-      dirt_.setCrush(cru);
-      dirt_.setDownsample(dwn);
-      dirt_.setMix(dmix);
-      s = dirt_.process(stage[ENTRY_DIRT]);
-    }
-
-    // --- fx -----------------------------------------------------------------
-    // Modulation before the time effects: chorus a signal then delay it, not
-    // the other way round.
-    float a_l, a_r;
-    {
-      const FxState& fx = model_.fx;
-      float rate = fx.rate, depth = fx.depth, feed = fx.feedback, fmix = fx.mix;
-      for (int i = 0; i < kFxModRows; ++i) {
-        const ModRow& m = fx.mod[i];
-        if (!m.active()) continue;
-        float v = m.amount * bus_[m.src];
-        switch (m.mode) {
-          case FDEST_DEPTH: depth += v; break;
-          case FDEST_FEED:  feed += v; break;
-          case FDEST_MIX:   fmix += v; break;
-          default:          rate += v; break;
-        }
-      }
-      fx_.setRate(rate);
-      fx_.setDepth(depth);
-      fx_.setFeedback(feed);
-      fx_.setMix(fmix);
-      fx_.process(s + stage[ENTRY_FX], &a_l, &a_r);
-    }
-
-    // --- glitch and grain ---------------------------------------------------
-    // One recorder, two readers, running whether or not either is switched on
-    // — so turning one up replays audio that is already there rather than a
-    // second of silence.
-    // Voices joining here are in the recording as well as in the output: the
-    // buffer is what both readers read, so being routed to GLITCH and being
-    // absent from what GLITCH repeats would be a contradiction.
-    a_l += stage[ENTRY_GLITCH];
-    a_r += stage[ENTRY_GLITCH];
-    looper_.write((a_l + a_r) * 0.5f);
-    {
-      const GlitchState& gl = model_.glitch;
-      float len = gl.len_ms, ch = gl.chance, gmix = gl.mix;
-      for (int i = 0; i < kGlitchModRows; ++i) {
-        const ModRow& m = gl.mod[i];
-        if (!m.active()) continue;
-        float v = m.amount * bus_[m.src];
-        switch (m.mode) {
-          case GDEST_CHANCE: ch += v; break;
-          case GDEST_MIX:    gmix += v; break;
-          case GDEST_PITCH:  break;    // a list, not a number to add to
-          default:           len += v * 200.0f; break;
-        }
-      }
-      bool edge = gateEdge(gl.gate_src);
-      // How far apart this gate's pulses are, measured rather than told. That
-      // is what SYNC follows: one repeat exactly filling the gap between
-      // triggers. Because the gate can be CLK or one of its dividers, this is
-      // clock sync without a note list — and because it can also be the
-      // comparator, it still works on a machine with no clock at all.
-      if (edge) {
-        if (glitch_gap_ > 0) glitch_period_ = glitch_gap_;
-        glitch_gap_ = 0;
-      }
-      ++glitch_gap_;
-      // Falls back to LEN until two pulses have been seen, so a freshly
-      // switched-on SYNC is never a zero-length slice.
-      if (gl.sync && glitch_period_ > 0) {
-        len = static_cast<float>(glitch_period_) * 1000.0f / sample_rate_;
-      }
-      looper_.setGlitchLength(len);
-      model_.glitch.live_ms = looper_.glitchLengthMs();
-      // The gate says when a window starts, CHANCE says whether that window
-      // repeats or passes through. Both go down, because the gate is also what
-      // ends the previous repeat.
-      bool take = edge && randUnit() < clamp01(ch);
-      float wl, wr;
-      looper_.glitch(edge, take, &wl, &wr);
-      // Only meaningful while the effect is audible: a slice looping behind a
-      // dry mix is not something the panel should call active.
-      model_.glitch.live = looper_.glitchArmed() && clamp01(gmix) > 0.0f;
-      float m01 = clamp01(gmix);
-      a_l = a_l * (1.0f - m01) + wl * m01;
-      a_r = a_r * (1.0f - m01) + wr * m01;
-    }
-    {
-      const GrainState& gr = model_.grain;
-      float size = gr.size_ms, den = gr.density, spr = gr.spread, gmix = gr.mix;
-      for (int i = 0; i < kGrainModRows; ++i) {
-        const ModRow& m = gr.mod[i];
-        if (!m.active()) continue;
-        float v = m.amount * bus_[m.src];
-        switch (m.mode) {
-          case GRDEST_DENSITY: den += v; break;
-          case GRDEST_SPREAD:  spr += v; break;
-          case GRDEST_MIX:     gmix += v; break;
-          default:             size += v * 100.0f; break;
-        }
-      }
-      looper_.setGrainSize(size);
-      looper_.setGrainDensity(den);
-      looper_.setGrainSpread(spr);
-      float wl, wr;
-      looper_.grain(&wl, &wr);
-      float m01 = clamp01(gmix);
-      a_l = a_l * (1.0f - m01) + wl * m01;
-      a_r = a_r * (1.0f - m01) + wr * m01;
-    }
-
-    // --- delay --------------------------------------------------------------
-    // Delay before reverb, the usual order: repeats that then get a tail
-    // sound like a room; a tail that then repeats sounds like a fault.
-    float dry_l, dry_r;
-    {
-      const DelayState& dl = model_.delay;
-      a_l += stage[ENTRY_DELAY];
-      a_r += stage[ENTRY_DELAY];
-      const float mono = (a_l + a_r) * 0.5f;
-      float octaves = 0.0f, feed = dl.feedback, damp = dl.damp, mix = dl.mix;
-      for (int i = 0; i < kDelayModRows; ++i) {
-        const ModRow& m = dl.mod[i];
-        if (!m.active()) continue;
-        float v = m.amount * bus_[m.src];
-        switch (m.mode) {
-          case DDEST_FEED: feed += v; break;
-          case DDEST_DAMP: damp += v; break;
-          case DDEST_MIX:  mix += v; break;
-          // Summed here, exponentiated once below: modulating a delay time
-          // is a tape speed change and tape speed is a ratio, but four rows
-          // multiplying is four exp2 calls for what one can answer.
-          default:         octaves += v; break;
-        }
-      }
-      delay_.setTimeScale(octaves == 0.0f ? 1.0f : std::exp2(octaves));
-      delay_.setFeedback(feed);
-      delay_.setDamp(damp);
-      float wl = 0.0f, wr = 0.0f;
-      delay_.process(mono, &wl, &wr);
-      if (mix < 0.0f) mix = 0.0f;
-      if (mix > 1.0f) mix = 1.0f;
-      dry_l = a_l * (1.0f - mix) + wl * mix;
-      dry_r = a_r * (1.0f - mix) + wr * mix;
-    }
-
-    // --- space --------------------------------------------------------------
-    // After the drive, because a reverb belongs after distortion and not
-    // inside it, and before MASTER so the wet/dry balance does not shift when
-    // you change the volume.
-    float wet_l = 0.0f, wet_r = 0.0f;
-    {
-      const SpaceState& sp = model_.space;
-      dry_l += stage[ENTRY_SPACE];
-      dry_r += stage[ENTRY_SPACE];
-      float size = sp.size, decay = sp.decay, damp = sp.damp, mix = sp.mix;
-      for (int i = 0; i < kSpaceModRows; ++i) {
-        const ModRow& m = sp.mod[i];
-        if (!m.active()) continue;
-        float v = m.amount * bus_[m.src];
-        switch (m.mode) {
-          case SPDEST_DECAY: decay += v; break;
-          case SPDEST_DAMP:  damp += v; break;
-          case SPDEST_MIX:   mix += v; break;
-          default:           size += v; break;
-        }
-      }
-      space_.setSize(size);
-      space_.setDecay(decay);
-      space_.setDamp(damp);
-      // A gate source is an instant, not a duration, so IRON holds it open
-      // for a fixed window — otherwise the tail would be shut before it
-      // started. Asked once: gateEdge walks a switch and, for fate sources, an
-      // integer divide.
-      const bool edge = gateEdge(sp.gate_src);
-      space_.process((dry_l + dry_r) * 0.5f, edge || space_gate_hold_ > 0,
-                     &wet_l, &wet_r);
-      if (edge) space_gate_hold_ = gate_hold_samples_;
-      else if (space_gate_hold_ > 0) --space_gate_hold_;
-
-      if (mix < 0.0f) mix = 0.0f;
-      if (mix > 1.0f) mix = 1.0f;
-      // Mixed against the *delay's* stereo, not the mono voice: using the
-      // mono sum as dry would collapse everything the taps just panned.
-      float dry = 1.0f - mix;
-      wet_l = dry_l * dry + wet_l * mix;
-      wet_r = dry_r * dry + wet_r * mix;
     }
 
     // Straight past every effect, joining only at the master.
-    wet_l += stage[ENTRY_DRY];
-    wet_r += stage[ENTRY_DRY];
+    float wet_l = l + stage[ENTRY_DRY];
+    float wet_r = r + stage[ENTRY_DRY];
 
     wet_l *= master;
     wet_r *= master;

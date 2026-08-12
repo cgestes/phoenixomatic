@@ -14,10 +14,21 @@ class MixPage : public IPage {
  public:
   explicit MixPage(PhoenixModel& m) : model_(m) { refreshRows(); }
 
-  const char* title() const override { return "MIX"; }
+  const char* title() const override { return sub_ == 0 ? "MIX" : "CHAIN"; }
+  // The order lives beside the routing because they are the same question
+  // asked twice: which effects a voice meets, and in what order.
+  int subPageCount() const override { return 2; }
+  int subPage() const override { return sub_; }
+  void setSubPage(int i) override {
+    sub_ = i % 2;
+    nav_mode_ = 0xFF;          // the row list differs per sub-page
+    refreshRows();
+  }
+  const char* subPageDots() const override { return "M C"; }
 
   void draw(TextScreen& scr) override {
     refreshRows();
+    if (sub_ != 0) { drawChain(scr); return; }
     for (int slot = 0; slot < strip_count_; ++slot) {
       int i = strip_index_[slot];
       // A gap after the tonal voices separates them from the drums. Keyed on
@@ -90,11 +101,25 @@ class MixPage : public IPage {
   int focusedField() const override { return nav_.field(); }
 
   bool handleKey(const UIEvent& in) override {
+    refreshRows();
     UIEvent ev = in;
     // A step pair becomes a left/right carrying its granularity.
     if (!nav_.mapFieldKey(ev) && nav_.handleNavKey(ev)) return true;
     if (ev.code != KEY_LEFT && ev.code != KEY_RIGHT) return false;
     int dir = ev.code == KEY_RIGHT ? 1 : -1;
+
+    if (sub_ != 0) {
+      // The stage swaps with its neighbour and the cursor follows it, so
+      // holding a key walks one effect down the chain rather than shuffling
+      // whatever happens to be under the cursor.
+      int a = nav_.row(), b = a + dir;
+      if (b < 0 || b >= kChainStages) return true;
+      uint8_t t = model_.chain[a];
+      model_.chain[a] = model_.chain[b];
+      model_.chain[b] = t;
+      nav_.setCursor(b, 0);
+      return true;
+    }
 
     if (nav_.row() < strip_count_) {
       int i = strip_index_[nav_.row()];
@@ -118,7 +143,11 @@ class MixPage : public IPage {
     return true;
   }
 
+  // On CHAIN these act on the order, not on a strip that is not on screen.
+  // Without the guard O would zero the level of whichever mixer channel
+  // happened to share a row number with the stage under the cursor.
   void zeroField() override {
+    if (sub_ != 0) { resetChain(); return; }
     if (nav_.row() < strip_count_) {
       int i = strip_index_[nav_.row()];
       // Mute has no zero; unmuted is its origin. Routing's origin is the
@@ -132,6 +161,7 @@ class MixPage : public IPage {
   }
 
   void randomizeField() override {
+    if (sub_ != 0) { shuffleChain(); return; }
     if (nav_.row() < strip_count_) {
       int i = strip_index_[nav_.row()];
       if (nav_.field() == 1) model_.toggleMute(i);
@@ -146,11 +176,20 @@ class MixPage : public IPage {
   }
 
   void zeroPage() override {
+    if (sub_ != 0) { resetChain(); return; }
     for (int s = 0; s < strip_count_; ++s) *constLevelMut(strip_index_[s]) = 0.0f;
     model_.master = 0.0f;
   }
 
+  // The far end of a *position* is the far end of the chain, which is the one
+  // reading of I and P that means anything for a stage.
+  void minField() override {
+    if (sub_ != 0) { moveStage(nav_.row(), 0); return; }
+    zeroField();
+  }
+
   void maxField() override {
+    if (sub_ != 0) { moveStage(nav_.row(), kChainStages - 1); return; }
     if (nav_.row() < strip_count_) {
       int i = strip_index_[nav_.row()];
       // Mute's far end is muted, matching how the field itself reads, and
@@ -164,6 +203,7 @@ class MixPage : public IPage {
   }
 
   void maxPage() override {
+    if (sub_ != 0) { resetChain(); return; }
     // Levels and master only. Driving and crushing a whole mix to 100 from one
     // press is a noise, not a setting, and O is right there to undo a level.
     for (int s = 0; s < strip_count_; ++s) *constLevelMut(strip_index_[s]) = 1.0f;
@@ -173,6 +213,7 @@ class MixPage : public IPage {
   void randomizeRow() override { nav_.forEachField([this] { randomizeField(); }); }
 
   void randomizePage() override {
+    if (sub_ != 0) { shuffleChain(); return; }
     for (int s = 0; s < strip_count_; ++s) {
       *constLevelMut(strip_index_[s]) = 0.3f + model_.randomUnit() * 0.7f;
     }
@@ -187,9 +228,68 @@ class MixPage : public IPage {
 
   // Voices the mode does not have get no strip, the same rule the footer and
   // the mod banks follow. Rebuilt only when the mode changes.
+  void resetChain() {
+    const uint8_t shipped[kChainStages] = {
+      ENTRY_DIRT, ENTRY_FX, ENTRY_GLITCH, ENTRY_DELAY, ENTRY_SPACE
+    };
+    for (int i = 0; i < kChainStages; ++i) model_.chain[i] = shipped[i];
+  }
+
+  // Lifts the stage out and puts it back in at `to`, sliding the rest along.
+  // Swapping with the destination instead would reorder two stages for one
+  // press and leave the ones in between where they were.
+  void moveStage(int from, int to) {
+    if (from < 0 || from >= kChainStages) return;
+    if (to < 0) to = 0;
+    if (to >= kChainStages) to = kChainStages - 1;
+    uint8_t fx = model_.chain[from];
+    while (from < to) { model_.chain[from] = model_.chain[from + 1]; ++from; }
+    while (from > to) { model_.chain[from] = model_.chain[from - 1]; --from; }
+    model_.chain[to] = fx;
+    nav_.setCursor(to, 0);
+  }
+
+  // A shuffle, not five independent rolls: the order has to stay a
+  // permutation or a stage would run twice while another never ran.
+  void shuffleChain() {
+    for (int i = kChainStages - 1; i > 0; --i) {
+      int j = static_cast<int>(model_.random() % static_cast<uint32_t>(i + 1));
+      uint8_t t = model_.chain[i];
+      model_.chain[i] = model_.chain[j];
+      model_.chain[j] = t;
+    }
+  }
+
+  // The chain, as an ordered list you can walk a stage through.
+  void drawChain(TextScreen& scr) {
+    scr.text(2, 1, "SIGNAL FLOWS DOWN THE LIST", PEN_DIM);
+    for (int pos = 0; pos < kChainStages; ++pos) {
+      int row = 3 + pos;
+      bool rf = nav_.atRow(pos);
+      uint8_t bg = rowBg(rf);
+      if (rf) scr.highlight(1, row, kScreenCols - 2, PEN_PANEL);
+      scr.textf(2, row, PEN_DIM, "%d", pos + 1);
+      uint8_t fx = model_.chain[pos] < kChainStages ? model_.chain[pos]
+                                                    : static_cast<uint8_t>(pos);
+      drawField(scr, 5, row, pos, 0, kFxEntryWhat[fx], PEN_COOL, nav_.at(pos, 0), bg);
+    }
+    scr.text(2, 9, "a / z  move a stage up or down", PEN_FAINT);
+    // The reason the shipped order is the shipped one, on the page where it
+    // can be undone.
+    scr.text(2, 11, "drive first, reverb last is the", PEN_FAINT);
+    scr.text(2, 12, "usual order and the one to beat", PEN_FAINT);
+  }
+
   void refreshRows() {
-    if (nav_mode_ == model_.machine_mode) return;
+    if (nav_mode_ == model_.machine_mode && nav_sub_ == sub_) return;
     nav_mode_ = model_.machine_mode;
+    nav_sub_ = sub_;
+    if (sub_ != 0) {
+      for (int i = 0; i < kChainStages; ++i) fields_[i] = 1;
+      nav_.configure(fields_, kChainStages);
+      nav_.setRow(0);
+      return;
+    }
     strip_count_ = 0;
     for (int i = 0; i < kMaxStrips; ++i) {
       if (!model_.instrumentHidden(i)) strip_index_[strip_count_++] = i;
@@ -215,6 +315,8 @@ class MixPage : public IPage {
   int strip_index_[kMaxStrips] = {};
   int strip_count_ = 0;
   uint8_t nav_mode_ = 0xFF;
+  int sub_ = 0;
+  int nav_sub_ = -1;
 };
 
 }  // namespace

@@ -596,16 +596,22 @@ struct GrainState {
 // src/dsp/looper.h. A voice cannot be inside the buffer for one and outside it
 // for the other. Each still has its own MIX, so either can be taken out
 // globally without touching the routing.
+// The first five are the chain's stages, in their shipped order; DRY is not a
+// stage but the absence of all of them, which is why it sits last and is not
+// counted in kChainStages.
 enum FxEntry : uint8_t {
   ENTRY_DIRT = 0,   // everything
   ENTRY_FX,         // skips the distortion
-  ENTRY_GLITCH,     // GLITCH, GRAIN, DELAY, SPACE
-  ENTRY_DELAY,      // DELAY and SPACE — the classic "clean but in the room"
+  ENTRY_GLITCH,     // the looper: GLITCH and GRAIN together
+  ENTRY_DELAY,      // the classic "clean but in the room"
   ENTRY_SPACE,      // reverb only
   ENTRY_DRY,        // straight to the master
   ENTRY_COUNT
 };
+inline constexpr int kChainStages = ENTRY_DRY;   // the five that are effects
 extern const char* const kFxEntryLabel[ENTRY_COUNT];
+// A one-line description of what each stage does, for the CHAIN page.
+extern const char* const kFxEntryWhat[ENTRY_COUNT];
 
 // FX — phaser, flanger, chorus, ensemble: one swept delay at four lengths.
 inline constexpr int kFxModRows = 4;
@@ -756,6 +762,23 @@ class PhoenixModel {
   // Instrument, so it stays beside the mutes and the levels rather than being
   // scattered one field at a time across eight unrelated structs.
   uint8_t route[INST_COUNT] = {};
+
+  // The order the effects run in: a permutation of the five chain stages.
+  //
+  // The shipped order is the conventional one and is conventional for reasons
+  // that mostly still apply here -- drive first, because distorting a reverb
+  // tail turns it to mud; modulation next; time effects last, delay before
+  // reverb, because repeats that are then given a tail sound like a room and a
+  // tail that is then repeated sounds like a fault.
+  //
+  // It is a setting anyway, because the two placements that argument does not
+  // settle are worth having: the looper before the time effects repeats a dry
+  // slice and lets the delay answer it, after them it repeats the tail as
+  // well; and DIRT last is the wrong answer musically and the right one when
+  // wrecking a reverb is the point.
+  uint8_t chain[kChainStages] = {
+    ENTRY_DIRT, ENTRY_FX, ENTRY_GLITCH, ENTRY_DELAY, ENTRY_SPACE
+  };
 
   bool isMuted(int inst) const;
   void setMuted(int inst, bool muted);
