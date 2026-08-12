@@ -21,7 +21,16 @@
 //
 // It is declared up here rather than beside the machine because the source and
 // gate lists below have to answer which of their entries a mode admits.
-enum MachineMode : uint8_t { MODE_BENJOLIN = 0, MODE_ADVANCED, MACHINE_MODE_COUNT };
+// Ordered smallest to largest, so every "is this restricted" test is a
+// comparison rather than a list. The first three all hide the same things --
+// they differ in which single screen, or how many, they put in front of you.
+enum MachineMode : uint8_t {
+  MODE_CLASSIC = 0,   // one page: the hardware panel, and nothing else
+  MODE_FUNKY,         // one page: a dice per module, played by rolling them
+  MODE_BENJOLIN,      // the whole benjolin, every screen, effects included
+  MODE_ADVANCED,      // and the clock, the sequencers and the drums
+  MACHINE_MODE_COUNT
+};
 extern const char* const kMachineModeLabel[MACHINE_MODE_COUNT];
 
 // The eight signals on the patch bus, shown in the footer of every page.
@@ -53,7 +62,7 @@ extern const char* const kGateLabel[GATE_COUNT];    // "CLK", "CMP A>B", ...
 // and no second rungler, and a trigger menu should not list doors that are not
 // there.
 inline bool gateHidden(uint8_t gate, uint8_t machine_mode) {
-  if (machine_mode != MODE_BENJOLIN) return false;
+  if (machine_mode == MODE_ADVANCED) return false;
   return gate == GATE_CLK || gate == GATE_CLK_1 || gate == GATE_CLK_2 ||
          gate == GATE_RUNG_B;
 }
@@ -749,7 +758,7 @@ struct Drum {
 // Rows fed by one are not drawn and cannot be reached — a control for a module
 // you cannot see is worse than no control at all.
 inline bool sourceHidden(SourceId s, uint8_t machine_mode) {
-  if (machine_mode != MODE_BENJOLIN) return false;
+  if (machine_mode == MODE_ADVANCED) return false;
   return s == SRC_SQ1 || s == SRC_SQ2 || s == SRC_CHB;
 }
 

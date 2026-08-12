@@ -154,7 +154,7 @@ void PhoenixEngine::tickClock() {
 
   // BENJOLIN has no clock. Held at rest rather than merely ignored, so
   // switching modes does not resume mid-bar from wherever it was left.
-  if (model_.machine_mode == MODE_BENJOLIN || !model_.playing) {
+  if (model_.machine_mode != MODE_ADVANCED || !model_.playing) {
     clk_phase_ = 0.0f;
     model_.clock.step = 0;
     for (int i = 0; i < kClockDividers; ++i) clk_div_count_[i] = 0;

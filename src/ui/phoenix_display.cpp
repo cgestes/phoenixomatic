@@ -17,6 +17,9 @@ constexpr float kSplashSeconds = 2.6f;
 
 PhoenixDisplay::PhoenixDisplay(IGfx& gfx, PhoenixModel& model)
     : gfx_(gfx), model_(model), screen_(gfx) {
+  // The two single-page modes come first, so their one screen is screen one.
+  pages_.push_back(makeClassicPage(model));
+  pages_.push_back(makeFunkyPage(model));
   pages_.push_back(makeHomePage(model));
   pages_.push_back(makeChaosPage(model));
   pages_.push_back(makeOscPage(model));
@@ -36,6 +39,15 @@ PhoenixDisplay::PhoenixDisplay(IGfx& gfx, PhoenixModel& model)
   pages_.push_back(makeConfigPage(model));
   pages_.push_back(makeProjectPage(model));
   pages_.push_back(makeHelpPage(model));
+
+  // Page zero is CLASSIC's single screen, which most modes do not have. Seat
+  // the cursor on the first page this mode *does* offer, or everything that
+  // asks where it is -- the header count, [ and ], the footer -- answers from
+  // a page that is not on the walk until the first update() nudges it off.
+  while (!available(page_index_) &&
+         page_index_ + 1 < static_cast<int>(pages_.size())) {
+    ++page_index_;
+  }
 }
 
 PhoenixDisplay::~PhoenixDisplay() = default;

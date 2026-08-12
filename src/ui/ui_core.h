@@ -7,6 +7,7 @@
 
 #include <cstdint>
 
+#include "../core/model.h"
 #include "components/param_hint.h"
 #include "text_screen.h"
 
@@ -37,8 +38,6 @@ struct UIEvent {
   StepSize step = STEP_COARSE;
 };
 
-class PhoenixModel;
-
 // Bit per SourceId, for the patch-bus footer.
 inline constexpr uint8_t srcBit(int id) { return static_cast<uint8_t>(1u << id); }
 
@@ -49,9 +48,12 @@ class IPage {
   virtual const char* title() const = 0;
 
   // Pages that only exist in the fuller machine say so here.
+  //
+  // The default is every mode from BENJOLIN up: the two single-page modes put
+  // one screen in front of you and nothing else, so a page has to opt in to
+  // them rather than out.
   virtual bool availableIn(uint8_t machine_mode) const {
-    (void)machine_mode;
-    return true;
+    return machine_mode >= MODE_BENJOLIN;
   }
 
   // Sub-pages are stepped with CTRL+UP/DOWN and shown as dots in the header.

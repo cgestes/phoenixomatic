@@ -7,6 +7,8 @@
 class PhoenixModel;
 
 // Page order is the signal order: sources, then what they drive, then output.
+std::unique_ptr<IPage> makeClassicPage(PhoenixModel& m);
+std::unique_ptr<IPage> makeFunkyPage(PhoenixModel& m);
 std::unique_ptr<IPage> makeHomePage(PhoenixModel& m);
 std::unique_ptr<IPage> makeChaosPage(PhoenixModel& m);
 std::unique_ptr<IPage> makeOscPage(PhoenixModel& m);

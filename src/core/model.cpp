@@ -18,7 +18,9 @@ const char* const kOscModTypeLabel[MOD_TYPE_COUNT] = {
   "FM-EXP", "FM-AC", "FM-LIN", "FM-TZ", "PM", "AM", "AM+5", "AM-RE", "RM"
 };
 const char* const kSeqDestLabel[DEST_COUNT] = { "CV", "CHANCE", "SLEW", "LEN" };
-const char* const kMachineModeLabel[MACHINE_MODE_COUNT] = { "BENJOLIN", "ADVANCED" };
+const char* const kMachineModeLabel[MACHINE_MODE_COUNT] = {
+  "CLASSIC", "FUNKY", "BENJOLIN", "ADVANCED"
+};
 const char* const kFxEntryLabel[ENTRY_COUNT] = {
   "ALL", "FX", "GLITCH", "DELAY", "SPACE", "DRY"
 };
@@ -348,7 +350,7 @@ void PhoenixModel::setMuted(int inst, bool muted) {
 
 bool PhoenixModel::instrumentHidden(int inst) const {
   // BENJOLIN has no drums. Everything else the mode keeps.
-  return machine_mode == MODE_BENJOLIN && inst >= INST_KIK;
+  return machine_mode != MODE_ADVANCED && inst >= INST_KIK;
 }
 
 // The three below are what the user drives, so they are where the mode is
@@ -413,7 +415,9 @@ void PhoenixModel::tick(float dt) {
 }
 
 void PhoenixModel::applyMachineMode() {
-  bool benjolin = machine_mode == MODE_BENJOLIN;
+  // Everything below ADVANCED hides the same modules; the smaller modes
+  // differ only in how much of what is left they put on screen.
+  bool benjolin = machine_mode != MODE_ADVANCED;
 
   auto apply = [&](ModRow* rows, int count) {
     for (int i = 0; i < count; ++i) {

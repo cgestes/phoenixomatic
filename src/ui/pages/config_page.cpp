@@ -45,7 +45,8 @@ class ConfigPage : public IPage {
     scr.text(2, 1, "MACHINE", PEN_DIM, bg);
     drawField(scr, 10, 1, kModeRow, 0, kMachineModeLabel[model_.machine_mode], PEN_HOT, nav_.at(kModeRow, 0), bg);
 
-    bool benjolin = model_.machine_mode == MODE_BENJOLIN;
+    // Everything below ADVANCED hides the same modules.
+    bool benjolin = model_.machine_mode != MODE_ADVANCED;
     for (int i = 0; i < kModuleCount; ++i) {
       int row = 3 + i;
       bool on = kModules[i].in_benjolin || !benjolin;
@@ -78,8 +79,9 @@ class ConfigPage : public IPage {
   }
 
   bool toggleField() override {
-    model_.machine_mode = model_.machine_mode == MODE_BENJOLIN ? MODE_ADVANCED
-                                                               : MODE_BENJOLIN;
+    // Two useful ends to flip between, not a walk through all four.
+    model_.machine_mode =
+        model_.machine_mode == MODE_ADVANCED ? MODE_CLASSIC : MODE_ADVANCED;
     model_.applyMachineMode();
     return true;
   }
@@ -89,7 +91,7 @@ class ConfigPage : public IPage {
   }
 
   void zeroPage() override {
-    model_.machine_mode = MODE_BENJOLIN;   // the origin of the range
+    model_.machine_mode = MODE_CLASSIC;   // the origin of the range
     model_.applyMachineMode();
   }
 

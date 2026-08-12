@@ -47,6 +47,8 @@ SOURCES := \
   ../src/ui/components/mod_bank_view.cpp \
   ../src/ui/components/param_hint.cpp \
   ../src/ui/components/phoenix_sprite.cpp \
+  ../src/ui/pages/classic_page.cpp \
+  ../src/ui/pages/funky_page.cpp \
   ../src/ui/pages/home_page.cpp \
   ../src/ui/pages/chaos_page.cpp \
   ../src/ui/pages/osc_page.cpp \

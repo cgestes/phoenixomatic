@@ -67,7 +67,7 @@ class HomePage : public IPage {
     bool mf = nav_.atRow(kModeRow);
     scr.text(2, 1, "MODE", PEN_DIM, rowBg(mf));
     drawField(scr, 7, 1, kModeRow, 0, kMachineModeLabel[model_.machine_mode],
-              model_.machine_mode == MODE_BENJOLIN ? PEN_COOL : PEN_HOT,
+              model_.machine_mode == MODE_ADVANCED ? PEN_HOT : PEN_COOL,
               nav_.at(kModeRow, 0), rowBg(mf));
 
     scr.text(21, 1, "OUT", PEN_DIM);
@@ -162,7 +162,7 @@ class HomePage : public IPage {
   }
 
   void zeroField() override {
-    if (nav_.row() == kModeRow) setMode(MODE_BENJOLIN);
+    if (nav_.row() == kModeRow) setMode(MODE_CLASSIC);
     // Not the arithmetic midpoint of -7..+6, which is -0.5 and means
     // nothing. Zero is the middle anyone wants: no transposition at all.
     else model_.rate_offset = 0.0f;
@@ -175,7 +175,7 @@ class HomePage : public IPage {
   // RATE's floor is the one adjustRate clamps to: seven octaves down, where
   // the comparator ticks rather than tones.
   void minField() override {
-    if (nav_.row() == kModeRow) setMode(MODE_BENJOLIN);
+    if (nav_.row() == kModeRow) setMode(MODE_CLASSIC);
     else model_.rate_offset = -7.0f;
   }
 
