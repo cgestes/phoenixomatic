@@ -46,6 +46,12 @@ class PhoenixEngine {
   void publishBus();
   // True if `gate_src` has a rising edge this sample.
   bool gateEdge(uint8_t gate_src) const;
+  // Where a voice joins the chain, clamped: the field is a uint8_t and an
+  // out-of-range one would index past the accumulators.
+  int route(int inst) const {
+    uint8_t r = model_.route[inst];
+    return r < ENTRY_COUNT ? r : ENTRY_DIRT;
+  }
   void tickClock();
   void tickSequencers();
   void tickDrums();

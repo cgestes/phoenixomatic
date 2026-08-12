@@ -19,6 +19,9 @@ const char* const kOscModTypeLabel[MOD_TYPE_COUNT] = {
 };
 const char* const kSeqDestLabel[DEST_COUNT] = { "CV", "CHANCE", "SLEW", "LEN" };
 const char* const kMachineModeLabel[MACHINE_MODE_COUNT] = { "BENJOLIN", "ADVANCED" };
+const char* const kFxEntryLabel[ENTRY_COUNT] = {
+  "ALL", "FX", "GLITCH", "DELAY", "SPACE", "DRY"
+};
 
 const char* const kChaosModeLabel[CHAOS_MODE_COUNT] = {
   "SLOTH", "LORENZ", "ROSSLER", "RND", "RUNGLER"

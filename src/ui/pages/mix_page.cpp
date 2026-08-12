@@ -41,8 +41,13 @@ class MixPage : public IPage {
                  "%d", static_cast<int>(level * 100.0f));
       drawField(scr, 26, row, slot, 1, mute ? "MUTE" : "ON", mute ? PEN_ALERT : PEN_HOT,
                 nav_.at(slot, 1), bg);
+      // Where this voice joins the effect chain. ALL is the whole chain and
+      // the default; anything else skips what comes before it.
+      uint8_t entry = model_.route[i] < ENTRY_COUNT ? model_.route[i] : ENTRY_DIRT;
+      drawField(scr, 31, row, slot, 2, kFxEntryLabel[entry],
+                entry == ENTRY_DIRT ? PEN_DIM : PEN_COOL, nav_.at(slot, 2), bg);
       // The number key that reaches this strip, so MIX and the footer agree.
-      scr.textf(33, row, mute ? PEN_DIM : PEN_VIOLET, "%d", i + 1);
+      scr.textf(38, row, mute ? PEN_DIM : PEN_VIOLET, "%d", i + 1);
     }
 
     bool mr = nav_.atRow(masterRow());
@@ -53,6 +58,11 @@ class MixPage : public IPage {
     scr.bar(9, 11, 14, model_.master, PEN_EMBER);
     drawFieldF(scr, 25, 11, masterRow(), 0, PEN_BRIGHT, nav_.at(masterRow(), 0), mbg, "%d",
                static_cast<int>(model_.master * 100.0f));
+
+    // The chain, in order, so the third column reads as a position in it
+    // rather than as six unrelated names.
+    scr.text(2, 13, "CHAIN", PEN_DIM);
+    scr.text(8, 13, "DIRT FX GLITCH GRAIN DELAY SPACE", PEN_FAINT);
 
 
   }
@@ -90,6 +100,9 @@ class MixPage : public IPage {
       int i = strip_index_[nav_.row()];
       if (nav_.field() == 1) {
         model_.toggleMute(i);
+      } else if (nav_.field() == 2) {
+        model_.route[i] = static_cast<uint8_t>(
+            (model_.route[i] + ENTRY_COUNT + dir) % ENTRY_COUNT);
       } else {
         adjustUnit(constLevelMut(i), dir, ev.step);
       }
@@ -108,8 +121,10 @@ class MixPage : public IPage {
   void zeroField() override {
     if (nav_.row() < strip_count_) {
       int i = strip_index_[nav_.row()];
-      // Mute has no zero; unmuted is its origin.
+      // Mute has no zero; unmuted is its origin. Routing's origin is the
+      // whole chain, which is where every voice starts.
       if (nav_.field() == 1) model_.setMuted(i, false);
+      else if (nav_.field() == 2) model_.route[i] = ENTRY_DIRT;
       else *constLevelMut(i) = 0.0f;
       return;
     }
@@ -120,7 +135,11 @@ class MixPage : public IPage {
     if (nav_.row() < strip_count_) {
       int i = strip_index_[nav_.row()];
       if (nav_.field() == 1) model_.toggleMute(i);
-      else *constLevelMut(i) = 0.3f + model_.randomUnit() * 0.7f;
+      else if (nav_.field() == 2) {
+        model_.route[i] = static_cast<uint8_t>(model_.random() % ENTRY_COUNT);
+      } else {
+        *constLevelMut(i) = 0.3f + model_.randomUnit() * 0.7f;
+      }
       return;
     }
     model_.master = 0.4f + model_.randomUnit() * 0.6f;
@@ -134,8 +153,10 @@ class MixPage : public IPage {
   void maxField() override {
     if (nav_.row() < strip_count_) {
       int i = strip_index_[nav_.row()];
-      // Mute's far end is muted, matching how the field itself reads.
+      // Mute's far end is muted, matching how the field itself reads, and
+      // routing's is DRY -- the far end of the chain is not being in it.
       if (nav_.field() == 1) model_.setMuted(i, true);
+      else if (nav_.field() == 2) model_.route[i] = ENTRY_DRY;
       else *constLevelMut(i) = 1.0f;
       return;
     }
@@ -156,6 +177,10 @@ class MixPage : public IPage {
       *constLevelMut(strip_index_[s]) = 0.3f + model_.randomUnit() * 0.7f;
     }
   }
+
+  // The routing is left alone by SHIFT+O and SHIFT+I. Sending the whole mix
+  // dry, or scattering it across six entry points, is a patch rather than a
+  // level, and both are one press away per strip.
  private:
 
   int masterRow() const { return strip_count_; }
@@ -169,7 +194,7 @@ class MixPage : public IPage {
     for (int i = 0; i < kMaxStrips; ++i) {
       if (!model_.instrumentHidden(i)) strip_index_[strip_count_++] = i;
     }
-    for (int i = 0; i < strip_count_; ++i) fields_[i] = 2;  // level, mute
+    for (int i = 0; i < strip_count_; ++i) fields_[i] = 3;  // level, mute, route
     fields_[masterRow()] = 1;
     nav_.configure(fields_, strip_count_ + 1);
   }

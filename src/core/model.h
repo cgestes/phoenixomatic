@@ -575,6 +575,38 @@ struct GrainState {
   ModRow mod[kGrainModRows];
 };
 
+// ---------------------------------------------------------------------------
+// Where a voice joins the effect chain
+// ---------------------------------------------------------------------------
+//
+// The chain is serial and runs once on the summed voices: DIRT, then FX, then
+// GLITCH and GRAIN, then DELAY, then SPACE. A voice therefore cannot pick
+// effects out of the middle of it — once two voices are added together no
+// later stage can tell them apart again, and giving each its own chain would
+// mean a second delay line, a second one-second looper and a second reverb,
+// which is about 350 KB the Cardputer does not have.
+//
+// What it can pick is where it *joins*. Everything before that point is
+// skipped and everything after is applied, which costs one add per stage and
+// covers what the routing is actually wanted for: drums that stay clean but
+// sit in the same room, a comparator that gets the distortion and nothing
+// else, an oscillator that goes through everything.
+//
+// GLITCH and GRAIN are one entry because they are one recorder — see
+// src/dsp/looper.h. A voice cannot be inside the buffer for one and outside it
+// for the other. Each still has its own MIX, so either can be taken out
+// globally without touching the routing.
+enum FxEntry : uint8_t {
+  ENTRY_DIRT = 0,   // everything
+  ENTRY_FX,         // skips the distortion
+  ENTRY_GLITCH,     // GLITCH, GRAIN, DELAY, SPACE
+  ENTRY_DELAY,      // DELAY and SPACE — the classic "clean but in the room"
+  ENTRY_SPACE,      // reverb only
+  ENTRY_DRY,        // straight to the master
+  ENTRY_COUNT
+};
+extern const char* const kFxEntryLabel[ENTRY_COUNT];
+
 // FX — phaser, flanger, chorus, ensemble: one swept delay at four lengths.
 inline constexpr int kFxModRows = 4;
 enum FxDest : uint8_t { FDEST_RATE = 0, FDEST_DEPTH, FDEST_FEED, FDEST_MIX, FXDEST_COUNT };
@@ -720,6 +752,11 @@ class PhoenixModel {
     INST_KIK, INST_SNR, INST_HH, INST_OH,
     INST_COUNT
   };
+  // Where each voice joins the effect chain; see FxEntry. Indexed by
+  // Instrument, so it stays beside the mutes and the levels rather than being
+  // scattered one field at a time across eight unrelated structs.
+  uint8_t route[INST_COUNT] = {};
+
   bool isMuted(int inst) const;
   void setMuted(int inst, bool muted);
   void toggleMute(int inst);

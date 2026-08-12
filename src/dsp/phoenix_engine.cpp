@@ -304,7 +304,11 @@ void PhoenixEngine::render(int16_t* out, size_t frames) {
     // Both read the bus published above, so cross-modulation sees the other
     // oscillator delayed by one sample. That one-sample loop is what makes
     // mutual FM stable rather than algebraic.
-    float voice = 0.0f;
+    // One accumulator per entry point rather than one summed voice. Each
+    // stage adds in whatever joins there before it runs, so a voice that
+    // joins late skips everything upstream — see FxEntry in model.h for why
+    // it is an entry point and not a per-effect mask.
+    float stage[ENTRY_COUNT] = {0.0f};
     for (int v = 0; v < 2; ++v) {
       const Osc& o = model_.osc[v];
       ModInput mods[kOscModRows];
@@ -318,7 +322,7 @@ void PhoenixEngine::render(int16_t* out, size_t frames) {
       float s = osc_[v].process(mods, kOscModRows);
       model_.osc[v].out = s;
       model_.osc[v].phase = osc_[v].phase();
-      if (!o.mute) voice += s * o.level * 0.34f;
+      if (!o.mute) stage[route(PhoenixModel::INST_OSC1 + v)] += s * o.level * 0.34f;
     }
 
     // Rising edge of each oscillator's square — the zero crossing, whatever
@@ -411,7 +415,9 @@ void PhoenixEngine::render(int16_t* out, size_t frames) {
     tickSequencers();
     tickDrums();
 
-    if (!model_.comp.mute) voice += comp_out_ * model_.comp.level * 0.22f;
+    if (!model_.comp.mute) {
+      stage[route(PhoenixModel::INST_COMP)] += comp_out_ * model_.comp.level * 0.22f;
+    }
 
     // --- filter ------------------------------------------------------------
     // The Benjolin runs its PWM through a resonant filter swept by the
@@ -441,13 +447,14 @@ void PhoenixEngine::render(int16_t* out, size_t frames) {
         default:           in = comp_out_; break;
       }
       float out_f = filter_.process(in);
-      if (!f.mute) voice += out_f * f.level * 0.5f;
+      if (!f.mute) stage[route(PhoenixModel::INST_FILTER)] += out_f * f.level * 0.5f;
     }
 
     // --- drums --------------------------------------------------------------
     for (int i = 0; i < kDrumVoices; ++i) {
       if (model_.drum[i].mute) continue;
-      voice += drum_[i].process() * model_.drum[i].level * 0.8f;
+      stage[route(PhoenixModel::INST_KIK + i)] +=
+          drum_[i].process() * model_.drum[i].level * 0.8f;
     }
 
     // --- LED holds, so single-sample pulses are visible ---------------------
@@ -485,7 +492,7 @@ void PhoenixEngine::render(int16_t* out, size_t frames) {
       dirt_.setCrush(cru);
       dirt_.setDownsample(dwn);
       dirt_.setMix(dmix);
-      s = dirt_.process(voice);
+      s = dirt_.process(stage[ENTRY_DIRT]);
     }
 
     // --- fx -----------------------------------------------------------------
@@ -510,13 +517,18 @@ void PhoenixEngine::render(int16_t* out, size_t frames) {
       fx_.setDepth(depth);
       fx_.setFeedback(feed);
       fx_.setMix(fmix);
-      fx_.process(s, &a_l, &a_r);
+      fx_.process(s + stage[ENTRY_FX], &a_l, &a_r);
     }
 
     // --- glitch and grain ---------------------------------------------------
     // One recorder, two readers, running whether or not either is switched on
     // — so turning one up replays audio that is already there rather than a
     // second of silence.
+    // Voices joining here are in the recording as well as in the output: the
+    // buffer is what both readers read, so being routed to GLITCH and being
+    // absent from what GLITCH repeats would be a contradiction.
+    a_l += stage[ENTRY_GLITCH];
+    a_r += stage[ENTRY_GLITCH];
     looper_.write((a_l + a_r) * 0.5f);
     {
       const GlitchState& gl = model_.glitch;
@@ -593,6 +605,8 @@ void PhoenixEngine::render(int16_t* out, size_t frames) {
     float dry_l, dry_r;
     {
       const DelayState& dl = model_.delay;
+      a_l += stage[ENTRY_DELAY];
+      a_r += stage[ENTRY_DELAY];
       const float mono = (a_l + a_r) * 0.5f;
       float octaves = 0.0f, feed = dl.feedback, damp = dl.damp, mix = dl.mix;
       for (int i = 0; i < kDelayModRows; ++i) {
@@ -627,6 +641,8 @@ void PhoenixEngine::render(int16_t* out, size_t frames) {
     float wet_l = 0.0f, wet_r = 0.0f;
     {
       const SpaceState& sp = model_.space;
+      dry_l += stage[ENTRY_SPACE];
+      dry_r += stage[ENTRY_SPACE];
       float size = sp.size, decay = sp.decay, damp = sp.damp, mix = sp.mix;
       for (int i = 0; i < kSpaceModRows; ++i) {
         const ModRow& m = sp.mod[i];
@@ -660,6 +676,10 @@ void PhoenixEngine::render(int16_t* out, size_t frames) {
       wet_l = dry_l * dry + wet_l * mix;
       wet_r = dry_r * dry + wet_r * mix;
     }
+
+    // Straight past every effect, joining only at the master.
+    wet_l += stage[ENTRY_DRY];
+    wet_r += stage[ENTRY_DRY];
 
     wet_l *= master;
     wet_r *= master;
