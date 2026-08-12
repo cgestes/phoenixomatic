@@ -595,6 +595,13 @@ void drawHintPanel(TextScreen& scr, const ParamHint& hint, bool up) {
   // treatment. A tint and a border made it read as damage rather than as
   // something laid on top — and neither survived the things that draw over it.
   int row = hintRow(hint.avoid_row);
+  // The band it is *not* in gets repainted, every frame it is up. The panel
+  // moves between the two as the cursor crosses the middle of the screen, and
+  // only the band being vacated knew it had pixels in it — so walking down the
+  // MIX strips left the previous sketch stranded at the bottom while the new
+  // one drew at the top. Nothing cleared it until the panel expired.
+  int other = row == kHintRowUpper ? kHintRowLower : kHintRowUpper;
+  scr.touch(kHintCol, other, kHintCols, kHintRows);
   scr.reserve(kHintCol, row, kHintCols, kHintRows);
   drawHintLabels(scr, kHintCol, row, hint);
 }

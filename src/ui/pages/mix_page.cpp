@@ -84,6 +84,11 @@ class MixPage : public IPage {
   }
 
   ParamHint focusedHint() const override {
+    // CHAIN has no values, only an order. Without this it fell through to the
+    // strip logic below and drew a crossfader for whichever mixer channel
+    // shared a row number with the stage under the cursor — a picture of a
+    // level that was not on screen, floating over the list you were sorting.
+    if (sub_ != 0) return ParamHint{};
     // Computed, because MIX has editable rows the whole height of the screen —
     // a fixed band would sit on a strip you were adjusting.
     const int here =
@@ -92,6 +97,9 @@ class MixPage : public IPage {
             : 12;
     if (nav_.row() < strip_count_) {
       if (nav_.field() == 1) return ParamHint{};          // mute is a state
+      // The routing column is a name too, and drawing the strip's *level*
+      // beside it said nothing about the thing being changed.
+      if (nav_.field() == 2) return ParamHint{};
       return withRow(ParamHint{HINT_MIX, *constLevel(strip_index_[nav_.row()])}, here);
     }
     return withRow(ParamHint{HINT_MIX, model_.master}, here);
