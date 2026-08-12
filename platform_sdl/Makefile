@@ -97,7 +97,15 @@ ifeq ($(EMCC_NATIVE),1)
   EM_SHELL := shell.html
   EM_OUT := $(ROOT)/web/phoenixomatic.html
 else
-  EM_RUN := $(DOCKER) run --rm -v $(ROOT):/src -w /src/platform_sdl $(EMCC_IMAGE)
+  # A named volume for emscripten's cache. The container is --rm, so without
+  # this every build starts with an empty cache and re-downloads the SDL2 port
+  # from GitHub -- which works until GitHub closes the connection mid-fetch, and
+  # then `make wasm` fails with RemoteDisconnected for no reason of ours. Cached,
+  # the port is fetched once ever and the build stops needing the network at all.
+  EM_CACHE_VOL ?= phoenixomatic-emcache
+  EM_RUN := $(DOCKER) run --rm -v $(ROOT):/src \
+              -v $(EM_CACHE_VOL):/emsdk/upstream/emscripten/cache \
+              -w /src/platform_sdl $(EMCC_IMAGE)
   EM_SHELL := /src/platform_sdl/shell.html
   EM_OUT := /src/web/phoenixomatic.html
 endif
