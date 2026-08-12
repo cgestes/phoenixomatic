@@ -525,20 +525,38 @@ struct DirtState {
   ModRow mod[kDirtModRows];
 };
 
-// GLITCH — grab the last slice and loop it. Milliseconds, not beats: there is
-// no tempo here, only the comparator's edges.
+// GLITCH — grab the last slice and loop it.
 inline constexpr int kGlitchModRows = 4;
 enum GlitchDest : uint8_t { GDEST_LEN = 0, GDEST_CHANCE, GDEST_PITCH, GDEST_MIX, GDEST_COUNT };
 extern const char* const kGlitchDestLabel[GDEST_COUNT];
 
+// The shortest slice the page offers. LEN steps down to this and then to SYNC,
+// which is one position further: the bottom of the dial is where a length
+// control stops being a length.
+inline constexpr float kGlitchMinMs = 5.0f;
+inline constexpr float kGlitchMaxMs = 500.0f;
+
 struct GlitchState {
   float mix = 0.0f;
   float len_ms = 90.0f;
+  // Take the slice length from the gate instead of from LEN — one repeat
+  // exactly filling the gap between triggers, which is what a beat repeat is.
+  //
+  // It works out as clock sync without a note list or a second field, because
+  // the gate is already choosable and CLK and its two dividers are among the
+  // choices. Point GATE at CLK DIV-1 and a slice is a quarter note; point it
+  // at the comparator and it is whatever the comparator is doing, which is the
+  // benjolin answer to the same question.
+  bool sync = false;
   float chance = 0.35f;     // how often a gate actually grabs
   uint8_t pitch = 3;        // index into kShimmerSemis, shared with SHIMMER
   bool reverse = false;
   uint8_t gate_src = GATE_CMP_GT;
   ModRow mod[kGlitchModRows];
+  // live, for the panel: whether a slice is looping right now, and how long
+  // the one being played actually is once SYNC and the bank have had their say.
+  bool live = false;
+  float live_ms = 0.0f;
 };
 
 // GRAIN — overlapping windowed reads of the same buffer GLITCH uses.
@@ -547,7 +565,9 @@ enum GrainDest : uint8_t { GRDEST_SIZE = 0, GRDEST_DENSITY, GRDEST_SPREAD, GRDES
 extern const char* const kGrainDestLabel[GRDEST_COUNT];
 
 struct GrainState {
-  float mix = 0.0f;
+  // Half wet by default. GRAIN is a texture rather than an insert -- at zero
+  // the page looks like it does nothing, which is how it read.
+  float mix = 0.5f;
   float size_ms = 50.0f;
   float density = 0.5f;
   float spread = 0.4f;

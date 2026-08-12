@@ -1,9 +1,20 @@
 // GLITCH - grab the last slice and loop it.
 //
-// A beat repeat on a machine with no beat. The length is in milliseconds
-// because there is no tempo to divide; a gate decides when a new slice is
-// taken and CHANCE decides whether that gate is taken at all. It reads the
-// same buffer GRAIN does - see src/dsp/looper.h for why there is only one.
+// A gate decides when a new slice is taken and CHANCE decides whether that
+// gate is taken at all — a gate that arrives and loses its roll ends the
+// repeat, which is what makes CHANCE a proportion of the time rather than a
+// replacement rate.
+//
+// LEN is in milliseconds, or SYNC, which takes the length from the gap between
+// the gate's own pulses. That is clock sync without a note list or a second
+// field: the gate can already be CLK or one of its dividers, so a slice
+// becomes a sixteenth or a quarter by pointing it there. Aimed at the
+// comparator instead it still works, and gives the length the benjolin would
+// have chosen — which is the only kind of tempo this machine had before.
+//
+// It reads the same buffer GRAIN does — see src/dsp/looper.h for why there is
+// only one.
+#include "../../../fonts/phx_glyphs.h"
 #include "../../core/model.h"
 #include "../../dsp/looper.h"
 #include "../components/mod_bank_view.h"
@@ -32,7 +43,12 @@ class GlitchPage : public IPage {
       if (nav_.field() == 1) return withRow(ParamHint{HINT_CHANCE, d.chance}, here);
       return withRow(ParamHint{HINT_MIX, d.mix}, here);
     }
-    if (nav_.field() == 0) return withRow(ParamHint{HINT_TIME, d.len_ms, 500.0f}, here);
+    // The length in use, not the field: under SYNC the field has no number
+    // and the sketch would otherwise draw a stale one.
+    if (nav_.field() == 0) {
+      return withRow(ParamHint{HINT_TIME, d.sync ? d.live_ms : d.len_ms,
+                               kGlitchMaxMs}, here);
+    }
     if (nav_.field() == 1) {
       return withRow(ParamHint{HINT_INTERVAL, shimmerRatio(d.pitch)}, here);
     }
@@ -60,14 +76,34 @@ class GlitchPage : public IPage {
     uint8_t abg = rowBg(ar);
     if (ar) scr.highlight(1, 2, kScreenCols - 2, PEN_PANEL);
     scr.text(1, 2, "LEN", PEN_DIM, abg);
-    drawFieldF(scr, 5, 2, kSliceRow, 0, PEN_EMBER, nav_.at(kSliceRow, 0), abg,
-               "%dms", static_cast<int>(d.len_ms));
+    // SYNC sits one step below the shortest slice, so it costs no column and
+    // O lands on it. The alternative was a fourth field on a row that is
+    // already thirty-seven cells wide.
+    if (d.sync) {
+      drawField(scr, 5, 2, kSliceRow, 0, "SYNC", PEN_HOT, nav_.at(kSliceRow, 0), abg);
+    } else {
+      drawFieldF(scr, 5, 2, kSliceRow, 0, PEN_EMBER, nav_.at(kSliceRow, 0), abg,
+                 "%dms", static_cast<int>(d.len_ms));
+    }
     scr.text(14, 2, "PITCH", PEN_DIM, abg);
     drawField(scr, 20, 2, kSliceRow, 1, kShimmerLabel[d.pitch], PEN_COOL,
               nav_.at(kSliceRow, 1), abg);
     scr.text(29, 2, "REV", PEN_DIM, abg);
     drawField(scr, 33, 2, kSliceRow, 2, d.reverse ? "ON" : "OFF",
               d.reverse ? PEN_HOT : PEN_FAINT, nav_.at(kSliceRow, 2), abg);
+
+    // What the effect is doing right now. Without it the page is four numbers
+    // and no way to tell a held slice from the audio going straight past --
+    // which at low CHANCE is most of the time, and is the whole question.
+    scr.put(1, 3, d.live ? phx_glyphs::kLedOn : phx_glyphs::kLedOff,
+            d.live ? PEN_HOT : PEN_FAINT);
+    scr.text(3, 3, d.live ? "REPEATING" : "THRU     ",
+             d.live ? PEN_BRIGHT : PEN_FAINT);
+    // The length actually in use, which is not the field when SYNC is on or
+    // when the bank is moving LEN.
+    scr.textf(14, 3, d.live ? PEN_DIM : PEN_FAINT, "%dms slice",
+              static_cast<int>(d.live_ms));
+    if (d.sync) scr.text(28, 3, "FROM GATE", PEN_DIM);
 
     int focus_row = nav_.row() >= kBankRow0 ? nav_.row() - kBankRow0 : -1;
     drawModBankIndexed(scr, 4, d.mod, bank_index_, bank_count_, focus_row,
@@ -100,11 +136,20 @@ class GlitchPage : public IPage {
       return true;
     }
     if (nav_.field() == 0) {
-      // Milliseconds, and SHIFT is the fine one: the coarse step has to cross
-      // half a second without a hundred presses.
-      d.len_ms += static_cast<float>(dir) * 10.0f * stepScale(ev.step);
-      if (d.len_ms < 5.0f) d.len_ms = 5.0f;
-      if (d.len_ms > 500.0f) d.len_ms = 500.0f;
+      // One field for two things, with SYNC one step below the shortest slice:
+      // stepping off the bottom of a length is where "no length of its own"
+      // belongs, and it costs no column on a row already thirty-seven wide.
+      if (d.sync) {
+        if (dir > 0) { d.sync = false; d.len_ms = kGlitchMinMs; }
+      } else if (dir < 0 && d.len_ms <= kGlitchMinMs) {
+        d.sync = true;
+      } else {
+        // The coarse step has to cross half a second without a hundred
+        // presses; a/z is there for the ones in between.
+        d.len_ms += static_cast<float>(dir) * 10.0f * stepScale(ev.step);
+        if (d.len_ms < kGlitchMinMs) d.len_ms = kGlitchMinMs;
+        if (d.len_ms > kGlitchMaxMs) d.len_ms = kGlitchMaxMs;
+      }
     } else if (nav_.field() == 1) {
       d.pitch = static_cast<uint8_t>((d.pitch + kShimmerCount + dir) % kShimmerCount);
     } else {
@@ -134,7 +179,9 @@ class GlitchPage : public IPage {
       else d.mix = 0.0f;
       return;
     }
-    if (nav_.field() == 0) d.len_ms = 5.0f;
+    // O on LEN lands on SYNC, which is the origin of this field now: the
+    // setting where the slice stops having a length of its own.
+    if (nav_.field() == 0) { d.sync = true; d.len_ms = kGlitchMinMs; }
     else if (nav_.field() == 1) d.pitch = 3;      // as recorded
     else d.reverse = false;
   }
@@ -163,7 +210,7 @@ class GlitchPage : public IPage {
       else d.mix = 1.0f;
       return;
     }
-    if (nav_.field() == 0) d.len_ms = 500.0f;
+    if (nav_.field() == 0) { d.sync = false; d.len_ms = kGlitchMaxMs; }
     else if (nav_.field() == 1) d.pitch = kShimmerCount - 1;
     else d.reverse = true;
   }
@@ -172,7 +219,8 @@ class GlitchPage : public IPage {
     GlitchState& d = model_.glitch;
     d.mix = 0.0f;
     d.chance = 0.0f;
-    d.len_ms = 5.0f;
+    d.sync = true;
+    d.len_ms = kGlitchMinMs;
     d.pitch = 3;
     d.reverse = false;
     zeroBank(d.mod, bank_index_, bank_count_);
@@ -202,7 +250,11 @@ class GlitchPage : public IPage {
       else d.mix = model_.randomUnit() * 0.8f;
       return;
     }
-    if (nav_.field() == 0) d.len_ms = 20.0f + model_.randomUnit() * 200.0f;
+    if (nav_.field() == 0) {
+      d.sync = model_.randomUnit() < 0.25f;
+      d.sync = model_.randomUnit() < 0.25f;
+    d.len_ms = 20.0f + model_.randomUnit() * 200.0f;
+    }
     else if (nav_.field() == 1) d.pitch = static_cast<uint8_t>(model_.random() % kShimmerCount);
     else d.reverse = (model_.random() & 1u) != 0;
   }

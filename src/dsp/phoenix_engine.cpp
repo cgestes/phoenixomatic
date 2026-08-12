@@ -532,14 +532,33 @@ void PhoenixEngine::render(int16_t* out, size_t frames) {
           default:           len += v * 200.0f; break;
         }
       }
+      bool edge = gateEdge(gl.gate_src);
+      // How far apart this gate's pulses are, measured rather than told. That
+      // is what SYNC follows: one repeat exactly filling the gap between
+      // triggers. Because the gate can be CLK or one of its dividers, this is
+      // clock sync without a note list — and because it can also be the
+      // comparator, it still works on a machine with no clock at all.
+      if (edge) {
+        if (glitch_gap_ > 0) glitch_period_ = glitch_gap_;
+        glitch_gap_ = 0;
+      }
+      ++glitch_gap_;
+      // Falls back to LEN until two pulses have been seen, so a freshly
+      // switched-on SYNC is never a zero-length slice.
+      if (gl.sync && glitch_period_ > 0) {
+        len = static_cast<float>(glitch_period_) * 1000.0f / sample_rate_;
+      }
       looper_.setGlitchLength(len);
+      model_.glitch.live_ms = looper_.glitchLengthMs();
       // The gate says when a window starts, CHANCE says whether that window
       // repeats or passes through. Both go down, because the gate is also what
       // ends the previous repeat.
-      bool edge = gateEdge(gl.gate_src);
       bool take = edge && randUnit() < clamp01(ch);
       float wl, wr;
       looper_.glitch(edge, take, &wl, &wr);
+      // Only meaningful while the effect is audible: a slice looping behind a
+      // dry mix is not something the panel should call active.
+      model_.glitch.live = looper_.glitchArmed() && clamp01(gmix) > 0.0f;
       float m01 = clamp01(gmix);
       a_l = a_l * (1.0f - m01) + wl * m01;
       a_r = a_r * (1.0f - m01) + wr * m01;

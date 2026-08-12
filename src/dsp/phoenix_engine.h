@@ -100,6 +100,10 @@ class PhoenixEngine {
   int clk_div_count_[kClockDividers] = {0};
   int clk_hold_ = 0;
   int clk_div_hold_[kClockDividers] = {0};
+  // GLITCH measures the gap between its own gate pulses, so SYNC can make a
+  // slice exactly one gate long without being told a tempo.
+  int glitch_gap_ = 0;
+  int glitch_period_ = 0;
   int drum_count_[kDrumVoices] = {0};
   int drum_hold_[kDrumVoices] = {0};
   int led_hold_samples_ = 1;

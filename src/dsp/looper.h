@@ -36,6 +36,12 @@ class Looper {
   // repeat, which is what makes CHANCE mean "how often", rather than only
   // "how often the loop is replaced".
   void glitch(bool gate_edge, bool take, float* left, float* right);
+  // Whether a slice is looping, as opposed to the live signal going past.
+  bool glitchArmed() const { return glitch_armed_; }
+  // The length actually in use after clamping, which is not always the length
+  // asked for: the buffer is one second, so a gate slower than that cannot be
+  // filled and the panel should say so rather than repeat the request back.
+  float glitchLengthMs() const { return glitch_len_ * 1000.0f / sample_rate_; }
 
   // --- GRAIN ----------------------------------------------------------------
   void setGrainSize(float ms);
