@@ -753,11 +753,17 @@ const char* filterModeLabel(uint8_t type, uint8_t mode);
 // MORPH is the one type whose second field is a number rather than a list.
 inline bool filterModeIsSweep(uint8_t type) { return type == FILT_TYPE_MORPH; }
 
-// Where a filter mod row lands. MORPH is a destination of its own because a
-// morph you cannot sweep is just a switch with extra steps -- the point of it
-// is the rungler walking from lowpass to highpass.
-enum FilterModDest : uint8_t { FDEST_FREQ = 0, FDEST_RES, FDEST_MORPH, FDEST_COUNT };
+// Where a filter mod row lands: the two dials, and the field between TYPE and
+// IN. That third one was briefly called MORPH, which was the wrong name for
+// it -- only one of the seven filters has a morph, but all seven have that
+// field, and driving it means something on every one of them. On MORPH it
+// sweeps lowpass to highpass; on VOWEL it changes voice mid-word; on COMB it
+// switches what the feedback does; elsewhere it steps the response.
+enum FilterModDest : uint8_t { FDEST_FREQ = 0, FDEST_RES, FDEST_MODE, FDEST_COUNT };
 extern const char* const kFilterDestLabel[FDEST_COUNT];
+// And the destinations are named by whichever filter is listening, for the
+// same reason MODE itself is: FREQ is not a frequency on VOWEL.
+const char* filterDestLabel(uint8_t type, uint8_t dest);
 
 struct FilterState {
   uint8_t type = FILT_TYPE_SVF;  // FilterType: which filter

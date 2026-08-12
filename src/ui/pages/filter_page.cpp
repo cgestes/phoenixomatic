@@ -102,8 +102,10 @@ class FilterPage : public IPage {
     }
 
     int focus_row = nav_.row() >= kBankRow0 ? nav_.row() - kBankRow0 : -1;
+    const char* dest[FDEST_COUNT];
+    for (int i = 0; i < FDEST_COUNT; ++i) dest[i] = filterDestLabel(f.type, i);
     drawModBankIndexed(scr, 4, f.mod, bank_index_, bank_count_, focus_row,
-                       nav_.field(), kFilterDestLabel, "DEST", kBankRow0);
+                       nav_.field(), dest, "DEST", kBankRow0);
 
     // The line at the bottom says what the filter is currently doing, which
     // stops being "the PWM through a filter" the moment you unpatch it.

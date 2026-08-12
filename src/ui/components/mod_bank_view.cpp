@@ -92,9 +92,11 @@ bool editModRow(const UIEvent& ev, ModRow& row, int field, int mode_count) {
     return true;
   }
 
-  // Five units, or one with SHIFT — the same everywhere a value reads as a
-  // percentage.
-  float step = ev.shift ? 0.01f : 0.05f;
+  // One unit on a/z, five on s/x, twenty-five on d/c — the same three sizes
+  // every other field on the machine has. This one read the key's step size
+  // and then ignored it, so all three column pairs moved by five and the
+  // widest attenuverter took forty presses to cross.
+  float step = ev.shift ? 0.01f : 0.05f * stepScale(ev.step);
   float prev = row.amount;
   row.amount += static_cast<float>(dir) * step;
   if (row.amount > 1.0f) row.amount = 1.0f;

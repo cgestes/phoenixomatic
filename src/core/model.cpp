@@ -73,7 +73,26 @@ const char* const kNoteName[12] = { "C",  "C#", "D",  "D#", "E",  "F",
 const char* const kFilterModeLabel[FILT_MODE_COUNT] = {
   "LP", "BP", "HP", "NOTCH"
 };
-const char* const kFilterDestLabel[FDEST_COUNT] = { "FREQ", "RES", "MORPH" };
+const char* const kFilterDestLabel[FDEST_COUNT] = { "FREQ", "RES", "MODE" };
+
+// [type][dest]. Same three destinations everywhere; only the words change.
+namespace {
+const char* const kFilterDestByType[FILT_TYPE_COUNT][FDEST_COUNT] = {
+  { "FREQ", "RES",  "MODE"  },   // SVF
+  { "FREQ", "RES",  "MODE"  },   // ACID
+  { "SAY",  "EDGE", "VOICE" },   // VOWEL
+  { "NOTE", "RING", "SHAPE" },   // COMB
+  { "FREQ", "BITE", "MODE"  },   // 1-BIT
+  { "FREQ", "HOWL", "MODE"  },   // SCREAM
+  { "FREQ", "RES",  "SWEEP" },   // MORPH
+};
+}  // namespace
+
+const char* filterDestLabel(uint8_t type, uint8_t dest) {
+  if (dest >= FDEST_COUNT) dest = 0;
+  if (type >= FILT_TYPE_COUNT) type = 0;
+  return kFilterDestByType[type][dest];
+}
 
 // The four responses, then the four names the two reinterpreting types use
 // for the same field.

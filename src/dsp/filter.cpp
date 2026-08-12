@@ -45,6 +45,11 @@ const Formant kVowelTable[4][5][3] = {
 
 float dbToGain(float db) { return std::pow(10.0f, db * 0.05f); }
 
+// Where the comb stops ringing and starts sustaining -- the same place on the
+// dial as every other filter crosses over, so "the top of RES sings" is one
+// rule and not seven.
+constexpr float kCombSing = 0.86f;
+
 // How much the BELL allpasses bend the harmonics off their whole numbers.
 constexpr float kBellAp = 0.62f;
 
@@ -286,7 +291,12 @@ float Filter::processLadder(float in) {
     // jumps between states as the cutoff moves, which no amount of tanh will
     // do. RES is how much of the square is let in, so at the bottom of the
     // dial this is simply a clean four-pole lowpass.
-    u = in - kres_ * 0.25f * (y4 > 0.0f ? 1.0f : -1.0f);
+    // Squared, and not by way of kres. A sign() has infinite gain near zero,
+    // so any feedback at all locks the filter -- straight off kres this went
+    // from a clean four-pole to a full howl within a few units of the dial,
+    // and clipped for the rest of it. Squared, the bottom half of BITE is a
+    // filter with an edge on it and the top is the howl.
+    u = in - res_ * res_ * 1.1f * (y4 > 0.0f ? 1.0f : -1.0f);
   } else {
     u = in - kres_ * std::tanh(y4 * 4.0f) * 0.25f;
   }
@@ -308,6 +318,9 @@ float Filter::processLadder(float in) {
   // it only pushed them into the clip -- BP measured a flat 1.000 a third of
   // the way up the resonance dial, and NOTCH, which passes the top at unity by
   // construction, was clipping everything above the notch.
+  // The square in the loop has far more energy in it than a tanh's rounded
+  // corner, so the whole type comes out hotter and is trimmed back here.
+  float trim = type_ == FILT_TYPE_1BIT ? 0.45f : 1.0f;
   float out;
   switch (mode_) {
     // Half the textbook mix: at four, the resonant peak was against the
@@ -317,7 +330,7 @@ float Filter::processLadder(float in) {
     case FILT_NOTCH: out = u - 2.0f * y1 + 2.0f * y2; break;
     default:         out = y4 * makeup_; break;
   }
-  return clamp1(out);
+  return clamp1(out * trim);
 }
 
 void Filter::updateVowel() {
@@ -342,9 +355,21 @@ void Filter::updateVowel() {
   const Formant* a = kVowelTable[mode_][seg];
   const Formant* b = kVowelTable[mode_][seg + 1];
 
-  // A formant is narrow: Q of two is a vague hoot, Q of twenty is a whistle
-  // with no vowel left in it. RES runs between those.
-  float q = 2.0f + res_ * 16.0f;
+  // A formant is narrow: damping of a half is a vague hoot, a twentieth is a
+  // whistle with barely a vowel left in it. EDGE runs between those -- and
+  // then past zero, at the same place on the dial the other filters cross, so
+  // that the top of the range is three formants singing at once. A vowel
+  // holding itself is a choir, not a filter, and it was the one thing this
+  // type could not do.
+  float kb = 0.5f - res_ * 0.58f;
+  // Not the damping itself but a fractional power of it. Straight k is the
+  // textbook normalisation and it made the dial unusable: a narrow band
+  // catches less of a square wave than a wide one, so on top of the
+  // normalisation the level fell away eightfold from one end of EDGE to the
+  // other -- 0.73 down to 0.09 measured, on the same input. Taking the root
+  // gives back most of that without letting the wide end clip.
+  float kn = kb > 0.05f ? kb : 0.05f;
+  float norm = 0.64f * std::pow(kn, 0.35f);
   float nyq = sample_rate_ * 0.45f;
   for (int i = 0; i < 3; ++i) {
     // Frequencies interpolate in the log domain: halfway between 250 and 1000
@@ -354,18 +379,41 @@ void Filter::updateVowel() {
                         (std::log(b[i].hz) - std::log(a[i].hz)) * t);
     hz = clampf(hz, 20.0f, nyq);
     float g = std::tan(kPi * hz / sample_rate_);
-    float k = 1.0f / q;
+    float k = kb;
+    // Above about 3 kHz a negatively damped two-pole runs away rather than
+    // sings, exactly as the state variable does -- so the third formant, which
+    // lives up there, keeps a little damping and only the lower two howl.
+    if (k < 0.0f) {
+      float fade = (0.8f - g) / 0.45f;
+      k *= fade < 0.0f ? 0.0f : (fade > 1.0f ? 1.0f : fade);
+    }
+    band_[i].k = k;
+    float gn = g > 2.0f ? 2.0f : (g < 1e-4f ? 1e-4f : g);
+    // The same shape as the state variable's, and set by measurement rather
+    // than by argument, because three bands sharing one output do not settle
+    // the way one band does -- the level walks smoothly down with this number
+    // over most of its range and then jumps to the clip at both ends of it.
+    // Here the singing lands at 0.35, alongside the other filters, and nothing
+    // clips at any setting of EDGE with a hot pulse train going in.
+    band_[i].nl = 3.0f * gn * gn / std::sqrt(std::sqrt(gn));
     band_[i].a1 = 1.0f / (1.0f + g * (g + k));
     band_[i].a2 = g * band_[i].a1;
     band_[i].a3 = g * band_[i].a2;
-    // Times k, which is the whole difference between a formant and a mess.
+    // Times the damping, which is the whole difference between a formant and
+    // a mess: a state variable's bandpass has a gain of Q at its own
+    // frequency, so three of them summed at a high Q clip flat across the
+    // entire band, and a response flat at the ceiling has no formants in it.
+    //
+    // With a floor under it, because k now runs to zero and past it. Fixed at
+    // the floor instead, the quiet end of the dial came out nine times too
+    // soft -- the whole type measured at a peak of 0.085.
     // A state variable's bandpass tap has a gain of Q at its own frequency,
     // so three of them at Q eighteen, summed, clipped flat across the entire
     // band -- and a response that is flat at the ceiling has no formants in
     // it at all. Measured before the k: every formant read about 24% below
     // where the table puts it, because what the sweep was finding was the
     // lowest frequency that saturated, not a peak.
-    band_[i].amp = dbToGain(a[i].db + (b[i].db - a[i].db) * t) * k;
+    band_[i].amp = dbToGain(a[i].db + (b[i].db - a[i].db) * t) * norm;
   }
 }
 
@@ -382,17 +430,22 @@ float Filter::processVowel(float in) {
     float v2 = d.ic2 + d.a2 * d.ic1 + d.a3 * v3;
     d.ic1 = 2.0f * v1 - d.ic1;
     d.ic2 = 2.0f * v2 - d.ic2;
-    // Bounded per band. A high Q on a square wave has real gain in it, and
-    // three unbounded bands summed would be three times as bad.
-    d.ic1 = clampf(d.ic1, -8.0f, 8.0f);
-    d.ic2 = clampf(d.ic2, -8.0f, 8.0f);
+    // The same amplitude-dependent damping the state variable uses, per band,
+    // so that when they are singing they settle at a level instead of at the
+    // clip. Bounded either way: a high Q on a square wave has real gain in it,
+    // and three unbounded bands summed would be three times as bad.
+    float dd = clampf(v1, -1.5f, 1.5f);
+    d.ic1 -= d.nl * dd * dd * dd;
+    // Wide, because a normalised band runs its state twenty times higher than
+    // an unnormalised one; these are a backstop, not a shaper.
+    d.ic1 = clampf(d.ic1, -40.0f, 40.0f);
+    d.ic2 = clampf(d.ic2, -40.0f, 40.0f);
     out += v1 * d.amp;
   }
-  // The first formant carries the level and the other two sit below it, so
-  // the sum peaks a little over one band's worth. Set by measurement across
-  // all twenty vowel/register pairs so the loudest sits just under full scale
-  // on a square wave -- a vowel that clips stops being a vowel.
-  return clamp1(out * 1.7f);
+  // Set by measurement, and it is a compromise between the two things this
+  // type does: at 1.8 the singing was a comfortable 0.21 but a hard pulse
+  // train drove it into the clip, and a vowel that clips stops being a vowel.
+  return clamp1(out * 1.5f);
 }
 
 float Filter::processComb(float in) {
@@ -438,9 +491,34 @@ float Filter::processComb(float in) {
   // with a lowpass in it settles on a constant -- measured at a fraction over
   // unity it locked to DC and the pitch reading came back as 1 Hz. It is a
   // resonator rather than an oscillator, and it wants striking.
-  float t60 = 0.1f * std::pow(300.0f, res_);
-  float fb = std::exp(-6.9078f * d / (t60 * sample_rate_));
-  if (fb > 0.9995f) fb = 0.9995f;
+  float fb;
+  if (res_ >= kCombSing) {
+    // Past the same point on the dial where every other filter starts singing,
+    // this one does too: a fraction over unity, held by the soft limiter
+    // below. A hard clamp here locked it to a constant instead -- the loop
+    // saturated flat and the pitch read as one hertz -- which is why the
+    // limiter is a tanh and why the DC blocker is inside the loop rather than
+    // after it.
+    // Growth per second, not per trip round the loop. A flat 1.017 sounds
+    // pitch-independent and is the opposite: a 60 Hz note goes round sixty
+    // times a second and an 880 Hz note eight hundred and eighty, so the
+    // bottom of the range took a minute to get going while the top was
+    // instant. Measured, a low C never started at all in five seconds.
+    float excess = (res_ - kCombSing) / (1.0f - kCombSing);
+    // Growth measured in time, with a floor measured per trip. Time alone is
+    // right at the bottom of the range and useless at the top: at 3 kHz the
+    // line is seven samples long, so a fixed growth per second works out at
+    // half a percent per trip -- less than the interpolator and the DC blocker
+    // take out on the way round, and the note never got started. The floor is
+    // what guarantees the loop actually has gain in it.
+    float per_trip = std::exp(excess * 15.0f * d / sample_rate_) - 1.0f;
+    float least = excess * 0.04f;
+    fb = 1.0f + (per_trip > least ? per_trip : least);
+  } else {
+    float t60 = 0.1f * std::pow(300.0f, res_ / kCombSing);
+    fb = std::exp(-6.9078f * d / (t60 * sample_rate_));
+    if (fb > 0.9995f) fb = 0.9995f;
+  }
 
   switch (mode_) {
     case FILT_LP: {
@@ -492,7 +570,7 @@ float Filter::processComb(float in) {
   float hp = y - dc_x_ + 0.9975f * dc_y_;
   dc_x_ = y;
   dc_y_ = hp;
-  float into = clampf(in + hp * fb, -1.5f, 1.5f);
+  float into = std::tanh(in + hp * fb);
   comb_[comb_write_] = into;
   comb_write_ = comb_write_ + 1 >= kCombMax ? 0 : comb_write_ + 1;
   return clamp1(y);
@@ -507,13 +585,23 @@ float Filter::processScream(float in) {
   // cutoff starts following the output, and the filter goes through the usual
   // route out of order and into chaos: a wobble, then a growl, then period
   // doubling, then a scream that never repeats.
-  float depth = res_ * 2.2f;
+  // Both at once, because they are the same gesture. Depth is how far the
+  // output throws the cutoff; the damping is how much the filter rings when it
+  // gets there. At two and a bit octaves of throw into a filter with a Q of
+  // two, this wobbled and growled but never actually howled -- the energy at
+  // the input's own pitch only fell by half. Six octaves into something that
+  // is nearly self-oscillating is a different animal.
+  float depth = res_ * 6.0f;
   float g = g_ * (1.0f + depth * scream_last_);
   g = clampf(g, 0.002f, 2.5f);
 
   // Rebuilt every sample by definition -- the whole point is that g moves at
   // audio rate. One divide.
-  const float k = 0.5f;           // enough resonance to have something to bend
+  // Down through zero at the top of the dial. Stopping just short of it, the
+  // filter needed something patched in to make any noise at all, and a scream
+  // that has to be asked twice is not a scream. Past zero it holds its own
+  // note and the modulation bends that note, which is the sound.
+  float k = 0.5f - res_ * 0.56f;
   float a1 = 1.0f / (1.0f + g * (g + k));
   float a2 = g * a1;
   float a3 = g * a2;
@@ -523,6 +611,11 @@ float Filter::processScream(float in) {
   float v2 = ic2_ + a2 * ic1_ + a3 * v3;
   ic1_ = 2.0f * v1 - ic1_;
   ic2_ = 2.0f * v2 - ic2_;
+  // The same amplitude-dependent damping the state variable uses, for the same
+  // reason: once k is negative something has to decide how loud, and a
+  // saturator would decide differently at every cutoff.
+  float dd = clampf(v1, -1.5f, 1.5f);
+  ic1_ -= nl_ * dd * dd * dd;
   ic1_ = clampf(ic1_, -4.0f, 4.0f);
   ic2_ = clampf(ic2_, -4.0f, 4.0f);
 
@@ -533,10 +626,11 @@ float Filter::processScream(float in) {
     case FILT_NOTCH: out = in - k * v1; break;
     default:         out = v2; break;
   }
-  // Trimmed for the resonance the structure carries, so that at the bottom of
-  // the dial -- where this is supposed to be an ordinary filter and nothing
-  // else -- it does not arrive already against the clip.
-  out = clamp1(out * 0.72f);
+  // Trimmed for the resonance the structure carries -- which now climbs with
+  // the dial, so the trim has to as well. At the bottom this is supposed to be
+  // an ordinary filter and nothing else, and at the top a filter with a Q of
+  // twenty being thrown six octaves has a great deal of gain in it.
+  out = clamp1(out * 0.62f / (1.0f + res_ * 1.2f));
   // The clamped output is what goes back to the cutoff, so however far the
   // chaos wanders, g has a floor and a ceiling it cannot leave.
   scream_last_ = out;

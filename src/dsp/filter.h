@@ -71,7 +71,7 @@ class Filter {
 
   // VOWEL: three bandpasses, their coefficients, and what the coefficients
   // were last built from, so they are not rebuilt on every single sample.
-  struct Band { float ic1, ic2, a1, a2, a3, amp; };
+  struct Band { float ic1, ic2, a1, a2, a3, amp, k, nl; };
   Band band_[3] = {};
   float vowel_seen_tune_ = -1.0f, vowel_seen_res_ = -1.0f;
   uint8_t vowel_seen_mode_ = 0xFF;

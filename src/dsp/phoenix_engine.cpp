@@ -109,7 +109,6 @@ void PhoenixEngine::applyParams() {
     const Drum& d = model_.drum[i];
     drum_[i].setParams(d.tune, d.decay, d.p3, d.p4, d.p5);
   }
-  filter_.setMode(model_.filter.mode);
   filter_.setType(model_.filter.type);
 }
 
@@ -627,12 +626,12 @@ void PhoenixEngine::render(int16_t* out, size_t frames) {
       const FilterState& f = model_.filter;
       float octaves = 0.0f;
       float res_mod = 0.0f;
-      float morph_mod = 0.0f;
+      float field_mod = 0.0f;
       for (int i = 0; i < kFilterModRows; ++i) {
         const ModRow& m = f.mod[i];
         if (!m.active()) continue;
         if (m.mode == FDEST_RES) res_mod += m.amount * bus_[m.src];
-        else if (m.mode == FDEST_MORPH) morph_mod += m.amount * bus_[m.src];
+        else if (m.mode == FDEST_MODE) field_mod += m.amount * bus_[m.src];
         else octaves += m.amount * bus_[m.src] * kFilterModOctaves;
       }
       // 20 Hz to about 8 kHz across the knob, then the modulation on top.
@@ -645,7 +644,20 @@ void PhoenixEngine::render(int16_t* out, size_t frames) {
       // has to reach it the same way it reaches the cutoff -- so the octaves
       // are converted back into a fraction of the dial's travel.
       filter_.setTune(f.freq + octaves / 8.6f);
-      filter_.setMorph(f.morph + morph_mod);
+      // The one modulation that lands on a different kind of control
+      // depending on which filter is listening: a sweep on MORPH, and a step
+      // between four discrete things on the other six. Wrapped rather than
+      // clamped, so a slow ramp keeps cycling through the voices instead of
+      // parking on the last one.
+      if (f.type == FILT_TYPE_MORPH) {
+        filter_.setMorph(f.morph + field_mod);
+        filter_.setMode(f.mode);
+      } else {
+        int m = f.mode + static_cast<int>(field_mod * FILT_MODE_COUNT);
+        m %= FILT_MODE_COUNT;
+        if (m < 0) m += FILT_MODE_COUNT;
+        filter_.setMode(static_cast<uint8_t>(m));
+      }
 
       float in = 0.0f;
       switch (f.input) {
