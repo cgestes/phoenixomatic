@@ -5,83 +5,278 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>phoenixomatic · modularcore</title>
 <style>
-  :root{
-    --bg:#0A0B0D; --panel:#14161A; --rule:#23272E;
-    --text:#C8CDD4; --dim:#6B7280; --ember:#FF6A1A; --cool:#37D6C3;
-    --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
-  }
-  *{box-sizing:border-box}
-  html,body{margin:0;height:100%}
-  body{
-    background:var(--bg); color:var(--text); font-family:var(--mono);
-    display:flex; flex-direction:column; align-items:center; justify-content:center;
-    gap:20px; padding:24px;
-  }
-  .brand{font-size:11px; letter-spacing:.42em; text-transform:uppercase; color:var(--dim)}
-  .brand b{color:var(--ember); font-weight:400}
-  h1{
-    margin:0; font-size:clamp(22px,5vw,40px); letter-spacing:-.03em;
-    font-weight:700; color:#F2F4F7;
-  }
-  h1 span{color:var(--ember)}
-  .bezel{
-    background:#050607; border:1px solid var(--rule); padding:12px;
-    box-shadow:0 0 0 1px #000 inset, 0 24px 60px -34px #000;
-  }
-  canvas{
-    display:block; width:960px; max-width:100%; height:auto;
-    aspect-ratio:240/135; image-rendering:pixelated; background:var(--bg);
-    outline:none;
-  }
-  .keys{
-    display:flex; flex-wrap:wrap; gap:6px 14px; justify-content:center;
-    font-size:11px; color:var(--dim); max-width:960px;
-  }
-  .keys b{color:var(--cool); font-weight:400}
-  #status{font-size:11px; color:var(--dim); letter-spacing:.2em; text-transform:uppercase}
+:root{
+  --bg:#0A0B0D; --panel:#14161A; --rule:#23272E;
+  --text:#C8CDD4; --dim:#6B7280; --faint:#464C55;
+  --ember:#FF6A1A; --cool:#37D6C3; --violet:#8B7BE8;
+  --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{
+  background:var(--bg); color:var(--text); font-family:var(--mono);
+  font-size:13px; line-height:1.6; padding:24px 16px 64px;
+}
+.wrap{max-width:960px;margin:0 auto}
+.top{display:flex;flex-direction:column;align-items:center;gap:16px}
+.brand{font-size:11px;letter-spacing:.42em;text-transform:uppercase;color:var(--dim)}
+.brand b{color:var(--ember);font-weight:400}
+h1{margin:0;font-size:clamp(22px,5vw,40px);letter-spacing:-.03em;font-weight:700;color:#f2f4f7}
+h1 span{color:var(--ember)}
+.bezel{background:#050607;border:1px solid var(--rule);padding:12px;
+       box-shadow:0 0 0 1px #000 inset,0 24px 60px -34px #000;max-width:100%}
+canvas{display:block;width:960px;max-width:100%;height:auto;aspect-ratio:240/135;
+       image-rendering:pixelated;background:var(--bg);outline:0}
+#status{font-size:11px;color:var(--dim);letter-spacing:.2em;text-transform:uppercase}
+
+h2{margin:56px 0 4px;font-size:15px;color:#f2f4f7;letter-spacing:.02em}
+h2::before{content:"— ";color:var(--ember)}
+h3{margin:28px 0 4px;font-size:13px;color:var(--cool);font-weight:400}
+p{margin:8px 0;max-width:74ch}
+.lede{color:var(--dim)}
+ul{margin:8px 0;padding-left:20px;max-width:74ch}
+li{margin:3px 0}
+kbd{background:var(--panel);border:1px solid var(--rule);border-bottom-width:2px;
+    border-radius:3px;padding:1px 5px;font:inherit;font-size:12px;color:var(--cool);
+    white-space:nowrap}
+table{border-collapse:collapse;margin:10px 0;width:100%;max-width:74ch}
+td{border-top:1px solid var(--rule);padding:5px 10px 5px 0;vertical-align:top}
+td:first-child{white-space:nowrap;width:1%;padding-right:18px}
+.note{color:var(--dim)}
+.rule{border:0;border-top:1px solid var(--rule);margin:40px 0 0}
+code{color:var(--violet)}
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:0 32px}
 </style>
 </head>
 <body>
+<div class="wrap">
+
+<div class="top">
   <div class="brand"><b>modularcore</b></div>
   <h1>PHOENIX<span>OMATIC</span></h1>
-
   <div class="bezel">
-    <canvas id="canvas" tabindex="0" oncontextmenu="event.preventDefault()"></canvas>
+    <canvas id="canvas" oncontextmenu="event.preventDefault()" tabindex="0"></canvas>
   </div>
-
-  <div class="keys">
-    <span><b>SPACE</b> play</span>
-    <span><b>[ ]</b> page</span>
-    <span><b>CTRL+↑↓</b> sub-page</span>
-    <span><b>ARROWS</b> move / sweep</span>
-    <span><b>T</b> mod type</span>
-    <span><b>0</b> recentre</span>
-    <span><b>TAB</b> selector</span>
-    <span><b>F</b> freeze chaos</span>
-    <span><b>R</b> scramble</span>
-    <span><b>K L</b> tempo</span>
-  </div>
-
   <div id="status">loading</div>
+</div>
+
+<p class="lede" style="margin-top:32px">
+Click the panel to give it the keyboard. It is one instrument in two sizes: a
+benjolin, which is two oscillators and a shift register arguing with each other,
+and a fuller machine with a clock, two sequencers and four drums wrapped around
+the same core. <kbd>[</kbd> and <kbd>]</kbd> walk every screen.
+</p>
+
+<h2>Keys</h2>
+
+<p>
+Everything is edited the same way, everywhere. <kbd>↑</kbd> <kbd>↓</kbd> move
+between rows and <kbd>←</kbd> <kbd>→</kbd> move between the fields of a row —
+they only ever move the cursor. Changing a value is a separate key, so you can
+point at something without altering it.
+</p>
+
+<div class="cols">
+<div>
+<h3>Moving</h3>
+<table>
+<tr><td><kbd>↑</kbd> <kbd>↓</kbd></td><td>between rows — the column you are in is kept</td></tr>
+<tr><td><kbd>←</kbd> <kbd>→</kbd></td><td>between the fields of that row</td></tr>
+<tr><td><kbd>[</kbd> <kbd>]</kbd></td><td>previous / next screen, sub-pages included</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>↑</kbd><kbd>↓</kbd></td><td>jump straight between sub-pages</td></tr>
+</table>
+
+<h3>Changing a value</h3>
+<table>
+<tr><td><kbd>A</kbd> / <kbd>Z</kbd></td><td>raise / lower, fine</td></tr>
+<tr><td><kbd>S</kbd> / <kbd>X</kbd></td><td>the same, coarse — five times the fine step</td></tr>
+<tr><td><kbd>D</kbd> / <kbd>C</kbd></td><td>the same, big — across most ranges in a few presses</td></tr>
+<tr><td colspan="2" class="note">Or drag with the mouse; <kbd>Shift</kbd>+drag is the fine one.</td></tr>
+</table>
+</div>
+
+<div>
+<h3>Jumping along a range</h3>
+<p class="note" style="margin-top:0">Three keys in a row for three points in a range.</p>
+<table>
+<tr><td><kbd>I</kbd></td><td>the bottom — hard left on a pan, −100 on an attenuverter</td></tr>
+<tr><td><kbd>O</kbd></td><td>the middle — 50 on a level, centre on a pan</td></tr>
+<tr><td><kbd>P</kbd></td><td>the top</td></tr>
+<tr><td><kbd>Shift</kbd>+<kbd>I</kbd> / <kbd>P</kbd></td><td>the same for every field on the page</td></tr>
+<tr><td><kbd>Shift</kbd>+<kbd>O</kbd></td><td>zeroes the page. Deliberately not its midpoint — a reset is worth a key, "everything halfway" is not</td></tr>
+</table>
+
+<h3>Chance, mutes, transport</h3>
+<table>
+<tr><td><kbd>R</kbd> / <kbd>T</kbd> / <kbd>Shift</kbd>+<kbd>R</kbd></td><td>randomise the field / the row / the page</td></tr>
+<tr><td><kbd>Space</kbd></td><td>toggle what is focused — a modulation row in or out, a step to a rest, a voice muted. On the first screen it is play/stop</td></tr>
+<tr><td><kbd>1</kbd>–<kbd>8</kbd></td><td>mute a voice, wherever you are. The strip along the bottom says which is which</td></tr>
+<tr><td><kbd>-</kbd> / <kbd>=</kbd> / <kbd>Esc</kbd></td><td>mute all / unmute all / invert</td></tr>
+<tr><td><kbd>Backspace</kbd></td><td>clear a sequencer step to a rest</td></tr>
+</table>
+</div>
+</div>
+
+<p class="note">
+Only <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> <kbd>Z</kbd> <kbd>X</kbd> <kbd>C</kbd>
+are reserved for editing, so the rest of the alphabet is free for shortcuts.
+The <kbd>HELP</kbd> screen carries the same list on the panel itself.
+</p>
+
+<h2>The instrument, in two sizes</h2>
+
+<p>
+The <b>CONFIG</b> screen — and the first field on the front page — switches
+between them. Nothing is deleted when you switch down: a modulation fed by a
+module the smaller machine does not show is bypassed rather than thrown away,
+and it comes back when you switch up again.
+</p>
+
+<h3>BENJOLIN — 17 screens</h3>
+
+<p>
+The original instrument, and the reason the rest exists. Two oscillators run
+into a comparator that asks one question — is A above B — and the edges of that
+answer are the machine's <em>only</em> sense of time. There is no clock. Tune
+the oscillators against each other and the rhythm changes, because the rhythm
+<em>is</em> the tuning.
+</p>
+
+<ul>
+<li><b>OSC-1</b>, <b>OSC-2</b> — each tuned as a whole-number ratio against the
+root, with a fine detune in cents. The ratio is the important control: simple
+ratios lock, awkward ones wander.</li>
+<li><b>CHAOS-A</b> in RUNGLER mode — a shift register clocked by one oscillator
+and fed by the other. No random source anywhere, which is why a groove you find
+stays found. <code>STEPS</code> sets how long the loop is, <code>CHANCE</code>
+how often a new bit gets in: at 0 the figure repeats forever, at 100 every clock
+takes fresh data.</li>
+<li><b>COMPARATOR</b> — the time base, and a voice in its own right.
+<code>OFFSET</code> slides B under A, which is pulse width and therefore the
+rhythm. <code>OUT</code> picks what comes out of the audio jack without touching
+the timing: a hard square, soft or hard clipping, a wavefolder, a rectifier, or
+analogue min/max.</li>
+<li><b>FILTER</b> — the comparator's pulse train through a resonant multimode
+filter, swept by the rungler. This is where the benjolin's voice actually comes
+from.</li>
+</ul>
+
+<p class="note">
+Start here: put the cursor on <code>RATE</code> on the front page and hold
+<kbd>D</kbd> or <kbd>C</kbd>. It moves both oscillators together, so the whole
+machine slides between a slow tick and a scream without the pattern changing.
+</p>
+
+<h3>ADVANCED — 24 screens</h3>
+
+<p>
+The same core with a conventional studio built around it. The comparator still
+runs, and you can still take everything from it — but now there is a choice.
+</p>
+
+<ul>
+<li><b>CLOCK</b> — a real tempo, in BPM, with two dividers off it. This is the
+one part of the machine that keeps time on its own, and it exists only here.
+Its base pulse is a sixteenth note; the dividers are named where they land on
+one (<code>/4</code> is a quarter, <code>/16</code> a bar).</li>
+<li><b>SEQ-1</b>, <b>SEQ-2</b> — eight steps, four banks of eight patterns, each
+clocked from whatever gate you point it at. They ship deliberately split: SEQ-1
+on the clock, SEQ-2 on the comparator, so you can hear a line that keeps time
+against one that does not.</li>
+<li><b>DRUMS</b> — kick, snare, closed and open hat. The first sub-page is the
+routing: each voice picks a trigger, a division of it, and a chance of actually
+firing. The other two hold the voice parameters.</li>
+<li><b>CHAOS-B</b> — a second chaos oscillator, so the two can modulate different
+things.</li>
+</ul>
+
+<p class="note">
+Anything that takes a trigger can take it from anywhere: the clock, either
+divider, either comparator edge, an oscillator, or a rungler shift. That list is
+the hinge between the two machines — point the drums at the clock and it is a
+drum machine, point them at the comparator and it is a benjolin with percussion.
+</p>
+
+<h2>The effects, and where a voice meets them</h2>
+
+<p>
+Six stages in a chain, and every voice chooses where it joins.
+</p>
+
+<table>
+<tr><td><b>DIRT</b></td><td>drive, bit crushing, decimation, and four shapes — soft clipping, an asymmetric one that adds even harmonics, a clip-crush-fold stack, and a ring-modulated wrecker</td></tr>
+<tr><td><b>FX</b></td><td>one swept delay at four lengths: phaser, flanger, chorus, ensemble</td></tr>
+<tr><td><b>GLITCH</b></td><td>beat repeat. A gate decides when a slice is grabbed and <code>CHANCE</code> decides whether it is. <code>LEN</code> is in milliseconds, or <code>SYNC</code>, which takes the length from the gap between the gate's own pulses — point the gate at the clock and a slice is a note value</td></tr>
+<tr><td><b>GRAIN</b></td><td>overlapping windowed reads of the same one-second buffer GLITCH uses</td></tr>
+<tr><td><b>DELAY</b></td><td>four taps off one line, each with its own time, level and position</td></tr>
+<tr><td><b>SPACE</b></td><td>reverb, in three characters: a plain room, a shimmer that feeds a pitched copy back into itself, and a gated one</td></tr>
+</table>
+
+<p>
+On <b>MIX</b> each voice has a third column naming where it joins:
+<code>ALL</code> for the whole chain, or <code>FX</code>, <code>GLITCH</code>,
+<code>DELAY</code>, <code>SPACE</code> to skip everything before that point, or
+<code>DRY</code> to skip all of it. Drums clean but in the same room as
+everything else is <code>DELAY</code>; a comparator that takes the distortion
+and nothing after it is <code>DIRT</code> with the distortion moved last.
+</p>
+
+<p>
+<b>CHAIN</b>, the second sub-page of MIX, is the order itself. The shipped one
+is the conventional one — drive first because distorting a reverb tail turns it
+to mud, time effects last, delay before reverb — and it is a setting because the
+placements that argument does not settle are worth having. The looper before the
+delay repeats a dry slice and lets the delay answer it; after, it repeats the
+tail as well.
+</p>
+
+<h2>Modulation</h2>
+
+<p>
+Most screens carry a bank of rows underneath their own controls. Each row is a
+source, a bipolar amount, and a destination inside that module, so
+<kbd>Space</kbd> drops a row in and out without losing what it was set to. Eight
+signals are available everywhere: both chaos oscillators, both audio
+oscillators, both sequencers, the comparator, and the clock.
+</p>
+
+<p class="note">
+Full travel on any of them is ±10 V in the machine's own terms — twenty octaves
+on a pitch destination — so a little goes a long way and the interesting
+settings are usually small.
+</p>
+
+<hr class="rule">
+<p class="note" style="margin-top:16px">
+One C++ codebase, built for the browser and for an M5Stack Cardputer.
+The panel above is the same 240×135 screen, the same engine, at the same
+sample rate.
+</p>
+
+</div>
 
 <script>
-  var statusEl = document.getElementById('status');
-  var canvas = document.getElementById('canvas');
-  // Keep the keyboard on the canvas rather than the page, so arrows don't scroll.
-  canvas.addEventListener('click', function(){ canvas.focus(); });
-  window.addEventListener('keydown', function(e){
-    if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' ','Tab'].indexOf(e.key) >= 0) {
-      e.preventDefault();
-    }
-  }, false);
-
-  var Module = {
-    canvas: canvas,
-    print: function(t){ console.log(t); },
-    printErr: function(t){ console.error(t); },
-    setStatus: function(t){ statusEl.textContent = t || 'running'; },
-    onRuntimeInitialized: function(){ statusEl.textContent = 'running'; canvas.focus(); }
-  };
+var statusEl = document.getElementById("status"),
+    canvas = document.getElementById("canvas");
+canvas.addEventListener("click", function () { canvas.focus(); });
+// Only swallow the keys the panel uses, and only while it has focus, so the
+// page can still be scrolled and the browser's own shortcuts still work.
+window.addEventListener("keydown", function (e) {
+  if (document.activeElement !== canvas) return;
+  if (["ArrowUp","ArrowDown","ArrowLeft","ArrowRight"," ","Tab"].indexOf(e.key) >= 0) {
+    e.preventDefault();
+  }
+}, false);
+var Module = {
+  canvas: canvas,
+  print: function (t) { console.log(t); },
+  printErr: function (t) { console.error(t); },
+  setStatus: function (t) { statusEl.textContent = t || "running"; },
+  onRuntimeInitialized: function () {
+    statusEl.textContent = "running";
+    canvas.focus();
+  }
+};
 </script>
 {{{ SCRIPT }}}
 </body>
