@@ -728,6 +728,11 @@ enum FilterMode : uint8_t {
 enum FilterType : uint8_t {
   FILT_TYPE_SVF = 0,   // two poles, state variable, rings clean
   FILT_TYPE_ACID,      // four poles, ladder, saturated feedback, squelches
+  FILT_TYPE_VOWEL,     // three formants; the machine says a, e, i, o, u
+  FILT_TYPE_COMB,      // a tuned delay fed back; the chaos gets a pitch
+  FILT_TYPE_1BIT,      // the ladder with a comparator in its feedback
+  FILT_TYPE_SCREAM,    // its own output moves its cutoff
+  FILT_TYPE_MORPH,     // lowpass to bandpass to highpass, continuously
   FILT_TYPE_COUNT
 };
 
@@ -741,9 +746,17 @@ enum FilterInput : uint8_t {
 extern const char* const kFilterInputLabel[FILT_IN_COUNT];
 extern const char* const kFilterModeLabel[FILT_MODE_COUNT];
 extern const char* const kFilterTypeLabel[FILT_TYPE_COUNT];
+// What MODE is called depends on which filter is asking. Four responses for
+// the ones that have responses; vocal registers for VOWEL; what the feedback
+// does for COMB. MORPH returns nullptr -- its mode field became the sweep.
+const char* filterModeLabel(uint8_t type, uint8_t mode);
+// MORPH is the one type whose second field is a number rather than a list.
+inline bool filterModeIsSweep(uint8_t type) { return type == FILT_TYPE_MORPH; }
 
-// Where a filter mod row lands.
-enum FilterModDest : uint8_t { FDEST_FREQ = 0, FDEST_RES, FDEST_COUNT };
+// Where a filter mod row lands. MORPH is a destination of its own because a
+// morph you cannot sweep is just a switch with extra steps -- the point of it
+// is the rungler walking from lowpass to highpass.
+enum FilterModDest : uint8_t { FDEST_FREQ = 0, FDEST_RES, FDEST_MORPH, FDEST_COUNT };
 extern const char* const kFilterDestLabel[FDEST_COUNT];
 
 struct FilterState {
@@ -752,6 +765,7 @@ struct FilterState {
   uint8_t input = FILT_IN_COMP;  // the PWM, as the original has it
   float freq = 0.35f;            // 0..1, mapped exponentially
   float res = 0.55f;
+  float morph = 0.0f;            // MORPH only: 0 lowpass, 1 highpass
   float level = 0.80f;
   bool mute = false;
   ModRow mod[kFilterModRows];

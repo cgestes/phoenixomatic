@@ -270,6 +270,7 @@ class PhoenixjolinPage : public IPage {
       case EL_FILTER: {
         FilterState& f = model_.filter;
         f.type = static_cast<uint8_t>(model_.random() % FILT_TYPE_COUNT);
+        f.morph = model_.randomUnit();
         f.mode = static_cast<uint8_t>(model_.random() % FILT_MODE_COUNT);
         f.freq = bi(0.15f, 0.9f);
         f.res = bi(0.0f, 0.75f);
@@ -350,6 +351,7 @@ class PhoenixjolinPage : public IPage {
         break;
       case EL_FILTER:
         model_.filter.type = fresh.filter.type;
+        model_.filter.morph = fresh.filter.morph;
         model_.filter.mode = fresh.filter.mode;
         model_.filter.freq = fresh.filter.freq;
         model_.filter.res = fresh.filter.res;
@@ -413,8 +415,9 @@ class PhoenixjolinPage : public IPage {
       }
       case EL_FILTER: {
         const FilterState& f = model_.filter;
+        const char* ml = filterModeLabel(f.type, f.mode);
         snprintf(out, n, "%s %s %.0fHz r%d", kFilterTypeLabel[f.type],
-                 kFilterModeLabel[f.mode],
+                 ml ? ml : "SWEEP",
                  static_cast<double>(20.0f * std::exp2(f.freq * 8.6f)),
                  static_cast<int>(f.res * 100.0f));
         break;

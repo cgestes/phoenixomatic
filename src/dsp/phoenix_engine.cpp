@@ -627,10 +627,12 @@ void PhoenixEngine::render(int16_t* out, size_t frames) {
       const FilterState& f = model_.filter;
       float octaves = 0.0f;
       float res_mod = 0.0f;
+      float morph_mod = 0.0f;
       for (int i = 0; i < kFilterModRows; ++i) {
         const ModRow& m = f.mod[i];
         if (!m.active()) continue;
         if (m.mode == FDEST_RES) res_mod += m.amount * bus_[m.src];
+        else if (m.mode == FDEST_MORPH) morph_mod += m.amount * bus_[m.src];
         else octaves += m.amount * bus_[m.src] * kFilterModOctaves;
       }
       // 20 Hz to about 8 kHz across the knob, then the modulation on top.
@@ -638,6 +640,12 @@ void PhoenixEngine::render(int16_t* out, size_t frames) {
       filter_.setCutoff(base * std::exp2(octaves));
       float res = f.res + res_mod;
       filter_.setResonance(res < 0.0f ? 0.0f : (res > 1.0f ? 1.0f : res));
+      // The same dial as a position rather than a frequency. VOWEL travels
+      // through five vowels rather than tuning to a pitch, and the modulation
+      // has to reach it the same way it reaches the cutoff -- so the octaves
+      // are converted back into a fraction of the dial's travel.
+      filter_.setTune(f.freq + octaves / 8.6f);
+      filter_.setMorph(f.morph + morph_mod);
 
       float in = 0.0f;
       switch (f.input) {

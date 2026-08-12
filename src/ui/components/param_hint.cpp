@@ -226,31 +226,82 @@ void filterCurve(IGfx& g, const Box& b, float cutoff, float res, int mode,
                  IGfxColor c) {
   baseline(g, b);
   // The caller packs both of the filter's questions into the one int: which
-  // response, and which of the two filters is giving it.
-  bool ladder = mode >= FILT_MODE_COUNT;
+  // response, and which of the seven filters is giving it. They do not all
+  // draw a response curve, because they are not all doing the same kind of
+  // thing to the sound -- a comb is a row of teeth and a vowel is three
+  // bumps, and drawing either as a skirt off a cutoff would be a lie.
+  int type = mode / FILT_MODE_COUNT;
   mode %= FILT_MODE_COUNT;
-  // The response, with the peak where the cutoff is. Which side falls away is
-  // the difference between the modes; how fast it falls is the difference
-  // between the two filters, and the ladder's skirt is twice as steep.
+
   int prev = -1;
   for (int i = 0; i < b.w; ++i) {
     float u = static_cast<float>(i) / static_cast<float>(b.w - 1);
-    float d = (u - cutoff) * 6.0f;
-    float roll = 1.0f / (1.0f + d * d);
-    if (ladder) roll *= roll;
     float v;
-    switch (mode) {
-      case FILT_BP:    v = roll; break;
-      case FILT_HP:    v = d > 0.0f ? 1.0f : roll; break;
-      // The one response that dips instead of peaking: everything survives
-      // except the band at the cutoff.
-      case FILT_NOTCH: v = 1.0f - roll; break;
-      default:         v = d < 0.0f ? 1.0f : roll; break;   // LP
+
+    if (type == FILT_TYPE_VOWEL) {
+      // Three bumps whose spacing is the vowel. Wide apart is an "a", close
+      // together at the bottom is an "u" -- which is what the formant table
+      // does, drawn.
+      float f1 = 0.05f + cutoff * 0.10f;
+      float f2 = 0.30f + (1.0f - cutoff) * 0.35f;
+      float f3 = 0.78f;
+      float wid = 0.10f - res * 0.06f;
+      v = 0.0f;
+      float amp[3] = {1.0f, 0.7f, 0.45f};
+      float at[3] = {f1, f2, f3};
+      for (int k = 0; k < 3; ++k) {
+        float dd = (u - at[k]) / wid;
+        v += amp[k] / (1.0f + dd * dd);
+      }
+      if (v > 1.0f) v = 1.0f;
+    } else if (type == FILT_TYPE_COMB) {
+      // Teeth. The higher the tuning the fewer of them fit, which is exactly
+      // what happens to a comb's harmonics.
+      float teeth = 2.0f + (1.0f - cutoff) * 9.0f;
+      float ph = u * teeth;
+      ph -= std::floor(ph);
+      float dd = (ph - 0.5f) * 7.0f;
+      v = (0.25f + res * 0.75f) / (1.0f + dd * dd);
+      if (mode == FILT_HP && (static_cast<int>(u * teeth) & 1)) v *= 0.25f;
+    } else {
+      float d = (u - cutoff) * 6.0f;
+      float roll = 1.0f / (1.0f + d * d);
+      // The four-pole filters fall away twice as fast, and it shows.
+      if (type == FILT_TYPE_ACID || type == FILT_TYPE_1BIT) roll *= roll;
+      if (type == FILT_TYPE_MORPH) {
+        // No modes here: the packed number is where along the sweep we are,
+        // so the curve is drawn between the two responses it sits between.
+        float t = static_cast<float>(mode) / 3.0f * 2.0f;
+        float lp = d < 0.0f ? 1.0f : roll;
+        float hp = d > 0.0f ? 1.0f : roll;
+        v = t <= 1.0f ? lp + (roll - lp) * t : roll + (hp - roll) * (t - 1.0f);
+      } else {
+        switch (mode) {
+          case FILT_BP:    v = roll; break;
+          case FILT_HP:    v = d > 0.0f ? 1.0f : roll; break;
+          // The one response that dips instead of peaking: everything
+          // survives except the band at the cutoff.
+          case FILT_NOTCH: v = 1.0f - roll; break;
+          default:         v = d < 0.0f ? 1.0f : roll; break;   // LP
+        }
+      }
+      v *= 0.55f + res * 0.45f;
+      // A notch has no resonant peak to draw -- the resonance narrows the dip
+      // instead, which the curve above already shows.
+      if (type != FILT_TYPE_MORPH && mode == FILT_NOTCH) {
+        // nothing to add
+      } else if (std::fabs(d) < 0.9f) {
+        v += res * 0.45f;
+      }
+      // SCREAM does not hold still, so neither does its curve: the cutoff is
+      // being shoved about by the output, and how hard is what RES sets.
+      if (type == FILT_TYPE_SCREAM) {
+        v *= 1.0f + res * 0.45f * std::sin(u * 41.0f);
+      }
     }
-    v *= 0.55f + res * 0.45f;
-    // A notch has no resonant peak to draw -- the resonance narrows the dip
-    // instead, which the curve above already shows.
-    if (mode != FILT_NOTCH && std::fabs(d) < 0.9f) v += res * 0.45f;
+
+    if (v < 0.0f) v = 0.0f;
+    if (v > 1.0f) v = 1.0f;
     int yy = b.py(v);
     if (prev >= 0) g.drawLine(b.x + i - 1, prev, b.x + i, yy, c);
     prev = yy;

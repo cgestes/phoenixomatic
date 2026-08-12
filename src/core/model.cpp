@@ -44,7 +44,8 @@ const char* const kWaveLabel[WAVE_COUNT] = { "SIN", "TRI", "SAW", "SQR" };
 
 const char* const kFilterInputLabel[FILT_IN_COUNT] = {
     "PWM", "OSC-1", "OSC-2", "OSC1+2", "NONE" };
-const char* const kFilterTypeLabel[FILT_TYPE_COUNT] = { "SVF", "ACID" };
+const char* const kFilterTypeLabel[FILT_TYPE_COUNT] = {
+    "SVF", "ACID", "VOWEL", "COMB", "1-BIT", "SCREAM", "MORPH" };
 
 const char* const kCompShapeLabel[CSHAPE_COUNT] = {
     "PWM", "LIM", "CLIP", "FOLD", "RECT", "MIN", "MAX" };
@@ -72,7 +73,26 @@ const char* const kNoteName[12] = { "C",  "C#", "D",  "D#", "E",  "F",
 const char* const kFilterModeLabel[FILT_MODE_COUNT] = {
   "LP", "BP", "HP", "NOTCH"
 };
-const char* const kFilterDestLabel[FDEST_COUNT] = { "FREQ", "RES" };
+const char* const kFilterDestLabel[FDEST_COUNT] = { "FREQ", "RES", "MORPH" };
+
+// The four responses, then the four names the two reinterpreting types use
+// for the same field.
+namespace {
+const char* const kVowelRegister[FILT_MODE_COUNT] = {
+    "BASS", "TENOR", "ALTO", "SOPR" };
+const char* const kCombFeedback[FILT_MODE_COUNT] = {
+    "STRING", "HOLLOW", "ODD", "BELL" };
+}  // namespace
+
+const char* filterModeLabel(uint8_t type, uint8_t mode) {
+  if (mode >= FILT_MODE_COUNT) mode = 0;
+  switch (type) {
+    case FILT_TYPE_VOWEL: return kVowelRegister[mode];
+    case FILT_TYPE_COMB:  return kCombFeedback[mode];
+    case FILT_TYPE_MORPH: return nullptr;
+    default:              return kFilterModeLabel[mode];
+  }
+}
 
 const char* const kSeqDirLabel[DIR_COUNT] = { "FWD", "REV", "PEND", "RAND" };
 
