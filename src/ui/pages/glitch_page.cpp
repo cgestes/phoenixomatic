@@ -93,16 +93,16 @@ class GlitchPage : public IPage {
       if (nav_.field() == 0) {
         d.gate_src = stepGate(d.gate_src, dir, model_.machine_mode);
       } else if (nav_.field() == 1) {
-        adjustUnit(&d.chance, dir, ev.shift);
+        adjustUnit(&d.chance, dir, ev.step);
       } else {
-        adjustUnit(&d.mix, dir, ev.shift);
+        adjustUnit(&d.mix, dir, ev.step);
       }
       return true;
     }
     if (nav_.field() == 0) {
       // Milliseconds, and SHIFT is the fine one: the coarse step has to cross
       // half a second without a hundred presses.
-      d.len_ms += static_cast<float>(dir) * (ev.shift ? 1.0f : 10.0f);
+      d.len_ms += static_cast<float>(dir) * 10.0f * stepScale(ev.step);
       if (d.len_ms < 5.0f) d.len_ms = 5.0f;
       if (d.len_ms > 500.0f) d.len_ms = 500.0f;
     } else if (nav_.field() == 1) {
@@ -137,6 +137,18 @@ class GlitchPage : public IPage {
     if (nav_.field() == 0) d.len_ms = 5.0f;
     else if (nav_.field() == 1) d.pitch = 3;      // as recorded
     else d.reverse = false;
+  }
+
+  // Only the attenuverters go below zero on this page; everything else
+  // bottoms out where O already puts it.
+  void minField() override {
+    if (nav_.row() >= kBankRow0) { minModField(bankRow(), nav_.field()); return; }
+    zeroField();
+  }
+
+  void minPage() override {
+    zeroPage();
+    minBank(model_.glitch.mod, bank_index_, bank_count_);
   }
 
   void maxField() override {

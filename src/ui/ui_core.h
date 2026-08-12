@@ -16,12 +16,25 @@ enum KeyCode : uint8_t {
   KEY_ENTER, KEY_ESC, KEY_TAB, KEY_BACKSPACE,
 };
 
+// How far one press moves a value. Three sizes rather than two, because a
+// machine whose fields run from a 0-100 percentage to a 1024 divider cannot be
+// driven comfortably by one step and a shift key.
+//
+//   a / z   STEP_FINE     the smallest move the field has
+//   s / x   STEP_COARSE   the step everything used to take
+//   d / c   STEP_SUPER    across the range in a handful of presses
+//
+// COARSE is the default so that anything arriving without a granularity — an
+// arrow key, a mouse drag, a click — behaves exactly as it always did.
+enum StepSize : uint8_t { STEP_FINE = 0, STEP_COARSE, STEP_SUPER };
+
 struct UIEvent {
   KeyCode code = KEY_NONE;
   char key = 0;          // printable character, lowercased
   bool ctrl = false;
   bool shift = false;
   bool alt = false;
+  StepSize step = STEP_COARSE;
 };
 
 class PhoenixModel;
@@ -78,14 +91,25 @@ class IPage {
 
   virtual bool toggleField() { return false; }
 
-  // O zeroes the focused field, SHIFT+O every field on the page. "Zero" means
-  // literally zero where the field has one, and the origin of its range where
-  // it does not — a divider goes to 1, a selector to its first entry.
+  // Three keys in a row on the keyboard for three places along a range, in the
+  // order they sit under the fingers:
+  //
+  //   I   the bottom     hard left on a pan, -100 on an attenuverter
+  //   O   the origin     zero, or the start of a range that has no zero
+  //   P   the top        wide open
+  //
+  // SHIFT does the whole page instead of the focused field.
+  //
+  // "Zero" means literally zero where the field has one and the origin of its
+  // range where it does not — a divider goes to 1, a selector to its first
+  // entry.
   virtual void zeroField() {}
   virtual void zeroPage() {}
-  // The other end of the same idea: O sends a field to its origin, I sends it
-  // to the top of its range. Wide open is as much a place you want to reach in
-  // one press as zero is.
+  // Defaulted to the origin, because for the many fields that only run from
+  // zero upwards the bottom of the range *is* zero. Only bipolar fields — pans,
+  // attenuverters, offsets, the global rate — need to say otherwise.
+  virtual void minField() { zeroField(); }
+  virtual void minPage() { zeroPage(); }
   virtual void maxField() {}
   virtual void maxPage() {}
   // R randomises the focused field, T the whole row, SHIFT+R the whole page.

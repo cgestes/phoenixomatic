@@ -254,7 +254,7 @@ class ChaosPage : public IPage {
   bool handleKey(const UIEvent& in) override {
     refreshRows();
     UIEvent ev = in;
-    // A column pair becomes a left/right on the field it names.
+    // A step pair becomes a left/right carrying its granularity.
     if (!nav_.mapFieldKey(ev) && nav_.handleNavKey(ev)) return true;
     if (ev.code != KEY_LEFT && ev.code != KEY_RIGHT) return false;
     Chaos& c = model_.chaos[which_];
@@ -268,7 +268,7 @@ class ChaosPage : public IPage {
           c.freeze = !c.freeze;
         }
         return true;
-      case kShapeRow: editShape(c, dir, ev.shift); return true;
+      case kShapeRow: editShape(c, dir, ev.step); return true;
       default:
         if (nav_.field() == 1) c.clk_src = stepGate(c.clk_src, dir, model_.machine_mode);
         else c.pick = (c.pick + 3 + dir) % 3;
@@ -354,6 +354,22 @@ class ChaosPage : public IPage {
     c.rate = 0.005f;
     c.skew = 0.0f;
     c.pick = 0;
+  }
+
+  // SKEW tilts a flow either way from centre, so it is the one field on this
+  // page with a bottom that is not its origin.
+  void minField() override {
+    Chaos& c = model_.chaos[which_];
+    if (nav_.row() == kShapeRow && nav_.field() == 1 && c.mode != CHAOS_RUNGLER) {
+      c.skew = -1.0f;
+      return;
+    }
+    zeroField();
+  }
+
+  void minPage() override {
+    zeroPage();
+    model_.chaos[which_].skew = -1.0f;
   }
 
   void maxField() override {
@@ -478,9 +494,8 @@ class ChaosPage : public IPage {
     return n * 100 / hist_fill_;
   }
 
-  void editShape(Chaos& c, int dir, bool fine) {
-    // Five of whatever the field displays, or one with SHIFT.
-    float d = static_cast<float>(dir) * (fine ? 0.01f : 0.05f);
+  void editShape(Chaos& c, int dir, StepSize step) {
+    float d = static_cast<float>(dir) * 0.05f * stepScale(step);
     switch (nav_.field()) {
       case 0:
         if (c.mode == CHAOS_RUNGLER) {

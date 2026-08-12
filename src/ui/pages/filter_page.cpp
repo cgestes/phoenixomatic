@@ -88,7 +88,7 @@ class FilterPage : public IPage {
     }
     if (ev.code != KEY_LEFT && ev.code != KEY_RIGHT) return false;
     int dir = ev.code == KEY_RIGHT ? 1 : -1;
-    float step = ev.shift ? 0.01f : 0.05f;
+    float step = 0.05f * stepScale(ev.step);
 
     if (nav_.row() == kTopRow) {
       if (nav_.field() == 0) {
@@ -137,6 +137,18 @@ class FilterPage : public IPage {
     f.freq = 0.0f;
     f.res = 0.0f;
     zeroBank(f.mod, bank_index_, bank_count_);
+  }
+
+  // Only the attenuverters go below zero on this page; everything else
+  // bottoms out where O already puts it.
+  void minField() override {
+    if (nav_.row() >= kBankRow0) { minModField(bankRow(), nav_.field()); return; }
+    zeroField();
+  }
+
+  void minPage() override {
+    zeroPage();
+    minBank(model_.filter.mod, bank_index_, bank_count_);
   }
 
   void maxField() override {

@@ -265,15 +265,22 @@ void PhoenixDisplay::update(float dt) {
 }
 
 // The mouse drives the same code the keyboard does: a click moves the cursor,
-// and a drag or a wheel notch synthesises the column-pair key for whichever
-// field the cursor is on. Nothing about editing is duplicated for the pointer.
+// and a drag or a wheel notch is a left/right on whatever the cursor is on.
+// Nothing about editing is duplicated for the pointer.
+//
+// It still synthesises a letter rather than sending the arrow itself, and has
+// to: a bare arrow is cursor movement, and handleNavKey would swallow it before
+// any page's edit code saw it. Going through mapFieldKey is what marks an event
+// as "change the value" instead of "change the selection".
+//
+// What the letter means has changed, though. It used to name a *field*, so the
+// pointer looked one up and gave up past eight; it names a step size now, which
+// the pointer already knows — a drag with SHIFT is the fine one.
 void PhoenixDisplay::adjustFocused(int dir, bool fine) {
   IPage* page = pages_[page_index_].get();
-  int field = page->focusedField();
-  if (field < 0 || field > 7) return;
+  if (page->focusedField() < 0) return;
   UIEvent ev;
-  ev.key = dir > 0 ? RowNav::kFieldUp[field] : RowNav::kFieldDown[field];
-  ev.shift = fine;
+  ev.key = dir > 0 ? (fine ? 'a' : 's') : (fine ? 'z' : 'x');
   float before = page->focusedHint().signature();
   page->handleKey(ev);
   if (page->focusedHint().signature() != before) model_.hint_flash = 1.0f;
@@ -360,9 +367,12 @@ bool PhoenixDisplay::handleGlobalKey(const UIEvent& ev) {
   if (ev.key == ']') { nextPage(); return true; }
   // Mutes are global: a number key reaches the same instrument whatever page
   // you are looking at, so silencing something is never a navigation problem.
-  // The letter keys are all spoken for by the column pairs that edit fields,
-  // so nothing else global may live on one. Rate lives on HOME and freeze on
-  // CHAOS, as fields, which is where they were reachable anyway.
+  //
+  // A S D and Z X C belong to the step pairs that edit the focused field, so
+  // nothing global may live on those six. The other letters are free — they
+  // were not, back when eight column pairs claimed the whole home row. Rate
+  // lives on HOME and freeze on CHAOS, as fields, which is where they were
+  // reachable anyway.
   if (ev.key >= '1' && ev.key <= '8') {
     model_.toggleMute(ev.key - '1');
     return true;
@@ -384,12 +394,20 @@ bool PhoenixDisplay::handleGlobalKey(const UIEvent& ev) {
     return page->toggleField();
   }
 
+  // I O P, left to right under the fingers, for bottom / origin / top of the
+  // range. I used to be the top, which put the two ends of a field on keys
+  // either side of the middle one and left no key at all for the bottom — so a
+  // pan could be centred or sent hard right in one press, but never hard left.
   if (ev.key == 'i') {
-    if (ev.shift) page->maxPage(); else page->maxField();
+    if (ev.shift) page->minPage(); else page->minField();
     return true;
   }
   if (ev.key == 'o') {
     if (ev.shift) page->zeroPage(); else page->zeroField();
+    return true;
+  }
+  if (ev.key == 'p') {
+    if (ev.shift) page->maxPage(); else page->maxField();
     return true;
   }
   if (ev.key == 'r') {
@@ -421,8 +439,8 @@ bool PhoenixDisplay::handleKey(const UIEvent& ev) {
   // Globals go first, but they deliberately claim no arrow keys and no 'T',
   // so a page's own row editing always gets those.
   // Flash the sketch when the value behind it moves, rather than when a
-  // particular key is pressed. That catches the column pairs, the arrows, and
-  // O / I / R alike, without anywhere having a list of which keys count as an
+  // particular key is pressed. That catches the step pairs, the arrows, and
+  // I / O / P / R alike, without anywhere having a list of which keys count as an
   // edit — a list that would be wrong the first time a page adds a control.
   IPage* page = pages_[page_index_].get();
   float before = page->focusedHint().signature();

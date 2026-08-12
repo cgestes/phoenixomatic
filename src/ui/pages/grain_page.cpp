@@ -85,17 +85,17 @@ class GrainPage : public IPage {
     int dir = ev.code == KEY_RIGHT ? 1 : -1;
     if (nav_.row() == kTopRow) {
       if (nav_.field() == 0) {
-        d.size_ms += static_cast<float>(dir) * (ev.shift ? 1.0f : 5.0f);
+        d.size_ms += static_cast<float>(dir) * 5.0f * stepScale(ev.step);
         if (d.size_ms < 5.0f) d.size_ms = 5.0f;
         if (d.size_ms > 200.0f) d.size_ms = 200.0f;
       } else if (nav_.field() == 1) {
-        adjustUnit(&d.density, dir, ev.shift);
+        adjustUnit(&d.density, dir, ev.step);
       } else {
-        adjustUnit(&d.mix, dir, ev.shift);
+        adjustUnit(&d.mix, dir, ev.step);
       }
       return true;
     }
-    if (nav_.field() == 0) adjustUnit(&d.spread, dir, ev.shift);
+    if (nav_.field() == 0) adjustUnit(&d.spread, dir, ev.step);
     else d.pitch = static_cast<uint8_t>((d.pitch + kShimmerCount + dir) % kShimmerCount);
     return true;
   }
@@ -123,6 +123,18 @@ class GrainPage : public IPage {
     }
     if (nav_.field() == 0) d.spread = 0.0f;
     else d.pitch = 3;
+  }
+
+  // Only the attenuverters go below zero on this page; everything else
+  // bottoms out where O already puts it.
+  void minField() override {
+    if (nav_.row() >= kBankRow0) { minModField(bankRow(), nav_.field()); return; }
+    zeroField();
+  }
+
+  void minPage() override {
+    zeroPage();
+    minBank(model_.grain.mod, bank_index_, bank_count_);
   }
 
   void maxField() override {

@@ -78,7 +78,7 @@ class SeqPage : public IPage {
 
   bool handleKey(const UIEvent& in) override {
     UIEvent ev = in;
-    // A column pair becomes a left/right on the field it names.
+    // A step pair becomes a left/right carrying its granularity.
     if (!nav_.mapFieldKey(ev) && nav_.handleNavKey(ev)) return true;
     Seq& s = model_.seq[which_];
 
@@ -104,14 +104,14 @@ class SeqPage : public IPage {
         if (n < 0) {
           n = kSeqNoteMid;
         } else {
-          n = static_cast<int8_t>(n + dir * (ev.shift ? 10 : 1));
+          n = static_cast<int8_t>(n + dir * stepInt(1, ev.step));
           if (n < kSeqNoteMin) n = kSeqNoteMin;
           if (n > kSeqNoteMax) n = kSeqNoteMax;
         }
         return true;
       }
       case kGateRow:
-        editGate(s, dir, ev.shift);
+        editGate(s, dir, ev.step);
         return true;
       default:
         return false;
@@ -193,6 +193,23 @@ class SeqPage : public IPage {
         maxModField(s.mod[nav_.row() - kBankRow0], nav_.field(), DEST_COUNT);
         break;
     }
+  }
+
+  void minField() override {
+    Seq& s = model_.seq[which_];
+    // Only the attenuverters invert; a step's note and the gate settings all
+    // bottom out at the origin O already reaches.
+    if (nav_.row() >= kBankRow0) {
+      minModField(s.mod[nav_.row() - kBankRow0], nav_.field());
+      return;
+    }
+    zeroField();
+  }
+
+  void minPage() override {
+    zeroPage();
+    Seq& s = model_.seq[which_];
+    for (int i = 0; i < kSeqModRows; ++i) minModRow(s.mod[i]);
   }
 
   void maxPage() override {
@@ -303,10 +320,10 @@ class SeqPage : public IPage {
                static_cast<int>(s.chance * 100.0f));
   }
 
-  void editGate(Seq& s, int dir, bool fine) {
+  void editGate(Seq& s, int dir, StepSize step) {
     switch (nav_.field()) {
       case 0: s.clock_src = stepGate(s.clock_src, dir, model_.machine_mode); break;
-      case 1: s.div = clampRatioTerm(s.div + dir * (fine ? 8 : 1)); break;
+      case 1: s.div = clampRatioTerm(s.div + dir * stepInt(1, step)); break;
       case 2: s.dir = static_cast<uint8_t>((s.dir + DIR_COUNT + dir) % DIR_COUNT); break;
       case 3:
         {
@@ -317,9 +334,7 @@ class SeqPage : public IPage {
         }
         break;
       default:
-        s.chance += static_cast<float>(dir) * (fine ? 0.01f : 0.05f);
-        if (s.chance < 0.0f) s.chance = 0.0f;
-        if (s.chance > 1.0f) s.chance = 1.0f;
+        adjustUnit(&s.chance, dir, step);
         break;
     }
   }

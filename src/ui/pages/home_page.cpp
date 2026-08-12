@@ -150,7 +150,8 @@ class HomePage : public IPage {
     if (ev.code != KEY_LEFT && ev.code != KEY_RIGHT) return false;
     int dir = ev.code == KEY_RIGHT ? 1 : -1;
     if (nav_.row() == kModeRow) { stepMode(dir); return true; }
-    model_.adjustRate(dir * (ev.shift ? 1 : 4));
+    // A semitone, a major third, or a whole octave and a bit.
+    model_.adjustRate(dir * stepInt(4, ev.step));
     return true;
   }
 
@@ -168,6 +169,15 @@ class HomePage : public IPage {
   // O and I on the page act on RATE only. Sweeping the whole machine between
   // instruments is not something a page-wide key should do by accident.
   void zeroPage() override { model_.rate_offset = 0.0f; }
+
+  // RATE's floor is the one adjustRate clamps to: seven octaves down, where
+  // the comparator ticks rather than tones.
+  void minField() override {
+    if (nav_.row() == kModeRow) setMode(MODE_BENJOLIN);
+    else model_.rate_offset = -7.0f;
+  }
+
+  void minPage() override { model_.rate_offset = -7.0f; }
 
   void maxField() override {
     if (nav_.row() == kModeRow) setMode(MACHINE_MODE_COUNT - 1);

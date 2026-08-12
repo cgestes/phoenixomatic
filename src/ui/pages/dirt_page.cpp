@@ -91,12 +91,12 @@ class DirtPage : public IPage {
       if (nav_.field() == 0) {
         d.mode = static_cast<uint8_t>((d.mode + DIRT_MODE_COUNT + dir) % DIRT_MODE_COUNT);
       } else {
-        adjustUnit(&d.mix, dir, ev.shift);
+        adjustUnit(&d.mix, dir, ev.step);
       }
       return true;
     }
     float* v = nav_.field() == 0 ? &d.drive : (nav_.field() == 1 ? &d.crush : &d.down);
-    adjustUnit(v, dir, ev.shift);
+    adjustUnit(v, dir, ev.step);
     return true;
   }
 
@@ -122,6 +122,18 @@ class DirtPage : public IPage {
     if (nav_.field() == 0) d.drive = 0.0f;
     else if (nav_.field() == 1) d.crush = 0.0f;
     else d.down = 0.0f;
+  }
+
+  // Only the attenuverters go below zero on this page; everything else
+  // bottoms out where O already puts it.
+  void minField() override {
+    if (nav_.row() >= kBankRow0) { minModField(bankRow(), nav_.field()); return; }
+    zeroField();
+  }
+
+  void minPage() override {
+    zeroPage();
+    minBank(model_.dirt.mod, bank_index_, bank_count_);
   }
 
   void maxField() override {

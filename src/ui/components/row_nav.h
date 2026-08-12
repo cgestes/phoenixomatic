@@ -2,14 +2,20 @@
 //
 //   up / down     move between rows
 //   left / right  move between the fields of that row
-//   a/z s/x d/c   raise or lower a field directly — one keyboard column per
-//   f/v g/b h/n   field, top key up and bottom key down, up to eight
-//   j/m k/,
+//   a / z         raise or lower the focused field, finely
+//   s / x         the same, coarsely
+//   d / c         the same, in big jumps
 //
-// The column pairs also move the cursor to the field they touched, so O, R and
-// SPACE act on whatever you last reached for. Cursor movement and value change
-// are separate keys on purpose: sharing them would mean you could not select a
-// field without editing it.
+// The three pairs used to be eight, one per field: 'g' went straight to field 5
+// and nudged it. That bought direct access to fields most rows do not have —
+// five of the eight columns were dead on the majority of pages — and paid for
+// it with a single step size, which a machine holding both a 0-100 percentage
+// and a 1024 divider cannot be driven by. Three granularities on the focused
+// field is the better trade: the cursor is one arrow press away, and every
+// field can now be crossed or tuned.
+//
+// Cursor movement and value change stay separate keys on purpose: sharing them
+// would mean you could not select a field without editing it.
 //
 // Every page describes itself as a list of rows and how many fields each row
 // has; RowNav owns the cursor, the page owns what a field means. Nothing else
@@ -47,22 +53,26 @@ class RowNav {
     clamp();
   }
 
-  // The eight keyboard columns, top key raises and bottom key lowers.
-  static constexpr const char* kFieldUp = "asdfghjk";
-  static constexpr const char* kFieldDown = "zxcvbnm,";
+  // Three keyboard columns, top key raises and bottom key lowers, getting
+  // coarser to the right.
+  static constexpr const char* kStepUp = "asd";
+  static constexpr const char* kStepDown = "zxc";
 
-  // Rewrites a column-pair press into a left/right on that field and moves the
-  // cursor there, so a page's existing edit code needs no special case.
-  // Returns true if the key was one of the pairs and the row has that field.
+  // Rewrites a step-pair press into a left/right carrying that granularity, so
+  // a page's existing edit code needs no special case beyond reading ev.step.
+  // Returns true if the key was one of the pairs.
+  //
+  // Unlike the eight columns this replaced, it does not move the cursor: these
+  // keys name a step size, not a field, so they act on whatever is focused.
   bool mapFieldKey(UIEvent& ev) {
     if (!ev.key || rows_ <= 0) return false;
-    for (int i = 0; i < 8; ++i) {
-      bool up = ev.key == kFieldUp[i];
-      bool down = ev.key == kFieldDown[i];
+    for (int i = 0; i < 3; ++i) {
+      bool up = ev.key == kStepUp[i];
+      bool down = ev.key == kStepDown[i];
       if (!up && !down) continue;
-      if (i >= fieldCount()) return false;   // this row has no such field
-      field_ = i;
+      if (fieldCount() <= 0) return false;   // nothing on this row to edit
       ev.code = up ? KEY_RIGHT : KEY_LEFT;
+      ev.step = static_cast<StepSize>(i);
       ev.key = 0;
       return true;
     }
@@ -139,13 +149,33 @@ class RowNav {
 
 inline uint8_t rowBg(bool row_focused) { return row_focused ? PEN_PANEL : PEN_BG; }
 
-// `nav_row` / `nav_field` are what a click on this text resolves back to.
-// The unit-value nudge every page uses, and with it the one statement of the
-// machine's step convention: coarse 5%, SHIFT 1%. That pair of literals was
-// written out at eleven call sites.
-inline void adjustUnit(float* v, int dir, bool fine) {
-  *v += static_cast<float>(dir) * (fine ? 0.01f : 0.05f);
+// The one statement of the machine's step convention. A fifth of a coarse step
+// and five of them: 1%, 5% and 25% on a unit field, so a/z tunes, s/x is what
+// every control always did, and d/c crosses the range in four presses.
+inline float stepScale(StepSize s) {
+  return s == STEP_FINE ? 0.2f : (s == STEP_SUPER ? 5.0f : 1.0f);
+}
+
+// The same three sizes for a field counted in whole numbers. `coarse` is the
+// page's own natural step; fine is always one, because below one there is
+// nothing, and super is five of them.
+inline int stepInt(int coarse, StepSize s) {
+  if (s == STEP_FINE) return 1;
+  int n = s == STEP_SUPER ? coarse * 5 : coarse;
+  return n < 1 ? 1 : n;
+}
+
+// The unit-value nudge every page uses.
+inline void adjustUnit(float* v, int dir, StepSize s) {
+  *v += static_cast<float>(dir) * 0.05f * stepScale(s);
   if (*v < 0.0f) *v = 0.0f;
+  if (*v > 1.0f) *v = 1.0f;
+}
+
+// The same, for a field centred on zero: attenuverters, pans, offsets.
+inline void adjustBipolar(float* v, int dir, StepSize s) {
+  *v += static_cast<float>(dir) * 0.05f * stepScale(s);
+  if (*v < -1.0f) *v = -1.0f;
   if (*v > 1.0f) *v = 1.0f;
 }
 

@@ -141,7 +141,7 @@ number you are turning is worse than no panel — which is exactly what a fixed 
 on DELAY. Checked across every page: 81 hints carry a row to avoid and none land on it.
 
 **It is an overlay, up only while you are turning something.** `PhoenixDisplay` compares the
-sketch's value before and after dispatching a key, so the column pairs, the arrows and `O`/`I`/`R`
+sketch's value before and after dispatching a key, so the step pairs, the arrows and `I`/`O`/`P`/`R`
 all raise it without anywhere holding a list of which keys count as an edit — a list that would be
 wrong the first time a page gained a control. It fades after about a second and a half, and the
 page's own bottom line comes back.

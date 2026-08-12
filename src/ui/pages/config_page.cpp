@@ -65,7 +65,7 @@ class ConfigPage : public IPage {
 
   bool handleKey(const UIEvent& in) override {
     UIEvent ev = in;
-    // A column pair becomes a left/right on the field it names.
+    // A step pair becomes a left/right carrying its granularity.
     if (!nav_.mapFieldKey(ev) && nav_.handleNavKey(ev)) return true;
     if (ev.code != KEY_LEFT && ev.code != KEY_RIGHT) return false;
     int dir = ev.code == KEY_RIGHT ? 1 : -1;

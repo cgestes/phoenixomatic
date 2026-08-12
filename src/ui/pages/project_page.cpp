@@ -51,7 +51,7 @@ class ProjectPage : public IPage {
 
   bool handleKey(const UIEvent& in) override {
     UIEvent ev = in;
-    // A column pair becomes a left/right on the field it names.
+    // A step pair becomes a left/right carrying its granularity.
     if (!nav_.mapFieldKey(ev) && nav_.handleNavKey(ev)) return true;
     // Left/right and ENTER all mean "load this one" here; there is only ever
     // the one field on a row.
@@ -81,11 +81,11 @@ class HelpPage : public IPage {
     static const Row kRows[] = {
       {"UP DOWN",    "move between rows"},
       {"LEFT RIGHT", "move between fields"},
-      {"A/Z S/X D/C", "raise / lower fields 1-3"},
-      {"F/V G/B H/N", "fields 4-6"},
-      {"J/M K/,",    "fields 7-8"},
-      {"SHIFT+key",  "fine step"},
-      {"O  SHIFT+O", "zero field / page"},
+      {"A / Z",      "raise / lower, fine"},
+      {"S / X",      "the same, coarse"},
+      {"D / C",      "the same, big jumps"},
+      {"I  O  P",    "bottom / zero / top"},
+      {"SHIFT+IOP",  "the same, whole page"},
       {"R  T  SH+R", "random field / row / page"},
       {"SPACE",      "toggle (play on HOME)"},
       {"[  ]",       "previous / next screen"},

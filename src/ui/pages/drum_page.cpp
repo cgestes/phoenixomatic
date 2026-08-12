@@ -75,7 +75,7 @@ class DrumPage : public IPage {
 
   bool handleKey(const UIEvent& in) override {
     UIEvent ev = in;
-    // A column pair becomes a left/right on the field it names.
+    // A step pair becomes a left/right carrying its granularity.
     if (!nav_.mapFieldKey(ev) && nav_.handleNavKey(ev)) return true;
     if (ev.code != KEY_LEFT && ev.code != KEY_RIGHT) return false;
     int dir = ev.code == KEY_RIGHT ? 1 : -1;
@@ -85,7 +85,7 @@ class DrumPage : public IPage {
       switch (nav_.field()) {
         case 0: d.trig_src = stepGate(d.trig_src, dir, model_.machine_mode); break;
         case 1:
-          d.chance += static_cast<float>(dir) * (ev.shift ? 0.01f : 0.05f);
+          d.chance += static_cast<float>(dir) * 0.05f * stepScale(ev.step);
           if (d.chance < 0.0f) d.chance = 0.0f;
           if (d.chance > 1.0f) d.chance = 1.0f;
           break;
@@ -93,13 +93,15 @@ class DrumPage : public IPage {
           // SHIFT doubles rather than adding a bigger constant: 1024 is ten
           // presses away that way and a thousand the other, and doubling is
           // how you actually move between drum divisions.
-          if (ev.shift) d.div = dir > 0 ? d.div * 2 : d.div / 2;
+          // The divider reaches 1024, so the big step doubles rather than
+          // adds -- five at a time would be four hundred presses.
+          if (ev.step == STEP_SUPER) d.div = dir > 0 ? d.div * 2 : d.div / 2;
           else d.div += dir;
           if (d.div < 1) d.div = 1;
           if (d.div > kDrumMaxDiv) d.div = kDrumMaxDiv;
           break;
         default:
-          d.level += static_cast<float>(dir) * (ev.shift ? 0.01f : 0.05f);
+          d.level += static_cast<float>(dir) * 0.05f * stepScale(ev.step);
           if (d.level < 0.0f) d.level = 0.0f;
           if (d.level > 1.0f) d.level = 1.0f;
           break;
@@ -108,7 +110,7 @@ class DrumPage : public IPage {
     }
 
     int* p = param(voiceIndex(nav_.row()), nav_.field());
-    *p += dir * (ev.shift ? 1 : 5);
+    *p += dir * stepInt(5, ev.step);
     if (*p < 0) *p = 0;
     if (*p > 100) *p = 100;
     return true;

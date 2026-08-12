@@ -81,6 +81,24 @@ inline void maxModRow(ModRow& row, int mode_count) {
   maxModField(row, MOD_FIELD_MODE, mode_count);
 }
 
+// The bottom of the same two. An attenuverter is the reason I exists as a
+// separate key from O: fully inverted is a setting you reach for as often as
+// fully open, and before this there was no way to get there in one press.
+// The mode column has no bottom either, so it goes to its first entry.
+inline void minModField(ModRow& row, int field) {
+  if (field == MOD_FIELD_MODE) {
+    row.mode = 0;
+  } else {
+    row.amount = -1.0f;
+    row.on = true;
+  }
+}
+
+inline void minModRow(ModRow& row) {
+  minModField(row, MOD_FIELD_AMOUNT);
+  minModField(row, MOD_FIELD_MODE);
+}
+
 // The row a bank cursor is on, clamped. Every page with a bank wrote this
 // same four-line lookup against the index visibleModRows() just filled.
 inline ModRow& bankRowAt(ModRow* rows, const int* index, int count, int i) {
@@ -102,6 +120,10 @@ inline void zeroBank(ModRow* rows, const int* index, int count) {
 
 inline void maxBank(ModRow* rows, const int* index, int count, int mode_count) {
   for (int i = 0; i < count; ++i) maxModRow(rows[index[i]], mode_count);
+}
+
+inline void minBank(ModRow* rows, const int* index, int count) {
+  for (int i = 0; i < count; ++i) minModRow(rows[index[i]]);
 }
 
 inline void zeroModField(ModRow& row, int field) {

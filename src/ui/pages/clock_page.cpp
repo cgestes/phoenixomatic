@@ -135,11 +135,12 @@ class ClockPage : public IPage {
       // Whole BPM on a press, tenths with SHIFT: the coarse step has to be
       // usable across 280 of them, and the fine one has to reach a tempo you
       // are matching by ear.
-      setBpm(model_.clock.bpm + static_cast<float>(dir) * (ev.shift ? 0.1f : 1.0f));
+      // A tenth of a BPM to match a tempo by ear, one to move, five to travel.
+      setBpm(model_.clock.bpm + static_cast<float>(dir) * stepScale(ev.step));
       return true;
     }
     setDiv(nav_.row() - kDivRow0,
-           model_.clock.div[nav_.row() - kDivRow0] + dir * (ev.shift ? 1 : 4));
+           model_.clock.div[nav_.row() - kDivRow0] + dir * stepInt(4, ev.step));
     return true;
   }
 
@@ -153,6 +154,19 @@ class ClockPage : public IPage {
   void zeroField() override {
     if (nav_.row() == kBpmRow) model_.clock.bpm = 120.0f;
     else setDiv(nav_.row() - kDivRow0, 1);
+  }
+
+  // A tempo's origin is not its floor: O puts BPM back to 120, which is the
+  // useful thing for it to do, and that would otherwise leave the slow end of
+  // the dial as the one place on this page you cannot reach in one press.
+  void minField() override {
+    if (nav_.row() == kBpmRow) model_.clock.bpm = kBpmMin;
+    else setDiv(nav_.row() - kDivRow0, 1);
+  }
+
+  void minPage() override {
+    model_.clock.bpm = kBpmMin;
+    for (int i = 0; i < kClockDividers; ++i) model_.clock.div[i] = 1;
   }
 
   void maxField() override {

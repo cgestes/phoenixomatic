@@ -94,13 +94,13 @@ class FxPage : public IPage {
       if (nav_.field() == 0) {
         d.mode = static_cast<uint8_t>((d.mode + FX_MODE_COUNT + dir) % FX_MODE_COUNT);
       } else {
-        adjustUnit(&d.mix, dir, ev.shift);
+        adjustUnit(&d.mix, dir, ev.step);
       }
       return true;
     }
     float* v = nav_.field() == 0 ? &d.rate
              : (nav_.field() == 1 ? &d.depth : &d.feedback);
-    adjustUnit(v, dir, ev.shift);
+    adjustUnit(v, dir, ev.step);
     return true;
   }
 
@@ -126,6 +126,18 @@ class FxPage : public IPage {
     if (nav_.field() == 0) d.rate = 0.0f;
     else if (nav_.field() == 1) d.depth = 0.0f;
     else d.feedback = 0.0f;
+  }
+
+  // Only the attenuverters go below zero on this page; everything else
+  // bottoms out where O already puts it.
+  void minField() override {
+    if (nav_.row() >= kBankRow0) { minModField(bankRow(), nav_.field()); return; }
+    zeroField();
+  }
+
+  void minPage() override {
+    zeroPage();
+    minBank(model_.fx.mod, bank_index_, bank_count_);
   }
 
   void maxField() override {

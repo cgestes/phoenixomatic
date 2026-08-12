@@ -81,7 +81,7 @@ class MixPage : public IPage {
 
   bool handleKey(const UIEvent& in) override {
     UIEvent ev = in;
-    // A column pair becomes a left/right on the field it names.
+    // A step pair becomes a left/right carrying its granularity.
     if (!nav_.mapFieldKey(ev) && nav_.handleNavKey(ev)) return true;
     if (ev.code != KEY_LEFT && ev.code != KEY_RIGHT) return false;
     int dir = ev.code == KEY_RIGHT ? 1 : -1;
@@ -91,11 +91,11 @@ class MixPage : public IPage {
       if (nav_.field() == 1) {
         model_.toggleMute(i);
       } else {
-        adjust(constLevelMut(i), dir, ev.shift);
+        adjustUnit(constLevelMut(i), dir, ev.step);
       }
       return true;
     }
-    adjust(&model_.master, dir, ev.shift);
+    adjustUnit(&model_.master, dir, ev.step);
     return true;
   }
 
@@ -157,11 +157,6 @@ class MixPage : public IPage {
     }
   }
  private:
-  static void adjust(float* v, int dir, bool fine) {
-    *v += static_cast<float>(dir) * (fine ? 0.01f : 0.05f);
-    if (*v < 0.0f) *v = 0.0f;
-    if (*v > 1.0f) *v = 1.0f;
-  }
 
   int masterRow() const { return strip_count_; }
 

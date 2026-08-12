@@ -167,14 +167,16 @@ class OscPage : public IPage {
     int dir = ev.code == KEY_RIGHT ? 1 : -1;
     // SHIFT jumps by eight through the 1..64 terms; a 64-step crawl is no way
     // to find x16.
-    int step = ev.shift ? 8 : 1;
+    // Ratio terms are whole numbers, so fine and coarse are both one; the
+    // big step is what gets you across a range that reaches into the tens.
+    int step = ev.step == STEP_SUPER ? 8 : 1;
 
     switch (nav_.field()) {
       case 0: o.wave = static_cast<uint8_t>((o.wave + WAVE_COUNT + dir) % WAVE_COUNT); break;
       case 1: o.div = clampRatioTerm(o.div + dir * step); break;
       case 2: o.mult = clampRatioTerm(o.mult + dir * step); break;
       default:
-        o.dtune += dir * (ev.shift ? 1 : 5);
+        o.dtune += dir * stepInt(5, ev.step);
         if (o.dtune < -100) o.dtune = -100;
         if (o.dtune > 100) o.dtune = 100;
         break;
@@ -235,6 +237,25 @@ class OscPage : public IPage {
     o.mult = 1;
     o.dtune = 0;
     zeroBank(o.mod, bank_index_, bank_count_);
+  }
+
+  // Only the attenuverters go below zero on this page; everything else
+  // bottoms out where O already puts it.
+  void minField() override {
+    if (nav_.row() >= kBankRow0) { minModField(bankRow(), nav_.field()); return; }
+    // FINE detunes either side of the ratio, so its bottom is a semitone flat
+    // rather than in tune. Everything else here counts upward from one.
+    if (nav_.row() == kTuneRow && nav_.field() == 3) {
+      model_.osc[voice_].dtune = -100;
+      return;
+    }
+    zeroField();
+  }
+
+  void minPage() override {
+    zeroPage();
+    Osc& o = model_.osc[voice_];
+    minBank(o.mod, bank_index_, bank_count_);
   }
 
   void maxField() override {

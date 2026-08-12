@@ -55,19 +55,20 @@ Open `phoenixomatic.ino` in the Arduino IDE with the M5Stack board support insta
 | Key | Action |
 |---|---|
 | `↑` `↓` | move between rows |
-| `TAB` / `SHIFT+TAB` | cycle the fields within the focused row |
-| `←` `→` | change the focused field (`SHIFT` for a fine step) |
+| `←` `→` | move between the fields of the focused row |
+| `A` / `Z` | raise / lower the focused field, finely |
+| `S` / `X` | the same, coarsely — the step every control used to take |
+| `D` / `C` | the same, in big jumps: across a range in a handful of presses |
+| `I` / `SHIFT+I` | send the focused field / the page to the bottom of its range (hard left on a pan, −100 on an attenuverter) |
 | `O` / `SHIFT+O` | zero the focused field / every field on the page (origin where a field has no zero) |
-| `I` / `SHIFT+I` | send the focused field / the page to the top of its range |
+| `P` / `SHIFT+P` | send the focused field / the page to the top of its range |
 | `R` / `T` / `SHIFT+R` | randomise the focused field / the whole row / the whole page |
 | `1`–`7` | mute/unmute OSC-1, OSC-2, COMP, KIK, SNR, HH, OH (`0` is reserved for mixing) |
 | `-` / `=` | mute everything / start everything |
 | `ESC` | invert every mute |
 | `SPACE` | toggle the focused thing — a mod row on/off, a step to a rest. Above a module's bank it silences the module (freeze on CHAOS). On HOME it is play/stop. |
-| `[` `]` | previous / next screen — walks sub-pages too, 15 in all |
+| `[` `]` | previous / next screen — walks sub-pages too, 16 in BENJOLIN and 23 in ADVANCED |
 | `CTRL`+`↑`/`↓` | jump sub-pages directly |
-| `K` `L` | global rate — sweeps both oscillators, and so the tempo with them |
-| `F` | freeze both chaos oscillators |
 | `BACKSPACE` | clear a step to a rest (SEQ) |
 
 ## Layout

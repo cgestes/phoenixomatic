@@ -142,20 +142,20 @@ class DelayPage : public IPage {
     if (nav_.row() == kTopRow) {
       float* v = nav_.field() == 0 ? &d.mix
                : nav_.field() == 1 ? &d.feedback : &d.damp;
-      adjustUnit(v, dir, ev.shift);
+      adjustUnit(v, dir, ev.step);
       return true;
     }
     DelayTap& t = d.tap[nav_.row() - kTapRow0];
     if (nav_.field() == 0) {
       // Milliseconds, and SHIFT is the *fine* one here: the coarse step has to
       // cross a second in a sane number of presses.
-      t.time_ms += static_cast<float>(dir) * (ev.shift ? 1.0f : 10.0f);
+      t.time_ms += static_cast<float>(dir) * 10.0f * stepScale(ev.step);
       if (t.time_ms < 1.0f) t.time_ms = 1.0f;
       if (t.time_ms > kMaxTimeMs) t.time_ms = kMaxTimeMs;
     } else if (nav_.field() == 1) {
-      adjustUnit(&t.level, dir, ev.shift);
+      adjustUnit(&t.level, dir, ev.step);
     } else {
-      t.pan += static_cast<float>(dir) * (ev.shift ? 0.05f : 0.25f);
+      t.pan += static_cast<float>(dir) * 0.25f * stepScale(ev.step);
       if (t.pan < -1.0f) t.pan = -1.0f;
       if (t.pan > 1.0f) t.pan = 1.0f;
     }
@@ -196,6 +196,25 @@ class DelayPage : public IPage {
     if (nav_.field() == 0) t.time_ms = 1.0f;   // no zero for a time
     else if (nav_.field() == 1) t.level = 0.0f;
     else t.pan = 0.0f;                          // centre is a pan's origin
+  }
+
+  // A tap's pan is the other bipolar field here, and hard left is exactly the
+  // thing this key was added for.
+  void minField() override {
+    DelayState& d = model_.delay;
+    if (nav_.row() >= kBankRow0) { minModField(bankRow(), nav_.field()); return; }
+    if (nav_.row() != kTopRow && nav_.field() == 2) {
+      d.tap[nav_.row() - kTapRow0].pan = -1.0f;
+      return;
+    }
+    zeroField();
+  }
+
+  void minPage() override {
+    zeroPage();
+    DelayState& d = model_.delay;
+    for (int i = 0; i < kDelayTaps; ++i) d.tap[i].pan = -1.0f;
+    minBank(d.mod, bank_index_, bank_count_);
   }
 
   void maxField() override {

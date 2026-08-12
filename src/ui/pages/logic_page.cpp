@@ -151,6 +151,27 @@ class LogicPage : public IPage {
     for (int i = 0; i < bank_count_; ++i) zeroModRow(c.mod[bank_index_[i]]);
   }
 
+  // OFFSET is the comparator's bipolar control: it slides B under A, and the
+  // far end of that travel is a duty cycle you cannot reach any other way in
+  // one press.
+  void minField() override {
+    Comparator& c = model_.comp;
+    if (nav_.row() == kCompOffsetRow) {
+      if (nav_.field() == 0) { c.offset = -1.0f; return; }
+    } else if (nav_.row() != compLevelRow()) {
+      minModField(c.mod[bank_index_[nav_.row() - kCompBankRow0]], nav_.field());
+      return;
+    }
+    zeroField();
+  }
+
+  void minPage() override {
+    zeroPage();
+    Comparator& c = model_.comp;
+    c.offset = -1.0f;
+    for (int i = 0; i < bank_count_; ++i) minModRow(c.mod[bank_index_[i]]);
+  }
+
   void maxField() override {
     {
       Comparator& c = model_.comp;
@@ -302,7 +323,7 @@ class LogicPage : public IPage {
     }
     if (ev.code != KEY_LEFT && ev.code != KEY_RIGHT) return false;
     int dir = ev.code == KEY_RIGHT ? 1 : -1;
-    float d = static_cast<float>(dir) * (ev.shift ? 0.01f : 0.05f);
+    float d = static_cast<float>(dir) * 0.05f * stepScale(ev.step);
     if (nav_.row() == kCompOffsetRow) {
       if (nav_.field() == 1) {
         c.shape = static_cast<uint8_t>((c.shape + CSHAPE_COUNT + dir) % CSHAPE_COUNT);

@@ -137,14 +137,14 @@ class SpacePage : public IPage {
         nav_mode_ = 0xFF;
         refreshRows();
       } else {
-        adjustUnit(&sp.mix, dir, ev.shift);
+        adjustUnit(&sp.mix, dir, ev.step);
       }
       return true;
     }
     if (nav_.row() == kToneRow) {
       float* v = nav_.field() == 0 ? &sp.size
                : nav_.field() == 1 ? &sp.decay : &sp.damp;
-      adjustUnit(v, dir, ev.shift);
+      adjustUnit(v, dir, ev.step);
       return true;
     }
     if (sp.mode == SPACE_SHIMMER) {
@@ -152,12 +152,12 @@ class SpacePage : public IPage {
         sp.shimmer_pitch =
             static_cast<uint8_t>((sp.shimmer_pitch + kShimmerCount + dir) % kShimmerCount);
       } else {
-        adjustUnit(&sp.shimmer, dir, ev.shift);
+        adjustUnit(&sp.shimmer, dir, ev.step);
       }
     } else if (nav_.field() == 0) {
       sp.gate_src = stepGate(sp.gate_src, dir, model_.machine_mode);
     } else {
-      adjustUnit(&sp.drive, dir, ev.shift);
+      adjustUnit(&sp.drive, dir, ev.step);
     }
     return true;
   }
@@ -197,6 +197,18 @@ class SpacePage : public IPage {
     } else {
       sp.drive = 0.0f;
     }
+  }
+
+  // Only the attenuverters go below zero on this page; everything else
+  // bottoms out where O already puts it.
+  void minField() override {
+    if (nav_.row() >= bankRow0()) { minModField(bankRow(), nav_.field()); return; }
+    zeroField();
+  }
+
+  void minPage() override {
+    zeroPage();
+    minBank(model_.space.mod, bank_index_, bank_count_);
   }
 
   void maxField() override {
