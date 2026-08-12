@@ -68,7 +68,7 @@ Open `phoenixomatic.ino` in the Arduino IDE with the M5Stack board support insta
 | `-` / `=` | mute everything / start everything |
 | `ESC` | invert every mute |
 | `SPACE` | toggle the focused thing — a mod row on/off, a step to a rest. Above a module's bank it silences the module (freeze on CHAOS). On HOME it is play/stop. |
-| `[` `]` | previous / next screen — walks sub-pages too, 16 in BENJOLIN and 23 in ADVANCED |
+| `[` `]` | previous / next screen — walks sub-pages too, 17 in BENJOLIN and 24 in ADVANCED |
 | `CTRL`+`↑`/`↓` | jump sub-pages directly |
 | `BACKSPACE` | clear a step to a rest (SEQ) |
 

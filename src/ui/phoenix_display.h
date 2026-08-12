@@ -32,6 +32,7 @@ class PhoenixDisplay {
   // Which field the focused page has under its cursor. Read-only, and the
   // one thing about a page's cursor the shell can see.
   int focusedField() const { return pages_[page_index_]->focusedField(); }
+  const char* pageTitle() const { return pages_[page_index_]->title(); }
   // Force a full repaint. Needed when the window system throws away what we
   // drew — expose, resize, a lost WebGL context.
   void invalidate() { screen_.invalidate(); }
