@@ -49,6 +49,16 @@ bool ChaosOsc::tickRungler(bool clock_high, bool data_high) {
                   ? clock_high != rung_prev_clock_
                   : clock_high && !rung_prev_clock_;
   rung_prev_clock_ = clock_high;
+  return shiftRungler(edge, data_high);
+}
+
+bool ChaosOsc::tickRunglerEdge(bool clock_edge, bool data_high) {
+  // No edge detection: the caller already gave us one. x2 has nothing to work
+  // with here, so it reads as /1 rather than doing something surprising.
+  return shiftRungler(clock_edge, data_high);
+}
+
+bool ChaosOsc::shiftRungler(bool edge, bool data_high) {
   if (!edge) return false;
 
   if (rung_div_ > 1 && (++rung_div_count_ % rung_div_) != 0) return false;

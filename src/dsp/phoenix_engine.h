@@ -46,7 +46,7 @@ class PhoenixEngine {
   void publishBus();
   // True if `gate_src` has a rising edge this sample.
   bool gateEdge(uint8_t gate_src) const;
-  void tickFate();
+  void tickClock();
   void tickSequencers();
   void tickDrums();
   uint32_t rng();
@@ -91,13 +91,15 @@ class PhoenixEngine {
   float seq_slew_[2] = {0.0f, 0.0f};
   int seq_div_count_[2] = {0, 0};
 
-  // Fate: divide, then decide. Outputs are one-sample pulses; the hold
-  // counters are only so the UI's LEDs are visible to a human eye.
-  int fate_count_[kFateChannels] = {0};
-  bool fate_div_[kFateChannels] = {false};
-  bool fate_a_[kFateChannels] = {false};
-  bool fate_b_[kFateChannels] = {false};
-  int fate_hold_[kFateChannels] = {0};
+  // Clock. The phase accumulator runs in sixteenths; the two dividers count
+  // those. Outputs are one-sample pulses, and the hold counters exist only so
+  // the UI's LEDs last long enough for an eye to catch them.
+  float clk_phase_ = 0.0f;
+  bool clk_edge_ = false;
+  bool clk_div_edge_[kClockDividers] = {false};
+  int clk_div_count_[kClockDividers] = {0};
+  int clk_hold_ = 0;
+  int clk_div_hold_[kClockDividers] = {0};
   int drum_count_[kDrumVoices] = {0};
   int drum_hold_[kDrumVoices] = {0};
   int led_hold_samples_ = 1;

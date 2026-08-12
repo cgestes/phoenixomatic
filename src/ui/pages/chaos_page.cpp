@@ -31,6 +31,11 @@ void formatRate(char* buf, size_t n, float hz) {
   else                 snprintf(buf, n, "%.1fHz", static_cast<double>(hz));
 }
 
+// The clock this rungler was born with. A is clocked by OSC-1 and fed by
+// OSC-2; B is the mirror. Anything else is the user having reached for the
+// clock, and the page says so in a different colour.
+uint8_t nativeClock(int which) { return which == 0 ? GATE_OSC1 : GATE_OSC2; }
+
 class ChaosPage : public IPage {
  public:
   explicit ChaosPage(PhoenixModel& m) : model_(m) { refreshRows(); }
@@ -153,6 +158,16 @@ class ChaosPage : public IPage {
     if (pr) scr.highlight(1, 5, kScreenCols - 2, PEN_PANEL);
     scr.text(2, 5, "PICK", PEN_DIM, pbg);
     drawField(scr, 7, 5, kPickRow, 0, kChaosOutLabel[c.pick], PEN_HOT, nav_.at(kPickRow, 0), pbg);
+    // What clocks the register. The benjolin answer is the other oscillator's
+    // square and it is the default; anything else trades the property the whole
+    // machine is built on -- the pattern being a function of the tuning -- for
+    // a rungler that keeps time with the drums.
+    if (rung) {
+      scr.text(15, 5, "CLK", PEN_DIM, pbg);
+      drawField(scr, 19, 5, kPickRow, 1, kGateLabel[c.clk_src],
+                clockedExternally(c) ? PEN_ALERT : PEN_COOL,
+                nav_.at(kPickRow, 1), pbg);
+    }
 
     // Only list destinations this mode actually has. Both oscillators carry a
     // row for each chaos core, so a single core feeds the pair.
@@ -162,8 +177,7 @@ class ChaosPage : public IPage {
     col = scr.text(col, frow, "OSC2", PEN_EMBER) + 1;
     col = scr.text(col, frow, "COMP", PEN_EMBER) + 1;
     if (model_.machine_mode == MODE_ADVANCED) {
-      col = scr.text(col, frow, which_ == 0 ? "SEQ1" : "SEQ2", PEN_EMBER) + 1;
-      if (which_ == 0) scr.text(col, frow, "FATE", PEN_EMBER);
+      scr.text(col, frow, which_ == 0 ? "SEQ1" : "SEQ2", PEN_EMBER);
     }
   }
 
@@ -256,7 +270,8 @@ class ChaosPage : public IPage {
         return true;
       case kShapeRow: editShape(c, dir, ev.shift); return true;
       default:
-        c.pick = (c.pick + 3 + dir) % 3;
+        if (nav_.field() == 1) c.clk_src = stepGate(c.clk_src, dir, model_.machine_mode);
+        else c.pick = (c.pick + 3 + dir) % 3;
         return true;
     }
   }
@@ -291,7 +306,12 @@ class ChaosPage : public IPage {
           c.chance = 0.0f;   // O locks the loop; I opens it wide
         }
         break;
-      default: c.pick = 0; break;
+      // O on the clock source puts the register back on its own oscillator,
+      // which is the setting that makes it a benjolin.
+      default:
+        if (nav_.field() == 1) c.clk_src = nativeClock(which_);
+        else c.pick = 0;
+        break;
     }
   }
 
@@ -320,7 +340,10 @@ class ChaosPage : public IPage {
           c.chance = model_.randomUnit();
         }
         break;
-      default: c.pick = static_cast<int>(model_.random() % 3u); break;
+      default:
+        if (nav_.field() == 1) c.clk_src = rollGate(model_.random(), model_.machine_mode);
+        else c.pick = static_cast<int>(model_.random() % 3u);
+        break;
     }
   }
 
@@ -352,7 +375,10 @@ class ChaosPage : public IPage {
           c.chance = 1.0f;
         }
         break;
-      default: c.pick = 2; break;
+      default:
+        if (nav_.field() == 1) c.clk_src = lastGate(model_.machine_mode);
+        else c.pick = 2;
+        break;
     }
   }
 
@@ -494,6 +520,10 @@ class ChaosPage : public IPage {
 
   // The rungler carries a third knob the flow modes do not, so the row table
   // is rebuilt when the mode changes — the same rule the mod banks follow.
+  bool clockedExternally(const Chaos& c) const {
+    return c.clk_src != nativeClock(which_);
+  }
+
   void refreshRows() {
     uint8_t mode = model_.chaos[which_].mode;
     if (nav_mode_ == mode && nav_which_ == which_) return;
@@ -501,7 +531,9 @@ class ChaosPage : public IPage {
     nav_which_ = which_;
     fields_[kModeRow] = 2;
     fields_[kShapeRow] = mode == CHAOS_RUNGLER ? 3 : 2;
-    fields_[kPickRow] = 1;
+    // The rungler gains a clock source, which the flow modes have no use
+    // for: they are integrated against time, not clocked by anything.
+    fields_[kPickRow] = mode == CHAOS_RUNGLER ? 2 : 1;
     nav_.configure(fields_, kRows);
   }
 

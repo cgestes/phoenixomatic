@@ -305,7 +305,7 @@ class SeqPage : public IPage {
 
   void editGate(Seq& s, int dir, bool fine) {
     switch (nav_.field()) {
-      case 0: s.clock_src = static_cast<uint8_t>((s.clock_src + GATE_COUNT + dir) % GATE_COUNT); break;
+      case 0: s.clock_src = stepGate(s.clock_src, dir, model_.machine_mode); break;
       case 1: s.div = clampRatioTerm(s.div + dir * (fine ? 8 : 1)); break;
       case 2: s.dir = static_cast<uint8_t>((s.dir + DIR_COUNT + dir) % DIR_COUNT); break;
       case 3:
@@ -348,7 +348,7 @@ class SeqPage : public IPage {
   }
 
   void maxGate(Seq& s) {
-    s.clock_src = GATE_COUNT - 1;
+    s.clock_src = lastGate(model_.machine_mode);
     s.div = kRatioMax;
     s.dir = DIR_COUNT - 1;
     s.range = kSeqRangeOct[kSeqRangeCount - 1];
@@ -357,7 +357,7 @@ class SeqPage : public IPage {
 
   void maxGateField(Seq& s) {
     switch (nav_.field()) {
-      case 0: s.clock_src = GATE_COUNT - 1; break;
+      case 0: s.clock_src = lastGate(model_.machine_mode); break;
       case 1: s.div = kRatioMax; break;
       case 2: s.dir = DIR_COUNT - 1; break;
       case 3: s.range = kSeqRangeOct[kSeqRangeCount - 1]; break;
@@ -367,7 +367,7 @@ class SeqPage : public IPage {
 
   void randomGateField(Seq& s) {
     switch (nav_.field()) {
-      case 0: s.clock_src = static_cast<uint8_t>(model_.random() % GATE_COUNT); break;
+      case 0: s.clock_src = rollGate(model_.random(), model_.machine_mode); break;
       case 1: s.div = randomRatioTerm(model_.randomUnit()); break;
       case 2: s.dir = static_cast<uint8_t>(model_.random() % DIR_COUNT); break;
       case 3: s.range = kSeqRangeOct[model_.random() % kSeqRangeCount]; break;
@@ -376,7 +376,7 @@ class SeqPage : public IPage {
   }
 
   void randomGate(Seq& s) {
-    s.clock_src = static_cast<uint8_t>(model_.random() % GATE_COUNT);
+    s.clock_src = rollGate(model_.random(), model_.machine_mode);
     s.div = randomRatioTerm(model_.randomUnit());
     s.dir = static_cast<uint8_t>(model_.random() % DIR_COUNT);
     s.chance = 0.4f + model_.randomUnit() * 0.6f;

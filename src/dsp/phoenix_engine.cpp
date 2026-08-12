@@ -119,57 +119,72 @@ void PhoenixEngine::publishBus() {
   bus_[SRC_SQ1] = seq_cv_[0];
   bus_[SRC_SQ2] = seq_cv_[1];
   bus_[SRC_CMP] = comp_out_;
-  // No clock to show, so the eighth slot reports whether the rhythm section is
-  // doing anything at all.
-  bool any = false;
-  for (int i = 0; i < kFateChannels; ++i) any = any || fate_div_[i];
-  bus_[SRC_FTE] = any ? 1.0f : -1.0f;
+  // The clock as a modulation source: a gate you can attenuvert, so the tempo
+  // can open a filter or nudge a pitch without going through a trigger input.
+  // In BENJOLIN mode the clock does not run and this reads as a flat -1.
+  bus_[SRC_CLK] = clk_hold_ > 0 ? 1.0f : -1.0f;
 }
 
 bool PhoenixEngine::gateEdge(uint8_t gate_src) const {
+  // A gate the current mode does not have never fires, and a module waiting on
+  // one is a module that has silently stopped — a rungler frozen mid-pattern,
+  // a drum that quit, and nothing on the panel to say why. Substituted here
+  // rather than rewritten in the model, so the setting survives a trip to
+  // BENJOLIN and comes back when you switch out of it.
+  if (gateHidden(gate_src, model_.machine_mode)) gate_src = GATE_CMP_GT;
   switch (gate_src) {
     case GATE_CMP_GT: return gt_edge_;
     case GATE_CMP_LT: return lt_edge_;
+    case GATE_CLK:    return clk_edge_;
+    case GATE_CLK_1:  return clk_div_edge_[0];
+    case GATE_CLK_2:  return clk_div_edge_[1];
     case GATE_OSC1:   return osc_edge_[0];
     case GATE_OSC2:   return osc_edge_[1];
     case GATE_RUNG_A: return rung_edge_[0];
     case GATE_RUNG_B: return rung_edge_[1];
-    default: break;
+    default: return false;
   }
-  int idx = static_cast<int>(gate_src) - GATE_FATE1_DIV;
-  if (idx < 0) return false;
-  int ch = idx / 3, tap = idx % 3;
-  if (ch >= kFateChannels) return false;
-  return tap == 0 ? fate_div_[ch] : (tap == 1 ? fate_a_[ch] : fate_b_[ch]);
 }
 
-void PhoenixEngine::tickFate() {
-  // Channels are evaluated in order, so a channel fed by a lower-numbered one
-  // sees this sample's pulse and a channel fed by a higher-numbered one sees
-  // last sample's. That one-sample skew is what keeps the graph acyclic.
-  for (int i = 0; i < kFateChannels; ++i) {
-    FateChannel& f = model_.fate[i];
-    bool fired = gateEdge(f.src);
-    fate_div_[i] = false;
-    fate_a_[i] = false;
-    fate_b_[i] = false;
-    if (!fired) continue;
+void PhoenixEngine::tickClock() {
+  clk_edge_ = false;
+  clk_div_edge_[0] = false;
+  clk_div_edge_[1] = false;
 
-    ++fate_count_[i];
-    int ratio = f.ratio > 0 ? f.ratio : 1;
-    if ((fate_count_[i] % ratio) != (f.phase % ratio)) continue;
-    fate_div_[i] = true;
+  // BENJOLIN has no clock. Held at rest rather than merely ignored, so
+  // switching modes does not resume mid-bar from wherever it was left.
+  if (model_.machine_mode == MODE_BENJOLIN || !model_.playing) {
+    clk_phase_ = 0.0f;
+    model_.clock.step = 0;
+    for (int i = 0; i < kClockDividers; ++i) clk_div_count_[i] = 0;
+    return;
+  }
 
-    float prob = f.prob;
-    if (f.mod_src >= 0 && f.mod_src < SRC_COUNT) {
-      prob += f.mod_amt * bus_[f.mod_src];
+  float bpm = model_.clock.bpm;
+  if (bpm < kBpmMin) bpm = kBpmMin;
+  if (bpm > kBpmMax) bpm = kBpmMax;
+  clk_phase_ += clockHz(bpm) / sample_rate_;
+  if (clk_phase_ < 1.0f) return;
+
+  // Subtract rather than zero: at 300 BPM a sixteenth is still 1100 samples, so
+  // this never wraps twice, but keeping the remainder is what stops the tempo
+  // being quantised to whole samples.
+  clk_phase_ -= 1.0f;
+  clk_edge_ = true;
+  clk_hold_ = led_hold_samples_;
+  ++model_.clock.step;
+
+  // The dividers count sixteenths and fire on the first of each group, so
+  // DIV-1 at /4 lands on the beat rather than three sixteenths after it.
+  for (int i = 0; i < kClockDividers; ++i) {
+    int div = model_.clock.div[i];
+    if (div < 1) div = 1;
+    if (div > kClockDivMax) div = kClockDivMax;
+    if ((clk_div_count_[i] % div) == 0) {
+      clk_div_edge_[i] = true;
+      clk_div_hold_[i] = led_hold_samples_;
     }
-    if (prob < 0.0f) prob = 0.0f;
-    if (prob > 1.0f) prob = 1.0f;
-    bool heads = randUnit() < prob;
-    fate_a_[i] = heads;
-    fate_b_[i] = !heads;
-    fate_hold_[i] = led_hold_samples_;
+    if (++clk_div_count_[i] >= div) clk_div_count_[i] = 0;
   }
 }
 
@@ -323,17 +338,30 @@ void PhoenixEngine::render(int16_t* out, size_t frames) {
     // clock to offer, and a stale edge here would fire a drum forever.
     rung_edge_[0] = false;
     rung_edge_[1] = false;
-    if (model_.chaos[0].mode == CHAOS_RUNGLER && !model_.chaos[0].freeze) {
-      rung_edge_[0] =
-          chaos_[0].tickRungler(osc_[0].value() > 0.0f, osc_[1].value() > 0.0f);
-      for (int o = 0; o < 3; ++o) model_.chaos[0].out[o] = chaos_[0].out(o);
-      model_.chaos[0].rung_bits = chaos_[0].registerBits();
-    }
-    if (model_.chaos[1].mode == CHAOS_RUNGLER && !model_.chaos[1].freeze) {
-      rung_edge_[1] =
-          chaos_[1].tickRungler(osc_[1].value() > 0.0f, osc_[0].value() > 0.0f);
-      for (int o = 0; o < 3; ++o) model_.chaos[1].out[o] = chaos_[1].out(o);
-      model_.chaos[1].rung_bits = chaos_[1].registerBits();
+    for (int r = 0; r < 2; ++r) {
+      Chaos& c = model_.chaos[r];
+      if (c.mode != CHAOS_RUNGLER || c.freeze) continue;
+      // Data is always the other oscillator's square. That is the benjolin
+      // article and it is not a setting: the register's contents come from the
+      // ratio between the two oscillators, which is why a groove you tune in
+      // stays tuned in.
+      bool data_high = osc_[r == 0 ? 1 : 0].value() > 0.0f;
+      if (c.clk_src == GATE_OSC1 || c.clk_src == GATE_OSC2) {
+        // The oscillator path takes a level rather than an edge, because x2
+        // clocks on both edges of the square and a one-sample pulse has only
+        // one. Everything else has to go through the edge path.
+        bool high = osc_[c.clk_src == GATE_OSC1 ? 0 : 1].value() > 0.0f;
+        rung_edge_[r] = chaos_[r].tickRungler(high, data_high);
+      } else {
+        // Its own edges would be a loop with nothing in it, so a rungler
+        // cannot clock itself. gateEdge would return last sample's value here
+        // and the register would free-run at the sample rate.
+        uint8_t src = c.clk_src;
+        if (src == (r == 0 ? GATE_RUNG_A : GATE_RUNG_B)) src = GATE_CMP_GT;
+        rung_edge_[r] = chaos_[r].tickRunglerEdge(gateEdge(src), data_high);
+      }
+      for (int o = 0; o < 3; ++o) c.out[o] = chaos_[r].out(o);
+      c.rung_bits = chaos_[r].registerBits();
     }
 
     // --- comparator: the only time base ------------------------------------
@@ -377,8 +405,9 @@ void PhoenixEngine::render(int16_t* out, size_t frames) {
     // Nothing has crossed in two seconds: it really is stopped, say so.
     if (edge_gap_ > static_cast<int>(sample_rate_ * 2.0f)) model_.comp_hz = 0.0f;
 
-    // Everything downstream hangs off those two edges.
-    tickFate();
+    // Everything downstream hangs off those two edges -- and, in ADVANCED
+    // mode, off the clock as well.
+    tickClock();
     tickSequencers();
     tickDrums();
 
@@ -422,11 +451,11 @@ void PhoenixEngine::render(int16_t* out, size_t frames) {
     }
 
     // --- LED holds, so single-sample pulses are visible ---------------------
-    for (int i = 0; i < kFateChannels; ++i) {
-      if (fate_hold_[i] > 0) --fate_hold_[i];
-      model_.fate[i].div_out = fate_hold_[i] > 0;
-      model_.fate[i].a_out = fate_hold_[i] > 0 && fate_a_[i];
-      model_.fate[i].b_out = fate_hold_[i] > 0 && fate_b_[i];
+    if (clk_hold_ > 0) --clk_hold_;
+    model_.clock.beat = clk_hold_ > 0;
+    for (int i = 0; i < kClockDividers; ++i) {
+      if (clk_div_hold_[i] > 0) --clk_div_hold_[i];
+      model_.clock.div_out[i] = clk_div_hold_[i] > 0;
     }
     for (int i = 0; i < kDrumVoices; ++i) {
       if (drum_hold_[i] > 0) --drum_hold_[i];
@@ -627,7 +656,4 @@ void PhoenixEngine::render(int16_t* out, size_t frames) {
   }
 
   model_.comp.a_gt_b = comp_gt_;
-  bool any = false;
-  for (int i = 0; i < kFateChannels; ++i) any = any || model_.fate[i].div_out;
-  model_.fate_led = any ? 1.0f : 0.05f;
 }

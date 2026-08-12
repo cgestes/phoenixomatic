@@ -28,6 +28,11 @@ class ChaosOsc {
   // be used as a clock elsewhere.
   bool tickRungler(bool clock_high, bool data_high);
 
+  // The same register, clocked from a gate that is already an edge — the clock,
+  // a divider, the comparator. `clk_div` still divides; x2 does not apply,
+  // because a one-sample pulse has no falling edge to catch.
+  bool tickRunglerEdge(bool clock_edge, bool data_high);
+
   void reset();
 
   // -1..1, full scale. Attenuverters downstream decide how much lands.
@@ -47,6 +52,9 @@ class ChaosOsc {
   };
 
   void stepCore(Core& c, float dt);
+  // Everything that happens once a clock edge has been decided on, shared by
+  // both entry points so the two clock sources cannot drift apart.
+  bool shiftRungler(bool edge, bool data_high);
 
   Core core_[3];
   float out_[3] = {0, 0, 0};

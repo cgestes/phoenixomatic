@@ -4,15 +4,12 @@
 #include <cstdio>
 
 const char* const kSourceLabel[SRC_COUNT] = {
-  "CHA", "CHB", "OS1", "OS2", "SQ1", "SQ2", "CMP", "FTE"
+  "CHA", "CHB", "OS1", "OS2", "SQ1", "SQ2", "CMP", "CLK"
 };
 
 const char* const kGateLabel[GATE_COUNT] = {
   "CMP A>B", "CMP A<B",
-  "FATE-1\x87", "FATE-1 A", "FATE-1 B",
-  "FATE-2\x87", "FATE-2 A", "FATE-2 B",
-  "FATE-3\x87", "FATE-3 A", "FATE-3 B",
-  "FATE-4\x87", "FATE-4 A", "FATE-4 B",
+  "CLK", "CLK-1", "CLK-2",
   "OSC-1", "OSC-2",
   "RUNG-A", "RUNG-B",
 };
@@ -59,8 +56,6 @@ const char* const kFilterModeLabel[3] = { "LP", "BP", "HP" };
 const char* const kFilterDestLabel[FDEST_COUNT] = { "FREQ", "RES" };
 
 const char* const kSeqDirLabel[DIR_COUNT] = { "FWD", "REV", "PEND", "RAND" };
-const char* const kDivModeLabel[DIVMODE_COUNT] = { "DIVIDE", "EUCLID" };
-const char* const kTossModeLabel[TOSS_MODE_COUNT] = { "TOSS", "LATCH" };
 
 PhoenixModel::PhoenixModel() {
   // --- oscillator banks: chaos, own sequencer, the other oscillator, the
@@ -124,7 +119,10 @@ PhoenixModel::PhoenixModel() {
   }
   seq[0].mod[0].amount = 0.08f;
   seq[0].mod[2].amount = -0.036f;
-  seq[0].clock_src = GATE_FATE1_DIV;
+  // One sequencer on the clock, one on the comparator: the contrast between
+  // a line that keeps time and a line that does not is the point of having
+  // both, and it is audible the moment you press play.
+  seq[0].clock_src = GATE_CLK_1;
   seq[1].clock_src = GATE_CMP_LT;
   // Every slot starts with something playable: the designed pattern, then
   // deterministic variations of it. An empty bank would just make the machine
@@ -216,19 +214,16 @@ PhoenixModel::PhoenixModel() {
   comp.mod[0].amount = 0.40f;
   comp.mod[2].amount = -0.18f;
 
-  // --- fate: the comparator's two opposed gate streams, plus the raw clock.
-  fate[0] = FateChannel{GATE_CMP_GT, 2,  0, 0.50f, SRC_CHA,  0.30f};
-  fate[1] = FateChannel{GATE_CMP_GT, 3,  1, 0.75f, -1,       0.00f};
-  fate[2] = FateChannel{GATE_CMP_LT, 5,  0, 0.25f, SRC_SQ2, -0.12f};
-  fate[3] = FateChannel{GATE_CMP_LT, 16, 0, 0.90f, -1,       0.00f};
-
   // --- drums
   const char* drum_names[kDrumVoices] = { "KIK", "SNR", "HH", "OH" };
+  // Off the clock rather than off the comparator: a kit triggered by two
+  // oscillators crossing is a texture, and this one is meant to be a beat.
+  // DIV-1 is quarter notes, CLK is sixteenths, and each voice divides again.
   const uint8_t drum_src[kDrumVoices] = {
-    GATE_FATE1_A, GATE_FATE2_B, GATE_FATE4_DIV, GATE_FATE4_A
+    GATE_CLK_1, GATE_CLK_1, GATE_CLK, GATE_CLK
   };
   const float drum_chance[kDrumVoices] = { 1.00f, 0.80f, 0.65f, 0.30f };
-  const int drum_div[kDrumVoices] = { 1, 2, 1, 4 };
+  const int drum_div[kDrumVoices] = { 1, 2, 2, 8 };
   const float drum_level[kDrumVoices] = { 0.80f, 0.80f, 0.80f, 0.80f };
   for (int i = 0; i < kDrumVoices; ++i) {
     drum[i].name = drum_names[i];
@@ -268,6 +263,9 @@ PhoenixModel::PhoenixModel() {
   chaos[0].chance = 1.0f;
 
   chaos[1].rate = 0.07f;
+  // Mirrored, so A and B are two different runglers rather than two copies of
+  // one: each is clocked by one oscillator and fed by the other.
+  chaos[1].clk_src = GATE_OSC2;
   chaos[1].skew = 0.20f;
 }
 
@@ -392,6 +390,16 @@ void PhoenixModel::applyMachineMode() {
   forEachModBank(apply);
 
   if (!benjolin) return;
+
+  // Nothing is rewritten here to cope with the gates this mode lacks. The
+  // engine substitutes at the point of use instead — see resolveGate — so a
+  // trigger set up in ADVANCED keeps its setting through a trip to BENJOLIN and
+  // back, the same way a bypassed mod row keeps its amount.
+  //
+  // Rewriting was tried and was worse than wrong: the constructor calls this
+  // before the machine is finished being built, so it silently ate every
+  // clock-sourced default a few lines above and put the whole kit back on the
+  // comparator. The drums then hit at the same rate whatever the tempo said.
 
   // One chaos oscillator, and it is the rungler.
   chaos[0].mode = CHAOS_RUNGLER;

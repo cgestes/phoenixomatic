@@ -20,6 +20,7 @@ PhoenixDisplay::PhoenixDisplay(IGfx& gfx, PhoenixModel& model)
   pages_.push_back(makeHomePage(model));
   pages_.push_back(makeChaosPage(model));
   pages_.push_back(makeOscPage(model));
+  pages_.push_back(makeClockPage(model));
   pages_.push_back(makeSeqPage(model));
   pages_.push_back(makeLogicPage(model));
   pages_.push_back(makeFilterPage(model));

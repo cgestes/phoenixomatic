@@ -52,6 +52,7 @@ SOURCES := \
   ../src/ui/pages/osc_page.cpp \
   ../src/ui/pages/seq_page.cpp \
   ../src/ui/pages/logic_page.cpp \
+  ../src/ui/pages/clock_page.cpp \
   ../src/ui/pages/filter_page.cpp \
   ../src/ui/pages/drum_page.cpp \
   ../src/ui/pages/dirt_page.cpp \

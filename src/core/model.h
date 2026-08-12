@@ -11,11 +11,26 @@
 // Sources
 // ---------------------------------------------------------------------------
 
+// BENJOLIN is the classic instrument: two oscillators, one rungler, one
+// comparator, and nothing else. ADVANCED opens the sequencers, the second
+// chaos oscillator, the clock and the drums.
+//
+// The mode hides pages, and it also bypasses any modulation fed by a module
+// you can no longer see — an instrument that is being driven by something the
+// panel does not show is worse than one that is missing a feature.
+//
+// It is declared up here rather than beside the machine because the source and
+// gate lists below have to answer which of their entries a mode admits.
+enum MachineMode : uint8_t { MODE_BENJOLIN = 0, MODE_ADVANCED, MACHINE_MODE_COUNT };
+extern const char* const kMachineModeLabel[MACHINE_MODE_COUNT];
+
 // The eight signals on the patch bus, shown in the footer of every page.
-// There is no clock among them: the comparator's edges are the only time base
-// this machine has, which is the whole benjolin idea.
+//
+// In BENJOLIN mode there is no clock among them: the comparator's edges are the
+// only time base the machine has, which is the whole benjolin idea. ADVANCED
+// mode adds a real one — see ClockState — and the eighth slot carries it.
 enum SourceId : uint8_t {
-  SRC_CHA = 0, SRC_CHB, SRC_OS1, SRC_OS2, SRC_SQ1, SRC_SQ2, SRC_CMP, SRC_FTE,
+  SRC_CHA = 0, SRC_CHB, SRC_OS1, SRC_OS2, SRC_SQ1, SRC_SQ2, SRC_CMP, SRC_CLK,
   SRC_COUNT
 };
 extern const char* const kSourceLabel[SRC_COUNT];   // "CHA", "CHB", ...
@@ -24,17 +39,51 @@ extern const char* const kSourceLabel[SRC_COUNT];   // "CHA", "CHB", ...
 // rather than carrying an attenuverter bank.
 enum GateSource : uint8_t {
   GATE_CMP_GT = 0, GATE_CMP_LT,
-  GATE_FATE1_DIV, GATE_FATE1_A, GATE_FATE1_B,
-  GATE_FATE2_DIV, GATE_FATE2_A, GATE_FATE2_B,
-  GATE_FATE3_DIV, GATE_FATE3_A, GATE_FATE3_B,
-  GATE_FATE4_DIV, GATE_FATE4_A, GATE_FATE4_B,
-  // Appended rather than slotted in beside the comparator, so the numbers
-  // already stored against every trigger keep meaning what they meant.
+  // The clock and its two dividers. These sat where the four fate channels'
+  // twelve taps used to; nothing persists a gate number yet, so the renumber
+  // costs nothing and the list is short enough to read again.
+  GATE_CLK, GATE_CLK_1, GATE_CLK_2,
   GATE_OSC1, GATE_OSC2,        // rising edge of each oscillator's square
   GATE_RUNG_A, GATE_RUNG_B,    // one pulse per shift of that rungler
   GATE_COUNT
 };
 extern const char* const kGateLabel[GATE_COUNT];    // "CLK", "CMP A>B", ...
+
+// True for the gates that only exist in ADVANCED mode. BENJOLIN has no clock
+// and no second rungler, and a trigger menu should not list doors that are not
+// there.
+inline bool gateHidden(uint8_t gate, uint8_t machine_mode) {
+  if (machine_mode != MODE_BENJOLIN) return false;
+  return gate == GATE_CLK || gate == GATE_CLK_1 || gate == GATE_CLK_2 ||
+         gate == GATE_RUNG_B;
+}
+
+// Every page that picks a trigger steps, randomises and maxes the same list, so
+// the skipping lives here rather than five times over. Without it a hidden gate
+// is still reachable by holding an arrow down, and BENJOLIN mode gets a drum
+// triggered by a clock it does not have.
+inline uint8_t stepGate(uint8_t gate, int dir, uint8_t machine_mode) {
+  for (int n = 0; n < GATE_COUNT; ++n) {
+    gate = static_cast<uint8_t>((gate + GATE_COUNT + dir) % GATE_COUNT);
+    if (!gateHidden(gate, machine_mode)) break;
+  }
+  return gate;
+}
+
+inline uint8_t lastGate(uint8_t machine_mode) {
+  for (int g = GATE_COUNT - 1; g > 0; --g) {
+    if (!gateHidden(static_cast<uint8_t>(g), machine_mode)) {
+      return static_cast<uint8_t>(g);
+    }
+  }
+  return GATE_CMP_GT;
+}
+
+// `roll` is any uniform 32-bit value; the caller owns the generator.
+inline uint8_t rollGate(uint32_t roll, uint8_t machine_mode) {
+  uint8_t g = static_cast<uint8_t>(roll % GATE_COUNT);
+  return gateHidden(g, machine_mode) ? stepGate(g, 1, machine_mode) : g;
+}
 
 // ---------------------------------------------------------------------------
 // The one row widget: source, bipolar amount, module-defined mode
@@ -157,6 +206,15 @@ struct Chaos {
   int steps = 8;            // 8, 16 or 32
   float chance = 1.0f;      // 0..1
   int clk_div = 1;          // 0 = both edges (x2), else divide rising edges
+  // What clocks the register. The benjolin answer is the other oscillator's
+  // square, which is the default and the only one BENJOLIN mode offers — the
+  // pattern being a function of the tuning is the entire point of the machine.
+  //
+  // ADVANCED can clock it from anything that makes gates, including the clock,
+  // which turns the rungler from a rate into a rhythm. It costs the property
+  // above: driven by a metronome the register no longer follows the tuning.
+  // That is the trade, and it is opt-in.
+  uint8_t clk_src = GATE_OSC1;
   bool freeze = false;
   int pick = 0;            // which output is published on the bus
   int focus = 0;
@@ -396,27 +454,58 @@ struct Comparator {
   float a = 0.0f, b = 0.0f;
 };
 
-inline constexpr int kFateChannels = 4;
+// ---------------------------------------------------------------------------
+// CLOCK — the one part of the machine that keeps time on its own
+// ---------------------------------------------------------------------------
+//
+// Everything else here is clocked by the comparator, which has no tempo: it
+// flips when two oscillators cross, and that is a rate rather than a beat.
+// That is the benjolin, and BENJOLIN mode keeps it — this module and its three
+// gates are hidden there, and nothing subscribes to them.
+//
+// ADVANCED gets a real clock, because the drums and the sequencers are already
+// outside the original instrument and a drum machine with no tempo is a
+// different kind of difficult from the one this box is going for.
+//
+// The base pulse is a sixteenth note, not a beat: it is the grid the drums
+// want, and a divider can always make it slower where a multiplier would have
+// to be invented to make it faster.
+inline constexpr float kBpmMin = 20.0f;
+inline constexpr float kBpmMax = 300.0f;
+inline constexpr int kClockDivMax = 64;
+inline constexpr int kClockDividers = 2;
 
-enum DivMode : uint8_t { DIVMODE_DIVIDE = 0, DIVMODE_EUCLID, DIVMODE_COUNT };
-enum TossMode : uint8_t { TOSS_TOSS = 0, TOSS_LATCH, TOSS_MODE_COUNT };
-extern const char* const kDivModeLabel[DIVMODE_COUNT];
-extern const char* const kTossModeLabel[TOSS_MODE_COUNT];
+// Sixteenths per second.
+inline float clockHz(float bpm) { return bpm * (4.0f / 60.0f); }
 
-// Divide time, then decide. Three taps: the divided clock, and the two sides
-// of the coin toss.
-struct FateChannel {
-  uint8_t src = GATE_CMP_GT;
-  int ratio = 2;
-  int phase = 0;
-  float prob = 0.5f;
-  int mod_src = -1;        // SourceId, or -1 for none
-  float mod_amt = 0.0f;    // -1..1
-  // live
-  bool div_out = false;
-  bool a_out = false;
-  bool b_out = false;
-  int count = 0;
+// The note a divider lands on, when it lands on one. /4 of a sixteenth is a
+// quarter note; /6 is nothing you can name, and says so.
+inline const char* clockNoteLabel(int div) {
+  switch (div) {
+    case 1:  return "1/16";
+    case 2:  return "1/8";
+    case 3:  return "1/8T";
+    case 4:  return "1/4";
+    case 6:  return "1/4T";
+    case 8:  return "1/2";
+    case 12: return "1/2T";
+    case 16: return "1/1";
+    case 32: return "2/1";
+    case 64: return "4/1";
+    default: return "";
+  }
+}
+
+struct ClockState {
+  float bpm = 120.0f;
+  // Quarter notes and whole bars: the two divisions you reach for first.
+  int div[kClockDividers] = {4, 16};
+  // live, held long enough to see
+  bool beat = false;
+  bool div_out[kClockDividers] = {false, false};
+  // Sixteenths since the transport started, so the page can show where in the
+  // bar the clock is rather than only that it is ticking.
+  int step = 0;
 };
 
 // DIRT — drive, bit crushing, decimation and three shapes borrowed from
@@ -570,7 +659,7 @@ inline constexpr int kDrumMaxDiv = 1024;
 
 struct Drum {
   const char* name = "";
-  uint8_t trig_src = GATE_FATE1_A;
+  uint8_t trig_src = GATE_CLK_1;
   float chance = 1.0f;
   int div = 1;              // 1..kDrumMaxDiv
   float level = 0.80f;
@@ -583,16 +672,6 @@ struct Drum {
 // ---------------------------------------------------------------------------
 // Machine modes
 // ---------------------------------------------------------------------------
-
-// BENJOLIN is the classic instrument: two oscillators, one rungler, one
-// comparator, and nothing else. ADVANCED opens the sequencers, the second
-// chaos oscillator, the fate channels and the drums.
-//
-// The mode hides pages, and it also bypasses any modulation fed by a module
-// you can no longer see — an instrument that is being driven by something the
-// panel does not show is worse than one that is missing a feature.
-enum MachineMode : uint8_t { MODE_BENJOLIN = 0, MODE_ADVANCED, MACHINE_MODE_COUNT };
-extern const char* const kMachineModeLabel[MACHINE_MODE_COUNT];
 
 // True when a source belongs to a module the mode does not put on the panel.
 // Rows fed by one are not drawn and cannot be reached — a control for a module
@@ -681,7 +760,7 @@ class PhoenixModel {
   FxState fx;
   DelayState delay;
   SpaceState space;
-  FateChannel fate[kFateChannels];
+  ClockState clock;
   Drum drum[kDrumVoices];
 
   // Global pitch offset in octaves, applied to both oscillators. Down here the
@@ -705,7 +784,6 @@ class PhoenixModel {
   // being drawn.
   bool hint_clearing = false;
   int step_counter = 0;     // comparator edges since start
-  float fate_led = 0.0f;    // any fate channel firing, for the bus strip
   double time = 0.0;
 
  private:

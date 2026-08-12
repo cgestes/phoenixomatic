@@ -1,5 +1,13 @@
-// LOGIC — comparator, then fate. Stepping the sub-pages walks the signal in
-// the order the machine does it.
+// LOGIC — the comparator. Two oscillators, one question, and the edges that
+// answer it, which are the machine's time base.
+//
+// This page used to carry FATE beside it: four channels that divided a gate and
+// then tossed a coin over whether to pass it. It went because it was a whole
+// screen of controls for "sometimes, and slower", which the drums already do
+// per voice with CHANCE and DIV, and because what it was really being used for
+// was a clock — badly, since a divider on an audio-rate comparator edge has no
+// tempo. There is a CLOCK page now, and the things FATE fed take their triggers
+// from it.
 #include "../../../fonts/phx_glyphs.h"
 #include "../../core/model.h"
 #include "../components/mod_bank_view.h"
@@ -18,35 +26,18 @@ constexpr int kTraceRows = 3;
 constexpr int kCompOffsetRow = 0;
 constexpr int kCompBankRow0 = 1;
 
-// FATE: four channels of six fields, then the two mode selectors.
-constexpr uint8_t kFateFields[] = {6, 6, 6, 6, 2};
-constexpr int kFateRows = 5;
-constexpr int kFateModeRow = 4;
-
 class LogicPage : public IPage {
  public:
   explicit LogicPage(PhoenixModel& m) : model_(m) { applyNav(); }
 
-  const char* title() const override { return sub_ == 0 ? "COMPARATOR" : "FATE"; }
-  // Benjolin has no fate channels, so LOGIC is just the comparator.
-  int subPageCount() const override {
-    return model_.machine_mode == MODE_ADVANCED ? 2 : 1;
-  }
-  int subPage() const override { return sub_; }
-  void setSubPage(int i) override {
-    sub_ = i % 2;
-    nav_mode_ = 0xFF;   // force a rebuild: the row list differs per sub-page
-    applyNav();
-  }
-  const char* subPageDots() const override { return "C F"; }
+  const char* title() const override { return "COMPARATOR"; }
 
   void draw(TextScreen& scr) override {
     applyNav();
-    if (sub_ == 0) drawComparator(scr); else drawFate(scr);
+    drawComparator(scr);
   }
 
   void drawOverlay(IGfx& gfx) override {
-    if (sub_ != 0) return;
     int x0 = TextScreen::pixelX(kTraceCol);
     int y0 = TextScreen::pixelY(kTraceRow);
     int w = kTraceCols * kCellW;
@@ -74,14 +65,10 @@ class LogicPage : public IPage {
     gfx.fillRect(x0, b_y, w, 1, COLOR_COOL);
   }
 
-  // FATE makes no sound of its own, so only the comparator sub-page claims
-  // a footer slot.
-  int outputInstrument() const override {
-    return sub_ == 0 ? PhoenixModel::INST_COMP : -1;
-  }
+  int outputInstrument() const override { return PhoenixModel::INST_COMP; }
 
   ParamHint focusedHint() const override {
-    if (sub_ == 0) {
+    {
       const Comparator& c = model_.comp;
       if (nav_.row() == kCompOffsetRow) {
         // OFFSET is pulse width, which is the one thing on this page you can
@@ -98,13 +85,6 @@ class LogicPage : public IPage {
       if (nav_.row() == compLevelRow()) return ParamHint{HINT_MIX, c.level};
       return ParamHint{};
     }
-    if (nav_.row() == kFateModeRow) return ParamHint{};
-    const FateChannel& f = model_.fate[nav_.row()];
-    switch (nav_.field()) {
-      case 1: return ParamHint{HINT_DIVIDE, static_cast<float>(f.ratio)};
-      case 3: return ParamHint{HINT_CHANCE, f.prob};
-      default: return ParamHint{};
-    }
   }
 
   void setCursor(int row, int field) override { nav_.setCursor(row, field); }
@@ -114,35 +94,22 @@ class LogicPage : public IPage {
     applyNav();
     UIEvent ev = in;
     if (!nav_.mapFieldKey(ev) && nav_.handleNavKey(ev)) return true;
-    return sub_ == 0 ? editComparator(ev) : editFate(ev);
+    return editComparator(ev);
   }
 
   bool toggleField() override {
-    if (sub_ == 0) {
-      // Offset and level rows mute the comparator, the same as OSC and FILTER.
-      if (nav_.row() < kCompBankRow0 || nav_.row() >= compLevelRow()) {
-        model_.comp.mute = !model_.comp.mute;
-        return true;
-      }
-      ModRow& m = model_.comp.mod[bank_index_[nav_.row() - kCompBankRow0]];
-      m.on = !m.on;
+    // Offset and level rows mute the comparator, the same as OSC and FILTER.
+    if (nav_.row() < kCompBankRow0 || nav_.row() >= compLevelRow()) {
+      model_.comp.mute = !model_.comp.mute;
       return true;
     }
-    if (nav_.row() == kFateModeRow) return false;
-    // Drop the channel's probability modulator in and out without losing which
-    // source it was.
-    FateChannel& f = model_.fate[nav_.row()];
-    if (f.mod_src >= 0) {
-      stashed_mod_src_[nav_.row()] = f.mod_src;
-      f.mod_src = -1;
-    } else {
-      f.mod_src = stashed_mod_src_[nav_.row()];
-    }
+    ModRow& m = model_.comp.mod[bank_index_[nav_.row() - kCompBankRow0]];
+    m.on = !m.on;
     return true;
   }
 
   void zeroField() override {
-    if (sub_ == 0) {
+    {
       Comparator& c = model_.comp;
       if (nav_.row() == kCompOffsetRow) {
         if (nav_.field() == 1) c.shape = CSHAPE_PWM;
@@ -152,17 +119,11 @@ class LogicPage : public IPage {
       else if (nav_.row() == compLevelRow()) c.level = 0.0f;
       else zeroModField(c.mod[bank_index_[nav_.row() - kCompBankRow0]],
                         nav_.field());
-      return;
     }
-    if (nav_.row() == kFateModeRow) {
-      if (nav_.field() == 0) div_mode_ = DIVMODE_DIVIDE; else toss_mode_ = TOSS_TOSS;
-      return;
-    }
-    zeroFateField(model_.fate[nav_.row()]);
   }
 
   void randomizeField() override {
-    if (sub_ == 0) {
+    {
       Comparator& c = model_.comp;
       if (nav_.row() == kCompOffsetRow) {
         if (nav_.field() == 1) c.shape = static_cast<uint8_t>(model_.random() % CSHAPE_COUNT);
@@ -178,33 +139,20 @@ class LogicPage : public IPage {
           m.amount = model_.randomUnit() * 2.0f - 1.0f;
         }
       }
-      return;
     }
-    if (nav_.row() == kFateModeRow) {
-      if (nav_.field() == 0) div_mode_ = static_cast<uint8_t>(model_.random() % DIVMODE_COUNT);
-      else toss_mode_ = static_cast<uint8_t>(model_.random() % TOSS_MODE_COUNT);
-      return;
-    }
-    randomFateField(model_.fate[nav_.row()]);
   }
 
   void zeroPage() override {
-    if (sub_ == 0) {
-      Comparator& c = model_.comp;
-      c.offset = 0.0f;
-      c.shape = CSHAPE_PWM;
-      c.drive = 0.0f;
-      c.level = 0.0f;
-      for (int i = 0; i < bank_count_; ++i) zeroModRow(c.mod[bank_index_[i]]);
-    } else {
-      for (int i = 0; i < kFateChannels; ++i) zeroFate(model_.fate[i]);
-      div_mode_ = DIVMODE_DIVIDE;
-      toss_mode_ = TOSS_TOSS;
-    }
+    Comparator& c = model_.comp;
+    c.offset = 0.0f;
+    c.shape = CSHAPE_PWM;
+    c.drive = 0.0f;
+    c.level = 0.0f;
+    for (int i = 0; i < bank_count_; ++i) zeroModRow(c.mod[bank_index_[i]]);
   }
 
   void maxField() override {
-    if (sub_ == 0) {
+    {
       Comparator& c = model_.comp;
       if (nav_.row() == kCompOffsetRow) {
         if (nav_.field() == 1) c.shape = CSHAPE_COUNT - 1;
@@ -216,68 +164,72 @@ class LogicPage : public IPage {
         maxModField(c.mod[bank_index_[nav_.row() - kCompBankRow0]],
                     nav_.field(), CDEST_COUNT);
       }
-      return;
     }
-    if (nav_.row() == kFateModeRow) {
-      if (nav_.field() == 0) div_mode_ = DIVMODE_COUNT - 1;
-      else toss_mode_ = TOSS_MODE_COUNT - 1;
-      return;
-    }
-    maxFateField(model_.fate[nav_.row()]);
   }
 
   void maxPage() override {
-    if (sub_ == 0) {
-      Comparator& c = model_.comp;
-      c.offset = 1.0f;
-      c.shape = CSHAPE_COUNT - 1;
-      c.drive = 1.0f;
-      c.level = 1.0f;
-      for (int i = 0; i < bank_count_; ++i) {
-        maxModRow(c.mod[bank_index_[i]], CDEST_COUNT);
-      }
-    } else {
-      for (int i = 0; i < kFateChannels; ++i) maxFate(model_.fate[i]);
-      div_mode_ = DIVMODE_COUNT - 1;
-      toss_mode_ = TOSS_MODE_COUNT - 1;
+    Comparator& c = model_.comp;
+    c.offset = 1.0f;
+    c.shape = CSHAPE_COUNT - 1;
+    c.drive = 1.0f;
+    c.level = 1.0f;
+    for (int i = 0; i < bank_count_; ++i) {
+      maxModRow(c.mod[bank_index_[i]], CDEST_COUNT);
     }
   }
 
   void randomizeRow() override { nav_.forEachField([this] { randomizeField(); }); }
 
   void randomizePage() override {
-    if (sub_ == 0) {
-      Comparator& c = model_.comp;
-      c.offset = model_.randomUnit() * 2.0f - 1.0f;
-      c.shape = static_cast<uint8_t>(model_.random() % CSHAPE_COUNT);
-      c.drive = model_.randomUnit();
-      for (int i = 0; i < bank_count_; ++i) {
-        ModRow& m = c.mod[bank_index_[i]];
-        m.amount = model_.randomUnit() * 2.0f - 1.0f;
-        m.mode = static_cast<uint8_t>(model_.random() % CDEST_COUNT);
-      }
-    } else {
-      for (int i = 0; i < kFateChannels; ++i) randomFate(model_.fate[i]);
+    Comparator& c = model_.comp;
+    c.offset = model_.randomUnit() * 2.0f - 1.0f;
+    c.shape = static_cast<uint8_t>(model_.random() % CSHAPE_COUNT);
+    c.drive = model_.randomUnit();
+    for (int i = 0; i < bank_count_; ++i) {
+      ModRow& m = c.mod[bank_index_[i]];
+      m.amount = model_.randomUnit() * 2.0f - 1.0f;
+      m.mode = static_cast<uint8_t>(model_.random() % CDEST_COUNT);
     }
   }
  private:
-  // COMP's bank only lists rows whose source this mode shows, so the table is
-  // rebuilt whenever the mode or the sub-page changes.
-  void applyNav() {
-    if (nav_mode_ == model_.machine_mode && nav_sub_ == sub_) return;
-    nav_mode_ = model_.machine_mode;
-    nav_sub_ = sub_;
-    if (sub_ == 0) {
-      bank_count_ = visibleModRows(model_.comp.mod, kCompModRows, nav_mode_,
-                                   bank_index_);
-      int rows = kCompBankRow0 + bank_count_ + 1;   // shape + bank + level
-      comp_fields_[kCompOffsetRow] = 3;               // OFFSET SHAPE DRIVE
-      for (int i = 0; i < bank_count_; ++i) comp_fields_[kCompBankRow0 + i] = 2;
-      comp_fields_[kCompBankRow0 + bank_count_] = 1;  // LEVEL
-      nav_.configure(comp_fields_, rows);
-    } else {
-      nav_.configure(kFateFields, kFateRows);
+  // Every trigger input in the machine currently pointed at `gate`. Read off
+  // the machine rather than written down: the fixed "FATE-1,2 / FATE-3,4" this
+  // replaces outlived the module it named by a whole release, describing wiring
+  // that no longer existed.
+  void drawSubscribers(TextScreen& scr, int col, uint8_t gate) const {
+    int start = col;
+    for (int v = 0; v < 2; ++v) {
+      if (model_.seq[v].clock_src != gate) continue;
+      col = scr.text(col, 13, v == 0 ? "SQ1" : "SQ2", PEN_DIM) + 1;
     }
+    for (int i = 0; i < kDrumVoices; ++i) {
+      if (model_.drum[i].trig_src != gate) continue;
+      col = scr.text(col, 13, model_.drum[i].name, PEN_DIM) + 1;
+    }
+    for (int r = 0; r < 2; ++r) {
+      const Chaos& c = model_.chaos[r];
+      if (c.mode != CHAOS_RUNGLER || c.clk_src != gate) continue;
+      col = scr.text(col, 13, r == 0 ? "RNG-A" : "RNG-B", PEN_DIM) + 1;
+    }
+    // Silence is information: an edge nothing is listening to is worth knowing
+    // about a machine you are in the middle of patching.
+    // A dash, not the arrow glyph: an arrow reads as "goes to" and this is
+    // the case where it goes nowhere.
+    if (col == start) scr.text(col, 13, "--", PEN_FAINT);
+  }
+
+  // COMP's bank only lists rows whose source this mode shows, so the table is
+  // rebuilt whenever the mode changes.
+  void applyNav() {
+    if (nav_mode_ == model_.machine_mode) return;
+    nav_mode_ = model_.machine_mode;
+    bank_count_ = visibleModRows(model_.comp.mod, kCompModRows, nav_mode_,
+                                 bank_index_);
+    int rows = kCompBankRow0 + bank_count_ + 1;     // shape + bank + level
+    comp_fields_[kCompOffsetRow] = 3;               // OFFSET SHAPE DRIVE
+    for (int i = 0; i < bank_count_; ++i) comp_fields_[kCompBankRow0 + i] = 2;
+    comp_fields_[kCompBankRow0 + bank_count_] = 1;  // LEVEL
+    nav_.configure(comp_fields_, rows);
     nav_.setRow(0);
   }
 
@@ -333,70 +285,13 @@ class LogicPage : public IPage {
     scr.text(19, 13, "A<B", PEN_BRIGHT);
     scr.put(23, 13, c.a_gt_b ? phx_glyphs::kLedOff : phx_glyphs::kLedOn,
             c.a_gt_b ? PEN_FAINT : PEN_HOT);
-    // Naming destinations this mode does not have would advertise doors that
-    // are not there.
+    // What is actually listening to each edge, read off the machine rather than
+    // written down: the old fixed "FATE-1,2 / FATE-3,4" outlived the module it
+    // named by describing wiring that no longer existed.
     if (advanced) {
-      scr.text(8, 13, "FATE-1,2", PEN_DIM);
-      scr.text(25, 13, "FATE-3,4", PEN_DIM);
+      drawSubscribers(scr, 8, GATE_CMP_GT);
+      drawSubscribers(scr, 27, GATE_CMP_LT);
     }
-  }
-
-  void drawFate(TextScreen& scr) {
-    scr.text(4, 1, "SRC", PEN_DIM);
-    scr.text(14, 1, "DIV", PEN_DIM);
-    scr.text(21, 1, "PROB", PEN_DIM);
-    scr.text(27, 1, "MOD", PEN_DIM);
-    scr.put(35, 1, phx_glyphs::kDivide, PEN_DIM);
-    scr.text(37, 1, "A B", PEN_DIM);
-
-    for (int i = 0; i < kFateChannels; ++i) {
-      FateChannel& f = model_.fate[i];
-      int row = 3 + i;
-      bool rf = nav_.atRow(i);
-      uint8_t bg = rowBg(rf);
-      if (rf) scr.highlight(1, row, kScreenCols - 2, PEN_PANEL);
-
-      scr.textf(1, row, rf ? PEN_HOT : PEN_BRIGHT, "%d", i + 1);
-      drawField(scr, 4, row, i, 0, kGateLabel[f.src], PEN_EMBER, nav_.at(i, 0), bg);
-      drawFieldF(scr, 14, row, i, 1, PEN_HOT, nav_.at(i, 1), bg, "/%d", f.ratio);
-      drawFieldF(scr, 18, row, i, 2, PEN_FAINT, nav_.at(i, 2), bg, "+%d", f.phase);
-      drawFieldF(scr, 21, row, i, 3, PEN_VIOLET, nav_.at(i, 3), bg, "%d%%",
-                 static_cast<int>(f.prob * 100.0f));
-      drawField(scr, 27, row, i, 4, f.mod_src >= 0 ? kSourceLabel[f.mod_src] : "---",
-                f.mod_src >= 0 ? PEN_COOL : PEN_FAINT, nav_.at(i, 4), bg);
-      drawFieldF(scr, 31, row, i, 5, f.mod_src >= 0 ? PEN_COOL : PEN_FAINT,
-                 nav_.at(i, 5), bg, "%+d", static_cast<int>(f.mod_amt * 100.0f));
-
-      scr.put(35, row, f.div_out ? phx_glyphs::kLedOn : phx_glyphs::kLedOff,
-              f.div_out ? PEN_HOT : PEN_FAINT, bg);
-      scr.put(37, row, f.a_out ? phx_glyphs::kLedOn : phx_glyphs::kLedOff,
-              f.a_out ? PEN_HOT : PEN_FAINT, bg);
-      scr.put(39, row, f.b_out ? phx_glyphs::kLedOn : phx_glyphs::kLedOff,
-              f.b_out ? PEN_HOT : PEN_FAINT, bg);
-    }
-
-    bool mr = nav_.atRow(kFateModeRow);
-    uint8_t mbg = rowBg(mr);
-    if (mr) scr.highlight(1, 8, kScreenCols - 2, PEN_PANEL);
-    scr.text(2, 8, "DIV MODE", PEN_DIM, mbg);
-    drawField(scr, 11, 8, kFateModeRow, 0, kDivModeLabel[div_mode_], PEN_HOT,
-              nav_.at(kFateModeRow, 0), mbg);
-    scr.text(21, 8, "TOSS MODE", PEN_DIM, mbg);
-    drawField(scr, 31, 8, kFateModeRow, 1, kTossModeLabel[toss_mode_], PEN_HOT, nav_.at(kFateModeRow, 1), mbg);
-
-    scr.text(2, 10, "FEEDS", PEN_DIM);
-    scr.text(2, 11, "1", PEN_DIM);
-    scr.put(3, 11, phx_glyphs::kDivide, PEN_DIM);
-    scr.text(5, 11, "SEQ-1", PEN_VIOLET);
-    scr.text(12, 11, "1A", PEN_DIM);
-    scr.text(15, 11, "KIK", PEN_ALERT);
-    scr.text(21, 11, "2B", PEN_DIM);
-    scr.text(24, 11, "SNR", PEN_COOL);
-    scr.text(2, 12, "4", PEN_DIM);
-    scr.put(3, 12, phx_glyphs::kDivide, PEN_DIM);
-    scr.text(5, 12, "HH", PEN_DIM);
-    scr.text(12, 12, "4A", PEN_DIM);
-    scr.text(15, 12, "OH", PEN_HOT);
   }
 
   bool editComparator(const UIEvent& ev) {
@@ -428,131 +323,12 @@ class LogicPage : public IPage {
     return true;
   }
 
-  bool editFate(const UIEvent& ev) {
-    if (ev.code != KEY_LEFT && ev.code != KEY_RIGHT) return false;
-    int dir = ev.code == KEY_RIGHT ? 1 : -1;
-
-    if (nav_.row() == kFateModeRow) {
-      if (nav_.field() == 0) {
-        div_mode_ = static_cast<uint8_t>((div_mode_ + DIVMODE_COUNT + dir) % DIVMODE_COUNT);
-      } else {
-        toss_mode_ = static_cast<uint8_t>((toss_mode_ + TOSS_MODE_COUNT + dir) % TOSS_MODE_COUNT);
-      }
-      return true;
-    }
-
-    FateChannel& f = model_.fate[nav_.row()];
-    switch (nav_.field()) {
-      case 0: f.src = static_cast<uint8_t>((f.src + GATE_COUNT + dir) % GATE_COUNT); break;
-      case 1:
-        f.ratio += dir * (ev.shift ? 8 : 1);
-        if (f.ratio < 1) f.ratio = 1;
-        if (f.ratio > kRatioMax) f.ratio = kRatioMax;
-        if (f.phase >= f.ratio) f.phase = f.ratio - 1;
-        break;
-      case 2:
-        f.phase += dir;
-        if (f.phase < 0) f.phase = 0;
-        if (f.phase >= f.ratio) f.phase = f.ratio - 1;
-        break;
-      case 3:
-        f.prob += static_cast<float>(dir) * (ev.shift ? 0.01f : 0.05f);
-        if (f.prob < 0.0f) f.prob = 0.0f;
-        if (f.prob > 1.0f) f.prob = 1.0f;
-        break;
-      case 4:
-        // -1 is "no modulator", then each bus source in turn.
-        f.mod_src += dir;
-        if (f.mod_src < -1) f.mod_src = SRC_COUNT - 1;
-        if (f.mod_src >= SRC_COUNT) f.mod_src = -1;
-        break;
-      default:
-        f.mod_amt += static_cast<float>(dir) * (ev.shift ? 0.01f : 0.05f);
-        if (f.mod_amt < -1.0f) f.mod_amt = -1.0f;
-        if (f.mod_amt > 1.0f) f.mod_amt = 1.0f;
-        break;
-    }
-    return true;
-  }
-
-  // A divider has no zero, so it goes to 1; the modulator goes to none.
-  void zeroFate(FateChannel& f) {
-    f.src = GATE_CMP_GT;
-    f.ratio = 1;
-    f.phase = 0;
-    f.prob = 0.0f;
-    f.mod_src = -1;
-    f.mod_amt = 0.0f;
-  }
-
-  // O and R act on one field. Doing the whole channel from a cursor parked on
-  // one of its six values would make the cursor position a lie.
-  void zeroFateField(FateChannel& f) {
-    switch (nav_.field()) {
-      case 0: f.src = GATE_CMP_GT; break;
-      case 1: f.ratio = 1; f.phase = 0; break;
-      case 2: f.phase = 0; break;
-      case 3: f.prob = 0.0f; break;
-      case 4: f.mod_src = -1; break;
-      default: f.mod_amt = 0.0f; break;
-    }
-  }
-
-  void maxFate(FateChannel& f) {
-    f.src = GATE_COUNT - 1;
-    f.ratio = kRatioMax;
-    f.phase = f.ratio - 1;
-    f.prob = 1.0f;
-    f.mod_src = SRC_COUNT - 1;
-    f.mod_amt = 1.0f;
-  }
-
-  void maxFateField(FateChannel& f) {
-    switch (nav_.field()) {
-      case 0: f.src = GATE_COUNT - 1; break;
-      case 1: f.ratio = kRatioMax; break;
-      // Phase only means anything inside the ratio, so its top follows it.
-      case 2: f.phase = f.ratio - 1; break;
-      case 3: f.prob = 1.0f; break;
-      case 4: f.mod_src = SRC_COUNT - 1; break;
-      default: f.mod_amt = 1.0f; break;
-    }
-  }
-
-  void randomFateField(FateChannel& f) {
-    switch (nav_.field()) {
-      case 0: f.src = static_cast<uint8_t>(model_.random() % GATE_COUNT); break;
-      case 1:
-        f.ratio = randomRatioTerm(model_.randomUnit());
-        if (f.phase >= f.ratio) f.phase = f.ratio - 1;
-        break;
-      case 2: f.phase = static_cast<int>(model_.random() % static_cast<uint32_t>(f.ratio)); break;
-      case 3: f.prob = model_.randomUnit(); break;
-      case 4: f.mod_src = static_cast<int>(model_.random() % (SRC_COUNT + 1)) - 1; break;
-      default: f.mod_amt = model_.randomUnit() * 2.0f - 1.0f; break;
-    }
-  }
-
-  void randomFate(FateChannel& f) {
-    f.src = static_cast<uint8_t>(model_.random() % GATE_COUNT);
-    f.ratio = randomRatioTerm(model_.randomUnit());
-    f.phase = static_cast<int>(model_.random() % static_cast<uint32_t>(f.ratio));
-    f.prob = model_.randomUnit();
-    f.mod_src = static_cast<int>(model_.random() % (SRC_COUNT + 1)) - 1;
-    f.mod_amt = model_.randomUnit() * 2.0f - 1.0f;
-  }
-
   PhoenixModel& model_;
   RowNav nav_;
-  int sub_ = 0;
-  uint8_t div_mode_ = DIVMODE_DIVIDE;
-  uint8_t toss_mode_ = TOSS_TOSS;
   uint8_t comp_fields_[kCompModRows + 2] = {};
   int bank_index_[kCompModRows] = {};
   int bank_count_ = 0;
   uint8_t nav_mode_ = 0xFF;
-  int nav_sub_ = -1;
-  int stashed_mod_src_[kFateChannels] = {SRC_CHA, SRC_CHA, SRC_CHA, SRC_CHA};
 };
 
 }  // namespace

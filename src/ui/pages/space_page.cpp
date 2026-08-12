@@ -155,7 +155,7 @@ class SpacePage : public IPage {
         adjustUnit(&sp.shimmer, dir, ev.shift);
       }
     } else if (nav_.field() == 0) {
-      sp.gate_src = static_cast<uint8_t>((sp.gate_src + GATE_COUNT + dir) % GATE_COUNT);
+      sp.gate_src = stepGate(sp.gate_src, dir, model_.machine_mode);
     } else {
       adjustUnit(&sp.drive, dir, ev.shift);
     }
@@ -215,7 +215,7 @@ class SpacePage : public IPage {
       if (nav_.field() == 0) sp.shimmer_pitch = kShimmerCount - 1;
       else sp.shimmer = 1.0f;
     } else if (nav_.field() == 0) {
-      sp.gate_src = GATE_COUNT - 1;
+      sp.gate_src = lastGate(model_.machine_mode);
     } else {
       sp.drive = 1.0f;
     }
@@ -273,7 +273,7 @@ class SpacePage : public IPage {
         sp.shimmer = model_.randomUnit();
       }
     } else if (nav_.field() == 0) {
-      sp.gate_src = static_cast<uint8_t>(model_.random() % GATE_COUNT);
+      sp.gate_src = rollGate(model_.random(), model_.machine_mode);
     } else {
       sp.drive = model_.randomUnit();
     }

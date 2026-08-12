@@ -91,7 +91,7 @@ class GlitchPage : public IPage {
     int dir = ev.code == KEY_RIGHT ? 1 : -1;
     if (nav_.row() == kTopRow) {
       if (nav_.field() == 0) {
-        d.gate_src = static_cast<uint8_t>((d.gate_src + GATE_COUNT + dir) % GATE_COUNT);
+        d.gate_src = stepGate(d.gate_src, dir, model_.machine_mode);
       } else if (nav_.field() == 1) {
         adjustUnit(&d.chance, dir, ev.shift);
       } else {
@@ -146,7 +146,7 @@ class GlitchPage : public IPage {
       return;
     }
     if (nav_.row() == kTopRow) {
-      if (nav_.field() == 0) d.gate_src = GATE_COUNT - 1;
+      if (nav_.field() == 0) d.gate_src = lastGate(model_.machine_mode);
       else if (nav_.field() == 1) d.chance = 1.0f;
       else d.mix = 1.0f;
       return;
@@ -185,7 +185,7 @@ class GlitchPage : public IPage {
       return;
     }
     if (nav_.row() == kTopRow) {
-      if (nav_.field() == 0) d.gate_src = static_cast<uint8_t>(model_.random() % GATE_COUNT);
+      if (nav_.field() == 0) d.gate_src = rollGate(model_.random(), model_.machine_mode);
       else if (nav_.field() == 1) d.chance = model_.randomUnit();
       else d.mix = model_.randomUnit() * 0.8f;
       return;

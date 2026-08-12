@@ -83,7 +83,7 @@ class DrumPage : public IPage {
     if (sub_ == 0) {
       Drum& d = model_.drum[nav_.row()];
       switch (nav_.field()) {
-        case 0: d.trig_src = static_cast<uint8_t>((d.trig_src + GATE_COUNT + dir) % GATE_COUNT); break;
+        case 0: d.trig_src = stepGate(d.trig_src, dir, model_.machine_mode); break;
         case 1:
           d.chance += static_cast<float>(dir) * (ev.shift ? 0.01f : 0.05f);
           if (d.chance < 0.0f) d.chance = 0.0f;
@@ -138,7 +138,7 @@ class DrumPage : public IPage {
     if (sub_ == 0) {
       Drum& d = model_.drum[nav_.row()];
       switch (nav_.field()) {
-        case 0: d.trig_src = static_cast<uint8_t>(model_.random() % GATE_COUNT); break;
+        case 0: d.trig_src = rollGate(model_.random(), model_.machine_mode); break;
         case 1: d.chance = model_.randomUnit(); break;
         case 2: d.div = randomRatioTerm(model_.randomUnit(), kDrumMaxDiv); break;
         default: d.level = 0.3f + model_.randomUnit() * 0.7f; break;
@@ -170,7 +170,7 @@ class DrumPage : public IPage {
     if (sub_ == 0) {
       Drum& d = model_.drum[nav_.row()];
       switch (nav_.field()) {
-        case 0: d.trig_src = GATE_COUNT - 1; break;
+        case 0: d.trig_src = lastGate(model_.machine_mode); break;
         case 1: d.chance = 1.0f; break;
         case 2: d.div = kDrumMaxDiv; break;
         default: d.level = 1.0f; break;
@@ -203,7 +203,7 @@ class DrumPage : public IPage {
     if (sub_ == 0) {
       for (int i = 0; i < kDrumVoices; ++i) {
         Drum& d = model_.drum[i];
-        d.trig_src = static_cast<uint8_t>(model_.random() % GATE_COUNT);
+        d.trig_src = rollGate(model_.random(), model_.machine_mode);
         d.chance = model_.randomUnit();
         d.div = randomRatioTerm(model_.randomUnit(), kDrumMaxDiv);
       }

@@ -27,7 +27,7 @@ const ModuleLine kModules[] = {
   {"MIX",             true},
   {"CHAOS-B",         false},
   {"SEQ-1 / SEQ-2",   false},
-  {"FATE x4",         false},
+  {"CLOCK + 2 DIV",   false},
   {"DRUMS x4",        false},
 };
 constexpr int kModuleCount = static_cast<int>(sizeof(kModules) / sizeof(kModules[0]));
