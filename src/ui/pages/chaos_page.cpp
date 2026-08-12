@@ -22,6 +22,15 @@ constexpr int kPlotRows = 3;
 constexpr int kHistory = kPlotCols * kCellW;
 constexpr double kSampleSeconds = 0.25;   // 84 samples -> a 21 second window
 
+// Rates on this page span 0.005 Hz to 34, so a fixed two decimals cannot show
+// both ends: it printed the bottom of the dial as "0.00Hz", which reads as
+// stopped when the thing is very much running. Precision follows the value.
+void formatRate(char* buf, size_t n, float hz) {
+  if (hz < 0.01f)      snprintf(buf, n, "%.3fHz", static_cast<double>(hz));
+  else if (hz < 10.0f) snprintf(buf, n, "%.2fHz", static_cast<double>(hz));
+  else                 snprintf(buf, n, "%.1fHz", static_cast<double>(hz));
+}
+
 class ChaosPage : public IPage {
  public:
   explicit ChaosPage(PhoenixModel& m) : model_(m) { refreshRows(); }
@@ -72,7 +81,7 @@ class ChaosPage : public IPage {
           if (c.clk_div == kRunglerDoubleSpeed) snprintf(buf, sizeof(buf), "x2");
           else snprintf(buf, sizeof(buf), "/%d", c.clk_div);
         }
-        else snprintf(buf, sizeof(buf), "%.2fHz", static_cast<double>(c.rate));
+        else formatRate(buf, sizeof(buf), c.rate);
       } else if (i == 1) {
         if (rung) snprintf(buf, sizeof(buf), "%d", c.steps);
         else snprintf(buf, sizeof(buf), "%+d", static_cast<int>(c.skew * 100.0f));
@@ -81,6 +90,21 @@ class ChaosPage : public IPage {
       }
       drawField(scr, col, 4, kShapeRow, i, buf, PEN_COOL, nav_.at(kShapeRow, i), sbg);
     }
+    // The rate of the core that is actually on the patch bus, which is not the
+    // RATE field unless TORPOR is picked: RATE sets the first core and the
+    // other two are fixed multiples of it, so APATHY runs at seventeen times
+    // the number in the field. It goes in the third field's slot, which flow
+    // modes leave empty — a readout of this row's control, on this row.
+    //
+    // In RUNGLER mode there is no rate to quote: the register is clocked by an
+    // oscillator, not by time.
+    if (!rung) {
+      char hz[12];
+      formatRate(hz, sizeof(hz), c.rate * kChaosCoreRate[c.pick]);
+      scr.text(27, 3, "ON BUS", PEN_DIM, sbg);
+      scr.text(27, 4, hz, PEN_COOL, sbg);
+    }
+
     // At either end no random number is drawn at all, so the reading says
     // which of the three things the dial is actually doing.
     if (rung) {

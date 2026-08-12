@@ -6,15 +6,8 @@
 
 #include "../core/model.h"
 
-namespace {
-
-// The three cores sit roughly a decade apart, which is what gives the Sloth
-// its character: one output you watch drift over a minute, one you can follow,
-// one that is nearly an LFO.
-constexpr float kCoreRate[3] = {1.0f, 4.3f, 17.0f};
-
-
-}  // namespace
+// kChaosCoreRate lives in model.h: the page has to quote the same spread the
+// engine integrates at.
 
 void ChaosOsc::init(float sample_rate, uint32_t seed) {
   sample_rate_ = sample_rate > 1.0f ? sample_rate : 22050.0f;
@@ -216,7 +209,7 @@ void ChaosOsc::process(int dt_samples) {
 
   for (int i = 0; i < 3; ++i) {
     Core& c = core_[i];
-    float core_rate = rate_ * kCoreRate[i];
+    float core_rate = rate_ * kChaosCoreRate[i];
 
     // Each system runs on its own natural time base, normalised so `rate` in
     // Hz means roughly the same wander speed whichever mode is selected.

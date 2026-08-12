@@ -97,6 +97,16 @@ enum ChaosMode : uint8_t {
 extern const char* const kChaosModeLabel[CHAOS_MODE_COUNT];
 extern const char* const kChaosOutLabel[3];         // TORPOR / INERTIA / APATHY
 
+// The three cores sit roughly a decade apart, which is what gives the Sloth its
+// character: one output you watch drift over a minute, one you can follow, one
+// that is nearly an LFO.
+//
+// Shared with the page rather than private to the engine, because RATE sets
+// only the first of them. A panel reading 0.005 Hz next to an APATHY running at
+// 0.085 is not a rounding problem, it is the page quoting a number for a core
+// you may not be listening to.
+inline constexpr float kChaosCoreRate[3] = {1.0f, 4.3f, 17.0f};
+
 // In RUNGLER mode RATE stops being a frequency — the clock comes from an
 // oscillator — and becomes a divider on that clock. One mapping, shared by the
 // engine and the page, so the number on screen is the number in use.
