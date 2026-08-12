@@ -49,6 +49,9 @@ class Dirt {
   int down_count_ = 0;
   float down_value_ = 0.0f;
   float ring_phase_ = 0.0f;
+  // SAVAGE biases the wave into the shaper, which leaves DC behind.
+  float dc_x_ = 0.0f;
+  float dc_y_ = 0.0f;
   float chaos_hold_ = 0.0f;
   int chaos_count_ = 0;
 };
