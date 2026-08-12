@@ -93,6 +93,11 @@ class ConfigPage : public IPage {
     model_.applyMachineMode();
   }
 
+  // The middle of each field's range. I and P are its two ends, so O
+  // completes them rather than repeating I, which on a field that only
+  // runs upward from zero is exactly what it used to do.
+  void midField() override { maxPage(); }
+
   void maxField() override { maxPage(); }
 
   void maxPage() override {

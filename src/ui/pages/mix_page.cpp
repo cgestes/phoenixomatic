@@ -188,6 +188,23 @@ class MixPage : public IPage {
     zeroField();
   }
 
+  // The middle of each field's range. I and P are its two ends, so O
+  // completes them rather than repeating I, which on a field that only
+  // runs upward from zero is exactly what it used to do.
+  void midField() override {
+    if (sub_ != 0) { moveStage(nav_.row(), kChainStages / 2); return; }
+    if (nav_.row() < strip_count_) {
+      int i = strip_index_[nav_.row()];
+      // Mute's far end is muted, matching how the field itself reads, and
+      // routing's is DRY -- the far end of the chain is not being in it.
+      if (nav_.field() == 1) model_.setMuted(i, false);
+      else if (nav_.field() == 2) model_.route[i] = ENTRY_GLITCH;
+      else *constLevelMut(i) = 0.5f;
+      return;
+    }
+    model_.master = 0.5f;
+  }
+
   void maxField() override {
     if (sub_ != 0) { moveStage(nav_.row(), kChainStages - 1); return; }
     if (nav_.row() < strip_count_) {

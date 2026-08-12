@@ -217,6 +217,29 @@ class DelayPage : public IPage {
     minBank(d.mod, bank_index_, bank_count_);
   }
 
+  // The middle of each field's range. I and P are its two ends, so O
+  // completes them rather than repeating I, which on a field that only
+  // runs upward from zero is exactly what it used to do.
+  void midField() override {
+    DelayState& d = model_.delay;
+    if (nav_.row() >= kBankRow0) {
+      midModField(bankRow(), nav_.field(), DDEST_COUNT);
+      return;
+    }
+    if (nav_.row() == kTopRow) {
+      if (nav_.field() == 0) d.mix = 0.5f;
+      else if (nav_.field() == 1) d.feedback = 0.5f;
+      else d.damp = 0.5f;
+      return;
+    }
+    DelayTap& t = d.tap[nav_.row() - kTapRow0];
+    if (nav_.field() == 0) t.time_ms = (kMaxTimeMs * 0.5f);
+    else if (nav_.field() == 1) t.level = 0.5f;
+    // A pan runs from hard left to hard right, so its middle is the centre
+    // and not half of the right-hand end.
+    else t.pan = 0.0f;
+  }
+
   void maxField() override {
     DelayState& d = model_.delay;
     if (nav_.row() >= kBankRow0) {

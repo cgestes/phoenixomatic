@@ -140,6 +140,24 @@ class FxPage : public IPage {
     minBank(model_.fx.mod, bank_index_, bank_count_);
   }
 
+  // The middle of each field's range. I and P are its two ends, so O
+  // completes them rather than repeating I, which on a field that only
+  // runs upward from zero is exactly what it used to do.
+  void midField() override {
+    FxState& d = model_.fx;
+    if (nav_.row() >= kBankRow0) {
+      midModField(bankRow(), nav_.field(), FXDEST_COUNT);
+      return;
+    }
+    if (nav_.row() == kTopRow) {
+      if (nav_.field() == 0) d.mode = FX_MODE_COUNT / 2; else d.mix = 0.5f;
+      return;
+    }
+    if (nav_.field() == 0) d.rate = 0.5f;
+    else if (nav_.field() == 1) d.depth = 0.5f;
+    else d.feedback = 0.5f;
+  }
+
   void maxField() override {
     FxState& d = model_.fx;
     if (nav_.row() >= kBankRow0) {

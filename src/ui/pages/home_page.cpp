@@ -163,6 +163,8 @@ class HomePage : public IPage {
 
   void zeroField() override {
     if (nav_.row() == kModeRow) setMode(MODE_BENJOLIN);
+    // Not the arithmetic midpoint of -7..+6, which is -0.5 and means
+    // nothing. Zero is the middle anyone wants: no transposition at all.
     else model_.rate_offset = 0.0f;
   }
 
@@ -178,6 +180,15 @@ class HomePage : public IPage {
   }
 
   void minPage() override { model_.rate_offset = -7.0f; }
+
+  // The middle of each field's range. I and P are its two ends, so O
+  // completes them rather than repeating I, which on a field that only
+  // runs upward from zero is exactly what it used to do.
+  void midField() override {
+    if (nav_.row() == kModeRow) setMode(MACHINE_MODE_COUNT / 2);
+    // RATE's top is the ceiling adjustRate clamps to.
+    else model_.rate_offset = 0.0f;
+  }
 
   void maxField() override {
     if (nav_.row() == kModeRow) setMode(MACHINE_MODE_COUNT - 1);

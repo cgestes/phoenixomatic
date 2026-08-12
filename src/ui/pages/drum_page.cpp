@@ -168,6 +168,25 @@ class DrumPage : public IPage {
     }
   }
 
+  // The middle of each field's range. I and P are its two ends, so O
+  // completes them rather than repeating I, which on a field that only
+  // runs upward from zero is exactly what it used to do.
+  void midField() override {
+    if (sub_ == 0) {
+      Drum& d = model_.drum[nav_.row()];
+      switch (nav_.field()) {
+        case 0: d.trig_src = midGate(model_.machine_mode); break;
+        case 1: d.chance = 0.5f; break;
+        case 2: d.div = kDrumMaxDiv / 2; break;
+        default: d.level = 0.5f; break;
+      }
+      return;
+    }
+    // The voice parameters run 0 to 100, so their middle is 50. Not zero --
+    // that is the same rule as detune, whose range runs either side of it.
+    *param(voiceIndex(nav_.row()), nav_.field()) = 50;
+  }
+
   void maxField() override {
     if (sub_ == 0) {
       Drum& d = model_.drum[nav_.row()];

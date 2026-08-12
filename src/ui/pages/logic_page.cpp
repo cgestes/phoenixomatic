@@ -172,6 +172,26 @@ class LogicPage : public IPage {
     for (int i = 0; i < bank_count_; ++i) minModRow(c.mod[bank_index_[i]]);
   }
 
+  // The middle of each field's range. I and P are its two ends, so O
+  // completes them rather than repeating I, which on a field that only
+  // runs upward from zero is exactly what it used to do.
+  void midField() override {
+    {
+      Comparator& c = model_.comp;
+      if (nav_.row() == kCompOffsetRow) {
+        if (nav_.field() == 1) c.shape = CSHAPE_COUNT / 2;
+        else if (nav_.field() == 2) c.drive = 0.5f;
+        // OFFSET slides B either side of A, so its middle is no offset.
+        else c.offset = 0.0f;
+      } else if (nav_.row() == compLevelRow()) {
+        c.level = 0.5f;
+      } else {
+        midModField(c.mod[bank_index_[nav_.row() - kCompBankRow0]],
+                    nav_.field(), CDEST_COUNT);
+      }
+    }
+  }
+
   void maxField() override {
     {
       Comparator& c = model_.comp;

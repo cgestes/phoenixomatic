@@ -60,7 +60,8 @@ Open `phoenixomatic.ino` in the Arduino IDE with the M5Stack board support insta
 | `S` / `X` | the same, coarsely — the step every control used to take |
 | `D` / `C` | the same, in big jumps: across a range in a handful of presses |
 | `I` / `SHIFT+I` | send the focused field / the page to the bottom of its range (hard left on a pan, −100 on an attenuverter) |
-| `O` / `SHIFT+O` | zero the focused field / every field on the page (origin where a field has no zero) |
+| `O` | send the focused field to the **middle** of its range — 50 on a level, centre on a pan |
+| `SHIFT+O` | zero every field on the page. Deliberately not the page's midpoint: a page-wide reset is worth a key, a page-wide "everything halfway" is not |
 | `P` / `SHIFT+P` | send the focused field / the page to the top of its range |
 | `R` / `T` / `SHIFT+R` | randomise the focused field / the whole row / the whole page |
 | `1`–`7` | mute/unmute OSC-1, OSC-2, COMP, KIK, SNR, HH, OH (`0` is reserved for mixing) |

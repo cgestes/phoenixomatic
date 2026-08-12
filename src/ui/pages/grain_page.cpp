@@ -129,12 +129,38 @@ class GrainPage : public IPage {
   // bottoms out where O already puts it.
   void minField() override {
     if (nav_.row() >= kBankRow0) { minModField(bankRow(), nav_.field()); return; }
+    // PITCH is a list whose origin sits in the middle of it -- "as recorded"
+    // is the fourth of six entries -- so its bottom is the first entry and
+    // not what O reaches. Without this I never got to the octave down.
+    if (nav_.row() == kShapeRow && nav_.field() == 1) {
+      model_.grain.pitch = 0;
+      return;
+    }
     zeroField();
   }
 
   void minPage() override {
     zeroPage();
     minBank(model_.grain.mod, bank_index_, bank_count_);
+  }
+
+  // The middle of each field's range. I and P are its two ends, so O
+  // completes them rather than repeating I, which on a field that only
+  // runs upward from zero is exactly what it used to do.
+  void midField() override {
+    GrainState& d = model_.grain;
+    if (nav_.row() >= kBankRow0) {
+      midModField(bankRow(), nav_.field(), GRDEST_COUNT);
+      return;
+    }
+    if (nav_.row() == kTopRow) {
+      if (nav_.field() == 0) d.size_ms = 100.0f;
+      else if (nav_.field() == 1) d.density = 0.5f;
+      else d.mix = 0.5f;
+      return;
+    }
+    if (nav_.field() == 0) d.spread = 0.5f;
+    else d.pitch = kShimmerCount / 2;
   }
 
   void maxField() override {

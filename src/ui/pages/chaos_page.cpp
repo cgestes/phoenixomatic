@@ -372,6 +372,35 @@ class ChaosPage : public IPage {
     model_.chaos[which_].skew = -1.0f;
   }
 
+  // The middle of each field's range. I and P are its two ends, so O
+  // completes them rather than repeating I, which on a field that only
+  // runs upward from zero is exactly what it used to do.
+  void midField() override {
+    Chaos& c = model_.chaos[which_];
+    switch (nav_.row()) {
+      case kModeRow:
+        if (nav_.field() == 0) c.mode = CHAOS_MODE_COUNT / 2; else c.freeze = false;
+        break;
+      case kShapeRow:
+        if (nav_.field() == 0) {
+          // The rungler's fast end is x2, which is the *bottom* of its stored
+          // range — "max" here means the fastest, not the largest number.
+          if (c.mode == CHAOS_RUNGLER) c.clk_div = kRunglerMaxDiv / 2;
+          else c.rate = 1.0f;
+        } else if (nav_.field() == 1) {
+          if (c.mode == CHAOS_RUNGLER) c.steps = kRunglerLengths[kRunglerLengthCount / 2];
+          else c.skew = 0.0f;   // SKEW tilts either way; flat is its middle
+        } else {
+          c.chance = 0.5f;
+        }
+        break;
+      default:
+        if (nav_.field() == 1) c.clk_src = midGate(model_.machine_mode);
+        else c.pick = 1;   // three cores; the middle one is INERTIA
+        break;
+    }
+  }
+
   void maxField() override {
     Chaos& c = model_.chaos[which_];
     switch (nav_.row()) {

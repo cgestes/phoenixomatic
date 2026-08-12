@@ -151,6 +151,25 @@ class FilterPage : public IPage {
     minBank(model_.filter.mod, bank_index_, bank_count_);
   }
 
+  // The middle of each field's range. I and P are its two ends, so O
+  // completes them rather than repeating I, which on a field that only
+  // runs upward from zero is exactly what it used to do.
+  void midField() override {
+    FilterState& f = model_.filter;
+    if (nav_.row() >= kBankRow0) {
+      midModField(bankRow(), nav_.field(), FDEST_COUNT);
+      return;
+    }
+    if (nav_.row() == kTopRow) {
+      if (nav_.field() == 0) f.mode = 1;   // LP, BP, HP — the page steps mode modulo 3
+      else f.input = FILT_IN_COUNT / 2;
+    } else if (nav_.field() == 0) {
+      f.freq = 0.5f;
+    } else {
+      f.res = 0.5f;
+    }
+  }
+
   void maxField() override {
     FilterState& f = model_.filter;
     if (nav_.row() >= kBankRow0) {

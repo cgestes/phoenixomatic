@@ -403,7 +403,8 @@ bool PhoenixDisplay::handleGlobalKey(const UIEvent& ev) {
     return true;
   }
   if (ev.key == 'o') {
-    if (ev.shift) page->zeroPage(); else page->zeroField();
+    // SHIFT+O is the page reset rather than the page's midpoint; see IPage.
+    if (ev.shift) page->zeroPage(); else page->midField();
     return true;
   }
   if (ev.key == 'p') {

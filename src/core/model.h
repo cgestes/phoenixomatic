@@ -79,6 +79,20 @@ inline uint8_t lastGate(uint8_t machine_mode) {
   return GATE_CMP_GT;
 }
 
+// The middle of the list this mode offers, for O.
+inline uint8_t midGate(uint8_t machine_mode) {
+  int n = 0;
+  for (int g = 0; g < GATE_COUNT; ++g) {
+    if (!gateHidden(static_cast<uint8_t>(g), machine_mode)) ++n;
+  }
+  int want = n / 2, seen = 0;
+  for (int g = 0; g < GATE_COUNT; ++g) {
+    if (gateHidden(static_cast<uint8_t>(g), machine_mode)) continue;
+    if (seen++ == want) return static_cast<uint8_t>(g);
+  }
+  return GATE_CMP_GT;
+}
+
 // `roll` is any uniform 32-bit value; the caller owns the generator.
 inline uint8_t rollGate(uint32_t roll, uint8_t machine_mode) {
   uint8_t g = static_cast<uint8_t>(roll % GATE_COUNT);

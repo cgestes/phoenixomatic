@@ -203,12 +203,45 @@ class SpacePage : public IPage {
   // bottoms out where O already puts it.
   void minField() override {
     if (nav_.row() >= bankRow0()) { minModField(bankRow(), nav_.field()); return; }
+    // SHIMMER's pitch is a list whose origin sits in the middle of it -- "as
+    // recorded" is the fourth of six -- so its bottom is the first entry and
+    // not what O reaches. The same shape as GLITCH and GRAIN's PITCH.
+    if (nav_.row() == kExtraRow && nav_.field() == 0 &&
+        model_.space.mode == SPACE_SHIMMER) {
+      model_.space.shimmer_pitch = 0;
+      return;
+    }
     zeroField();
   }
 
   void minPage() override {
     zeroPage();
     minBank(model_.space.mod, bank_index_, bank_count_);
+  }
+
+  // The middle of each field's range. I and P are its two ends, so O
+  // completes them rather than repeating I, which on a field that only
+  // runs upward from zero is exactly what it used to do.
+  void midField() override {
+    SpaceState& sp = model_.space;
+    if (nav_.row() >= bankRow0()) {
+      midModField(bankRow(), nav_.field(), SPDEST_COUNT);
+      return;
+    }
+    if (nav_.row() == kTopRow) {
+      if (nav_.field() == 0) sp.mode = SPACE_MODE_COUNT / 2; else sp.mix = 0.5f;
+    } else if (nav_.row() == kToneRow) {
+      if (nav_.field() == 0) sp.size = 0.5f;
+      else if (nav_.field() == 1) sp.decay = 0.5f;
+      else sp.damp = 0.5f;
+    } else if (sp.mode == SPACE_SHIMMER) {
+      if (nav_.field() == 0) sp.shimmer_pitch = kShimmerCount / 2;
+      else sp.shimmer = 0.5f;
+    } else if (nav_.field() == 0) {
+      sp.gate_src = midGate(model_.machine_mode);
+    } else {
+      sp.drive = 0.5f;
+    }
   }
 
   void maxField() override {

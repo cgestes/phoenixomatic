@@ -179,6 +179,25 @@ class SeqPage : public IPage {
     for (int i = 0; i < kSeqModRows; ++i) zeroModRow(s.mod[i]);
   }
 
+  // The middle of each field's range. I and P are its two ends, so O
+  // completes them rather than repeating I, which on a field that only
+  // runs upward from zero is exactly what it used to do.
+  void midField() override {
+    Seq& s = model_.seq[which_];
+    switch (nav_.row()) {
+      case kPatRow:
+        if (nav_.field() == 0) s.pat = kSeqPatterns / 2; else s.bank = kSeqBanks / 2;
+        break;
+      case kStepRow:
+        s.editNotes()[nav_.field()] = kSeqNoteMid;
+        break;
+      case kGateRow: midGateField(s); break;
+      default:
+        midModField(s.mod[nav_.row() - kBankRow0], nav_.field(), DEST_COUNT);
+        break;
+    }
+  }
+
   void maxField() override {
     Seq& s = model_.seq[which_];
     switch (nav_.row()) {
@@ -368,6 +387,18 @@ class SeqPage : public IPage {
     s.dir = DIR_COUNT - 1;
     s.range = kSeqRangeOct[kSeqRangeCount - 1];
     s.chance = 1.0f;
+  }
+
+  // The middle of each gate-row field. Page-local, so the generated midField
+  // above has something to call other than the max one.
+  void midGateField(Seq& s) {
+    switch (nav_.field()) {
+      case 0: s.clock_src = midGate(model_.machine_mode); break;
+      case 1: s.div = kRatioMax / 2; break;
+      case 2: s.dir = DIR_COUNT / 2; break;
+      case 3: s.range = kSeqRangeOct[kSeqRangeCount / 2]; break;
+      default: s.chance = 0.5f; break;
+    }
   }
 
   void maxGateField(Seq& s) {

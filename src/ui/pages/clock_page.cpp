@@ -169,6 +169,14 @@ class ClockPage : public IPage {
     for (int i = 0; i < kClockDividers; ++i) model_.clock.div[i] = 1;
   }
 
+  // The middle of each field's range. I and P are its two ends, so O
+  // completes them rather than repeating I, which on a field that only
+  // runs upward from zero is exactly what it used to do.
+  void midField() override {
+    if (nav_.row() == kBpmRow) model_.clock.bpm = ((kBpmMin + kBpmMax) * 0.5f);
+    else setDiv(nav_.row() - kDivRow0, kClockDivMax / 2);
+  }
+
   void maxField() override {
     if (nav_.row() == kBpmRow) model_.clock.bpm = kBpmMax;
     else setDiv(nav_.row() - kDivRow0, kClockDivMax);

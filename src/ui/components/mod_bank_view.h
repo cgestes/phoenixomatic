@@ -94,6 +94,16 @@ inline void minModField(ModRow& row, int field) {
   }
 }
 
+// Halfway between the two ends, for O. An attenuverter's middle is zero,
+// which is where O always sent it; a mode column's is the middle of its list.
+inline void midModField(ModRow& row, int field, int mode_count) {
+  if (field == MOD_FIELD_MODE) {
+    row.mode = static_cast<uint8_t>(mode_count > 0 ? mode_count / 2 : 0);
+  } else {
+    row.amount = 0.0f;
+  }
+}
+
 inline void minModRow(ModRow& row) {
   minModField(row, MOD_FIELD_AMOUNT);
   minModField(row, MOD_FIELD_MODE);

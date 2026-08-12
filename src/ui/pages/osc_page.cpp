@@ -258,6 +258,23 @@ class OscPage : public IPage {
     minBank(o.mod, bank_index_, bank_count_);
   }
 
+  // The middle of each field's range. I and P are its two ends, so O
+  // completes them rather than repeating I, which on a field that only
+  // runs upward from zero is exactly what it used to do.
+  void midField() override {
+    Osc& o = model_.osc[voice_];
+    if (nav_.row() >= kBankRow0) {
+      midModField(bankRow(), nav_.field(), MOD_TYPE_COUNT);
+      return;
+    }
+    switch (nav_.field()) {
+      case 0: o.wave = WAVE_COUNT / 2; break;
+      case 1: o.div = kRatioMax / 2; break;
+      case 2: o.mult = kRatioMax / 2; break;
+      default: o.dtune = 0; break;   // in tune, between a semitone either way
+    }
+  }
+
   void maxField() override {
     Osc& o = model_.osc[voice_];
     if (nav_.row() >= kBankRow0) {

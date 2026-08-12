@@ -95,16 +95,27 @@ class IPage {
   // order they sit under the fingers:
   //
   //   I   the bottom     hard left on a pan, -100 on an attenuverter
-  //   O   the origin     zero, or the start of a range that has no zero
-  //   P   the top        wide open
+  //   O   the middle      halfway between the two
+  //   P   the top         wide open
   //
-  // SHIFT does the whole page instead of the focused field.
+  // O was the *origin* until I existed to be the bottom. On the many fields
+  // that only run upward from zero the two are the same place, so the middle
+  // key did nothing the left one had not already done — measured at 850 of
+  // 1200 field positions. The middle of the range is what completes the trio.
+  //
+  // SHIFT+I and SHIFT+P widen to the whole page. SHIFT+O deliberately does
+  // not follow suit: it still zeroes the page, because a page-wide reset is a
+  // thing worth having under a key and a page-wide "everything halfway" is
+  // not. That asymmetry is the one exception and it is on purpose.
   //
   // "Zero" means literally zero where the field has one and the origin of its
   // range where it does not — a divider goes to 1, a selector to its first
   // entry.
   virtual void zeroField() {}
   virtual void zeroPage() {}
+  // Defaulted to the origin for pages that have not said otherwise; every page
+  // with a range worth halving overrides it.
+  virtual void midField() { zeroField(); }
   // Defaulted to the origin, because for the many fields that only run from
   // zero upwards the bottom of the range *is* zero. Only bipolar fields — pans,
   // attenuverters, offsets, the global rate — need to say otherwise.
