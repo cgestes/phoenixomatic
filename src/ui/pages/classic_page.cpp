@@ -203,7 +203,10 @@ class ClassicPage : public IPage {
     }
     if (nav_.row() == kFiltRow && nav_.field() == 0) {
       return withRow(ParamHint{HINT_FILTER, model_.filter.freq, model_.filter.res,
-                               nullptr, model_.filter.mode}, here);
+                               nullptr,
+                               model_.filter.mode +
+                                   FILT_MODE_COUNT * model_.filter.type},
+                     here);
     }
     return ParamHint{};
   }

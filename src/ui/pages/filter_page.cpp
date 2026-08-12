@@ -13,12 +13,16 @@
 
 namespace {
 
-constexpr int kTopRow = 0;     // MODE | IN
+constexpr int kTopRow = 0;     // TYPE | MODE | IN
 constexpr int kToneRow = 1;    // FREQ | RES
 constexpr int kBankRow0 = 2;
 
 // Same mapping the engine uses, so the number on screen is the cutoff in use.
 float cutoffHz(float knob) { return 20.0f * std::exp2(knob * 8.6f); }
+
+// Where the resonance stops ringing and starts generating. The engine has
+// no say in this -- it is where Filter::setResonance takes k past zero.
+constexpr float kSelfOsc = 0.86f;
 
 class FilterPage : public IPage {
  public:
@@ -33,13 +37,14 @@ class FilterPage : public IPage {
     bool tr = nav_.atRow(kTopRow);
     uint8_t tbg = rowBg(tr);
     if (tr) scr.highlight(1, 1, kScreenCols - 2, PEN_PANEL);
-    scr.text(1, 1, "MODE", PEN_DIM, tbg);
-    drawField(scr, 6, 1, kTopRow, 0, kFilterModeLabel[f.mode], PEN_HOT,
+    drawField(scr, 1, 1, kTopRow, 0, kFilterTypeLabel[f.type], PEN_HOT,
               nav_.at(kTopRow, 0), tbg);
-    scr.text(12, 1, "IN", PEN_DIM, tbg);
-    drawField(scr, 15, 1, kTopRow, 1, kFilterInputLabel[f.input], PEN_EMBER,
+    drawField(scr, 7, 1, kTopRow, 1, kFilterModeLabel[f.mode], PEN_HOT,
               nav_.at(kTopRow, 1), tbg);
-    if (f.mute) scr.text(24, 1, "muted", PEN_FAINT, tbg);
+    scr.text(14, 1, "IN", PEN_DIM, tbg);
+    drawField(scr, 17, 1, kTopRow, 2, kFilterInputLabel[f.input], PEN_EMBER,
+              nav_.at(kTopRow, 2), tbg);
+    if (f.mute) scr.text(25, 1, "muted", PEN_FAINT, tbg);
 
     bool nr = nav_.atRow(kToneRow);
     uint8_t nbg = rowBg(nr);
@@ -50,14 +55,25 @@ class FilterPage : public IPage {
     scr.text(17, 2, "RES", PEN_DIM, nbg);
     drawFieldF(scr, 21, 2, kToneRow, 1, PEN_BRIGHT, nav_.at(kToneRow, 1), nbg,
                "%d", static_cast<int>(f.res * 100.0f));
-    // Past this the filter stops ringing and starts singing on its own.
-    if (f.res > 0.9f) scr.text(26, 2, "self-osc", PEN_ALERT, nbg);
+    // Past this the filter stops ringing and starts singing on its own, which
+    // with no input is the only thing it is doing.
+    if (f.res > kSelfOsc) {
+      scr.text(26, 2, f.input == FILT_IN_NONE ? "SINGING" : "self-osc",
+               PEN_ALERT, nbg);
+    }
 
     int focus_row = nav_.row() >= kBankRow0 ? nav_.row() - kBankRow0 : -1;
     drawModBankIndexed(scr, 4, f.mod, bank_index_, bank_count_, focus_row,
                        nav_.field(), kFilterDestLabel, "DEST", kBankRow0);
 
-    scr.text(2, 13, "PWM in, rungler on cutoff \x88 the voice", PEN_FAINT);
+    // The line at the bottom says what the filter is currently doing, which
+    // stops being "the PWM through a filter" the moment you unpatch it.
+    scr.text(2, 13,
+             f.input == FILT_IN_NONE
+                 ? (f.res > kSelfOsc ? "no input \x88 the filter is the oscillator"
+                                     : "no input, and not singing: silence")
+                 : "PWM in, rungler on cutoff \x88 the voice",
+             PEN_FAINT);
 
   }
 
@@ -69,8 +85,10 @@ class FilterPage : public IPage {
     // Every field on this page bends the same curve, so they all draw it and
     // the one you are holding is the one that moves.
     ParamHint h{HINT_FILTER, f.freq, f.res};
-    h.tap_count = f.mode;
-    if (nav_.row() == kTopRow && nav_.field() == 1) return ParamHint{};   // IN
+    // Both questions in the one int the hint carries, so the sketch can draw
+    // the ladder's steeper skirts and the change detector still sees them.
+    h.tap_count = f.mode + FILT_MODE_COUNT * f.type;
+    if (nav_.row() == kTopRow && nav_.field() == 2) return ParamHint{};   // IN
     return h;
   }
 
@@ -91,12 +109,7 @@ class FilterPage : public IPage {
     float step = 0.05f * stepScale(ev.step);
 
     if (nav_.row() == kTopRow) {
-      if (nav_.field() == 0) {
-        f.mode = static_cast<uint8_t>(
-            (f.mode + FILT_MODE_COUNT + dir) % FILT_MODE_COUNT);
-      } else {
-        f.input = static_cast<uint8_t>((f.input + FILT_IN_COUNT + dir) % FILT_IN_COUNT);
-      }
+      cycleTop(nav_.field(), dir);
       return true;
     }
     float* v = nav_.field() == 0 ? &f.freq : &f.res;
@@ -123,7 +136,7 @@ class FilterPage : public IPage {
       return;
     }
     if (nav_.row() == kTopRow) {
-      if (nav_.field() == 0) f.mode = 0; else f.input = FILT_IN_COMP;
+      topField() = topPlace(0.0f);
     } else if (nav_.field() == 0) {
       f.freq = 0.0f;
     } else {
@@ -133,6 +146,7 @@ class FilterPage : public IPage {
 
   void zeroPage() override {
     FilterState& f = model_.filter;
+    f.type = FILT_TYPE_SVF;
     f.mode = 0;
     f.input = FILT_IN_COMP;
     f.freq = 0.0f;
@@ -162,8 +176,7 @@ class FilterPage : public IPage {
       return;
     }
     if (nav_.row() == kTopRow) {
-      if (nav_.field() == 0) f.mode = FILT_MODE_COUNT / 2;
-      else f.input = FILT_IN_COUNT / 2;
+      topField() = topPlace(0.5f);
     } else if (nav_.field() == 0) {
       f.freq = 0.5f;
     } else {
@@ -178,8 +191,7 @@ class FilterPage : public IPage {
       return;
     }
     if (nav_.row() == kTopRow) {
-      if (nav_.field() == 0) f.mode = FILT_MODE_COUNT - 1;
-      else f.input = FILT_IN_COUNT - 1;
+      topField() = topPlace(1.0f);
     } else if (nav_.field() == 0) {
       f.freq = 1.0f;
     } else {
@@ -189,6 +201,7 @@ class FilterPage : public IPage {
 
   void maxPage() override {
     FilterState& f = model_.filter;
+    f.type = FILT_TYPE_COUNT - 1;
     f.mode = FILT_MODE_COUNT - 1;
     f.input = FILT_IN_COUNT - 1;
     f.freq = 1.0f;
@@ -208,10 +221,7 @@ class FilterPage : public IPage {
       return;
     }
     if (nav_.row() == kTopRow) {
-      if (nav_.field() == 0) {
-        f.mode = static_cast<uint8_t>(model_.random() % FILT_MODE_COUNT);
-      }
-      else f.input = static_cast<uint8_t>(model_.random() % FILT_IN_COUNT);
+      topField() = static_cast<uint8_t>(model_.random() % topCount());
     } else if (nav_.field() == 0) {
       f.freq = model_.randomUnit();
     } else {
@@ -234,6 +244,36 @@ class FilterPage : public IPage {
     }
   }
  private:
+  // The top row is three list fields with nothing else in common, so every
+  // one of I/O/P and the dice reaches them through the same two helpers
+  // rather than through its own three-way branch.
+  uint8_t topCount() const {
+    switch (nav_.field()) {
+      case 0:  return FILT_TYPE_COUNT;
+      case 1:  return FILT_MODE_COUNT;
+      default: return FILT_IN_COUNT;
+    }
+  }
+  uint8_t& topField() {
+    FilterState& f = model_.filter;
+    switch (nav_.field()) {
+      case 0:  return f.type;
+      case 1:  return f.mode;
+      default: return f.input;
+    }
+  }
+  // A list has no middle value, only a middle entry; O lands on it.
+  uint8_t topPlace(float u) {
+    int last = topCount() - 1;
+    return static_cast<uint8_t>(static_cast<float>(last) * u + 0.5f);
+  }
+  void cycleTop(int field, int dir) {
+    (void)field;
+    uint8_t n = topCount();
+    uint8_t& v = topField();
+    v = static_cast<uint8_t>((v + n + dir) % n);
+  }
+
   ModRow& bankRow() {
     return bankRowAt(model_.filter.mod, bank_index_, bank_count_,
                      nav_.row() - kBankRow0);
@@ -246,7 +286,7 @@ class FilterPage : public IPage {
     nav_mode_ = model_.machine_mode;
     bank_count_ = visibleModRows(model_.filter.mod, kFilterModRows, nav_mode_,
                                  bank_index_);
-    fields_[kTopRow] = 2;
+    fields_[kTopRow] = 3;
     fields_[kToneRow] = 2;
     for (int i = 0; i < bank_count_; ++i) fields_[kBankRow0 + i] = 2;
     nav_.configure(fields_, kBankRow0 + bank_count_);

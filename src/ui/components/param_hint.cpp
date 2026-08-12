@@ -225,20 +225,32 @@ void divide(IGfx& g, const Box& b, int n, IGfxColor c) {
 void filterCurve(IGfx& g, const Box& b, float cutoff, float res, int mode,
                  IGfxColor c) {
   baseline(g, b);
+  // The caller packs both of the filter's questions into the one int: which
+  // response, and which of the two filters is giving it.
+  bool ladder = mode >= FILT_MODE_COUNT;
+  mode %= FILT_MODE_COUNT;
   // The response, with the peak where the cutoff is. Which side falls away is
-  // the whole difference between the three modes.
+  // the difference between the modes; how fast it falls is the difference
+  // between the two filters, and the ladder's skirt is twice as steep.
   int prev = -1;
   for (int i = 0; i < b.w; ++i) {
     float u = static_cast<float>(i) / static_cast<float>(b.w - 1);
     float d = (u - cutoff) * 6.0f;
+    float roll = 1.0f / (1.0f + d * d);
+    if (ladder) roll *= roll;
     float v;
     switch (mode) {
-      case 1:  v = 1.0f / (1.0f + d * d); break;                    // BP
-      case 2:  v = d > 0.0f ? 1.0f : 1.0f / (1.0f + d * d); break;   // HP
-      default: v = d < 0.0f ? 1.0f : 1.0f / (1.0f + d * d); break;   // LP
+      case FILT_BP:    v = roll; break;
+      case FILT_HP:    v = d > 0.0f ? 1.0f : roll; break;
+      // The one response that dips instead of peaking: everything survives
+      // except the band at the cutoff.
+      case FILT_NOTCH: v = 1.0f - roll; break;
+      default:         v = d < 0.0f ? 1.0f : roll; break;   // LP
     }
     v *= 0.55f + res * 0.45f;
-    if (std::fabs(d) < 0.9f) v += res * 0.45f;   // the resonant peak
+    // A notch has no resonant peak to draw -- the resonance narrows the dip
+    // instead, which the curve above already shows.
+    if (mode != FILT_NOTCH && std::fabs(d) < 0.9f) v += res * 0.45f;
     int yy = b.py(v);
     if (prev >= 0) g.drawLine(b.x + i - 1, prev, b.x + i, yy, c);
     prev = yy;

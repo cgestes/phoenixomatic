@@ -110,6 +110,7 @@ void PhoenixEngine::applyParams() {
     drum_[i].setParams(d.tune, d.decay, d.p3, d.p4, d.p5);
   }
   filter_.setMode(model_.filter.mode);
+  filter_.setType(model_.filter.type);
 }
 
 void PhoenixEngine::publishBus() {
@@ -643,6 +644,9 @@ void PhoenixEngine::render(int16_t* out, size_t frames) {
         case FILT_IN_OSC1: in = osc_[0].value(); break;
         case FILT_IN_OSC2: in = osc_[1].value(); break;
         case FILT_IN_BOTH: in = (osc_[0].value() + osc_[1].value()) * 0.5f; break;
+        // Nothing patched in: with the resonance up the filter is the
+        // source, and FREQ plus the mod bank are playing it.
+        case FILT_IN_NONE: in = 0.0f; break;
         default:           in = comp_out_; break;
       }
       float out_f = filter_.process(in);

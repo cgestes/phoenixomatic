@@ -42,7 +42,9 @@ const char* const kChaosOutLabel[3] = { "TORPOR", "INERTIA", "APATHY" };
 const char* const kWaveLabel[WAVE_COUNT] = { "SIN", "TRI", "SAW", "SQR" };
 
 
-const char* const kFilterInputLabel[FILT_IN_COUNT] = { "PWM", "OSC-1", "OSC-2", "OSC1+2" };
+const char* const kFilterInputLabel[FILT_IN_COUNT] = {
+    "PWM", "OSC-1", "OSC-2", "OSC1+2", "NONE" };
+const char* const kFilterTypeLabel[FILT_TYPE_COUNT] = { "SVF", "ACID" };
 
 const char* const kCompShapeLabel[CSHAPE_COUNT] = {
     "PWM", "LIM", "CLIP", "FOLD", "RECT", "MIN", "MAX" };
@@ -68,7 +70,7 @@ const char* const kShimmerLabel[kShimmerCount] = {
 const char* const kNoteName[12] = { "C",  "C#", "D",  "D#", "E",  "F",
                                     "F#", "G",  "G#", "A",  "A#", "B" };
 const char* const kFilterModeLabel[FILT_MODE_COUNT] = {
-  "LP", "BP", "HP", "NOTCH", "ACID"
+  "LP", "BP", "HP", "NOTCH"
 };
 const char* const kFilterDestLabel[FDEST_COUNT] = { "FREQ", "RES" };
 

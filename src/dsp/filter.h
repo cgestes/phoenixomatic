@@ -10,11 +10,14 @@
 // the cutoff is being modulated hard, which it will be, and it gives four of
 // the responses off one structure.
 //
-// ACID is the exception and is a different filter entirely: a four-pole ladder
+// ACID is a second filter rather than one of the modes: a four-pole ladder
 // with the resonance saturated on its way round. Twice the slope of the state
 // variable, and a resonance that squelches and thins rather than ringing
 // cleanly -- which is the sound, and is not something a two-pole can be talked
-// into making.
+// into making. It offers the same four responses, mixed off its taps.
+//
+// Both sing at the top of the resonance dial, with no input needed: set IN to
+// NONE and the filter is an oscillator that FREQ tunes.
 #pragma once
 
 #include <cstdint>
@@ -30,24 +33,26 @@ class Filter {
 
   void setCutoff(float hz);
   void setResonance(float r);   // 0..1; near the top it rings and then sings
-  void setMode(uint8_t mode);
+  void setMode(uint8_t mode);   // FilterMode: which response
+  void setType(uint8_t type);   // FilterType: which filter
 
   float process(float in);
 
  private:
   float sample_rate_ = 22050.0f;
   float g_ = 0.1f;              // tan(pi * fc / fs)
-  float k_ = 1.0f;              // damping, 1/Q
+  float k_ = 1.0f;              // damping, 1/Q, as the dial asks for it
+  float keff_ = 1.0f;           // and as used, once stability has had a say
   float a1_ = 0.0f, a2_ = 0.0f, a3_ = 0.0f;
+  float nl_ = 0.0f;             // amplitude-dependent damping, once k is negative
   float ic1_ = 0.0f, ic2_ = 0.0f;
-  // The ladder's four one-pole stages, and its own coefficients: the state
-  // variable's g is a tan(), the ladder wants that folded into a one-pole
-  // gain, and its resonance runs to a number that self-oscillates rather than
-  // to a damping term.
-  float ga_ = 0.1f, kres_ = 0.0f, makeup_ = 1.0f;
-  float cutoff_hz_ = 800.0f;   // the ladder tunes from Hz, not from g
-  float y1_ = 0.0f, y2_ = 0.0f, y3_ = 0.0f, y4_ = 0.0f;
+  // The ladder: the same g folded into a one-pole gain, that gain to the
+  // fourth so the feedback can be solved in one step, and a resonance that
+  // runs to a number that self-oscillates rather than to a damping term.
+  float gl_ = 0.1f, gl4_ = 0.0f, kres_ = 0.0f, makeup_ = 1.0f;
+  float s1_ = 0.0f, s2_ = 0.0f, s3_ = 0.0f, s4_ = 0.0f;
   uint8_t mode_ = FILT_LP;
+  uint8_t type_ = FILT_TYPE_SVF;
   float res_ = 0.3f;
 
   void updateCoefficients();

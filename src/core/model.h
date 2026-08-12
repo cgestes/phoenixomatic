@@ -710,31 +710,45 @@ struct SpaceState {
 // destinations, so they get an attenuverter bank like everything else.
 inline constexpr int kFilterModRows = 6;
 
-// The filter's responses. Four come off one state-variable structure; ACID is
-// a four-pole ladder and a different filter entirely — see dsp/filter.h.
+// The filter's four responses -- which part of the sound survives.
 //
 // Declared here rather than beside the DSP because the pages name these and
-// they include the model, not the engine. FilterInput below is here for the
+// they include the model, not the engine. The two enums below are here for the
 // same reason.
 enum FilterMode : uint8_t {
   FILT_LP = 0, FILT_BP, FILT_HP,
   FILT_NOTCH,   // both ends kept, the middle taken out
-  FILT_ACID,    // the ladder
   FILT_MODE_COUNT
 };
 
+// Which filter is doing the work. This is not one of the modes above, and was
+// briefly built as if it were: the ladder is a different circuit with twice
+// the slope and a resonance that behaves differently, and it offers all four
+// responses of its own. Type and mode are two questions, not one.
+enum FilterType : uint8_t {
+  FILT_TYPE_SVF = 0,   // two poles, state variable, rings clean
+  FILT_TYPE_ACID,      // four poles, ladder, saturated feedback, squelches
+  FILT_TYPE_COUNT
+};
+
 enum FilterInput : uint8_t {
-  FILT_IN_COMP = 0, FILT_IN_OSC1, FILT_IN_OSC2, FILT_IN_BOTH, FILT_IN_COUNT
+  FILT_IN_COMP = 0, FILT_IN_OSC1, FILT_IN_OSC2, FILT_IN_BOTH,
+  // Nothing patched in. A filter with no input and the resonance up is not
+  // silent -- it is an oscillator, tuned by FREQ, and the mod bank plays it.
+  FILT_IN_NONE,
+  FILT_IN_COUNT
 };
 extern const char* const kFilterInputLabel[FILT_IN_COUNT];
 extern const char* const kFilterModeLabel[FILT_MODE_COUNT];
+extern const char* const kFilterTypeLabel[FILT_TYPE_COUNT];
 
 // Where a filter mod row lands.
 enum FilterModDest : uint8_t { FDEST_FREQ = 0, FDEST_RES, FDEST_COUNT };
 extern const char* const kFilterDestLabel[FDEST_COUNT];
 
 struct FilterState {
-  uint8_t mode = 0;              // FilterMode: LP / BP / HP
+  uint8_t type = FILT_TYPE_SVF;  // FilterType: which filter
+  uint8_t mode = 0;              // FilterMode: which of its responses
   uint8_t input = FILT_IN_COMP;  // the PWM, as the original has it
   float freq = 0.35f;            // 0..1, mapped exponentially
   float res = 0.55f;
