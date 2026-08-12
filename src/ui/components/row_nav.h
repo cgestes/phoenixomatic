@@ -44,12 +44,14 @@ class RowNav {
   void setRow(int r) {
     row_ = r;
     field_ = 0;
+    want_field_ = 0;
     clamp();
   }
 
   void setCursor(int r, int f) {
     row_ = r;
     field_ = f;
+    want_field_ = f;
     clamp();
   }
 
@@ -85,19 +87,19 @@ class RowNav {
     switch (ev.code) {
       case KEY_UP:
         row_ = (row_ + rows_ - 1) % rows_;
-        field_ = 0;
-        clamp();
+        keepColumn();
         return true;
       case KEY_DOWN:
         row_ = (row_ + 1) % rows_;
-        field_ = 0;
-        clamp();
+        keepColumn();
         return true;
       case KEY_LEFT:
       case KEY_RIGHT: {
         int n = fieldCount();
         if (n <= 0) return true;
         field_ = ev.code == KEY_RIGHT ? (field_ + 1) % n : (field_ + n - 1) % n;
+        // Only a deliberate sideways move changes which column you are in.
+        want_field_ = field_;
         return true;
       }
       default:
@@ -123,6 +125,21 @@ class RowNav {
   bool atRow(int row) const { return row_ == row; }
 
  private:
+  // Moving between rows keeps the column you were in. It used to snap back to
+  // the first field, so on MIX you could not walk down the routing column --
+  // every up or down put you back on the level.
+  //
+  // The wanted column is remembered separately from the live one, so a narrow
+  // row passed through on the way does not cost you your place: step from a
+  // three-field row through a one-field row and back, and you are where you
+  // started rather than in the first column.
+  void keepColumn() {
+    int n = fieldCount();
+    field_ = want_field_;
+    if (field_ >= n) field_ = n > 0 ? n - 1 : 0;
+    if (field_ < 0) field_ = 0;
+  }
+
   int fieldCount() const {
     return (fields_ && row_ >= 0 && row_ < rows_) ? fields_[row_] : 0;
   }
@@ -139,6 +156,9 @@ class RowNav {
   int rows_ = 0;
   int row_ = 0;
   int field_ = 0;
+  // The column the player last chose, which is not always the one they are in:
+  // see keepColumn.
+  int want_field_ = 0;
 };
 
 // --- drawing helpers -------------------------------------------------------
