@@ -223,7 +223,7 @@ class GlitchPage : public IPage {
     return h;
   }
 
-  static constexpr const char* kFooter = "a beat repeat on a machine with no beat";
+  static constexpr const char* kFooter = "a beat repeat, on a beatless machine";
 
   ModRow& bankRow() {
     return bankRowAt(model_.glitch.mod, bank_index_, bank_count_,
@@ -234,7 +234,8 @@ class GlitchPage : public IPage {
     if (nav_mode_ == model_.machine_mode) return;
     nav_mode_ = model_.machine_mode;
     bank_count_ = visibleModRows(model_.glitch.mod, kGlitchModRows, nav_mode_, bank_index_);
-    fields_[kTopRow] = 2;
+    fields_[kTopRow] = 3;   // GATE, CHANCE, MIX
+
     fields_[kSliceRow] = 3;
     for (int i = 0; i < bank_count_; ++i) fields_[kBankRow0 + i] = 2;
     nav_.configure(fields_, kBankRow0 + bank_count_);

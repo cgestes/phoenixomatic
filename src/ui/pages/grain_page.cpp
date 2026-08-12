@@ -208,7 +208,7 @@ class GrainPage : public IPage {
     return h;
   }
 
-  static constexpr const char* kFooter = "windows of the last second, overlapping";
+  static constexpr const char* kFooter = "overlapping windows of the last second";
 
   ModRow& bankRow() {
     return bankRowAt(model_.grain.mod, bank_index_, bank_count_,
@@ -219,7 +219,8 @@ class GrainPage : public IPage {
     if (nav_mode_ == model_.machine_mode) return;
     nav_mode_ = model_.machine_mode;
     bank_count_ = visibleModRows(model_.grain.mod, kGrainModRows, nav_mode_, bank_index_);
-    fields_[kTopRow] = 2;
+    fields_[kTopRow] = 3;   // SIZE, DENSITY, MIX
+
     fields_[kShapeRow] = 2;   // SPREAD, PITCH
     for (int i = 0; i < bank_count_; ++i) fields_[kBankRow0 + i] = 2;
     nav_.configure(fields_, kBankRow0 + bank_count_);

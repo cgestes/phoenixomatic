@@ -212,7 +212,7 @@ class FxPage : public IPage {
     return h;
   }
 
-  static constexpr const char* kFooter = "one swept delay, FEED makes it a flanger";
+  static constexpr const char* kFooter = "one swept delay, FEED makes a flanger";
 
   ModRow& bankRow() {
     return bankRowAt(model_.fx.mod, bank_index_, bank_count_,

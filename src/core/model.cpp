@@ -267,6 +267,29 @@ PhoenixModel::PhoenixModel() {
   // one: each is clocked by one oscillator and fed by the other.
   chaos[1].clk_src = GATE_OSC2;
   chaos[1].skew = 0.20f;
+
+  // The four effect pages' banks. They shipped unseeded: every row nameless
+  // and every one silently pointing at CHAOS-A, which made the MOD column
+  // blank and the four rows indistinguishable from each other. Every other
+  // module in the machine names its rows here, and these were simply missed
+  // when the pages were added.
+  //
+  // Each gets a different destination as well as a different source, so the
+  // bank arrives saying what it is for rather than as four copies of one row.
+  {
+    const char* names[4] = { "CHAOS-A", "CHAOS-B", "SEQ-1", "CMP" };
+    const SourceId srcs[4] = { SRC_CHA, SRC_CHB, SRC_SQ1, SRC_CMP };
+    const uint8_t dirt_dest[4] = { DIDEST_DRIVE, DIDEST_CRUSH, DIDEST_DOWN, DIDEST_MIX };
+    const uint8_t fx_dest[4]   = { FDEST_RATE, FDEST_DEPTH, FDEST_FEED, FDEST_MIX };
+    const uint8_t gl_dest[4]   = { GDEST_LEN, GDEST_CHANCE, GDEST_PITCH, GDEST_MIX };
+    const uint8_t gr_dest[4]   = { GRDEST_SIZE, GRDEST_DENSITY, GRDEST_SPREAD, GRDEST_MIX };
+    for (int i = 0; i < 4; ++i) {
+      dirt.mod[i].name = names[i];   dirt.mod[i].src = srcs[i];   dirt.mod[i].mode = dirt_dest[i];
+      fx.mod[i].name = names[i];     fx.mod[i].src = srcs[i];     fx.mod[i].mode = fx_dest[i];
+      glitch.mod[i].name = names[i]; glitch.mod[i].src = srcs[i]; glitch.mod[i].mode = gl_dest[i];
+      grain.mod[i].name = names[i];  grain.mod[i].src = srcs[i];  grain.mod[i].mode = gr_dest[i];
+    }
+  }
 }
 
 uint32_t PhoenixModel::random() {

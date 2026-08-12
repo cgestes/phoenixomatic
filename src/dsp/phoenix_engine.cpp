@@ -533,11 +533,13 @@ void PhoenixEngine::render(int16_t* out, size_t frames) {
         }
       }
       looper_.setGlitchLength(len);
-      // The gate says when to grab, CHANCE says whether it does. With no
-      // clock, the comparator's own edge is the only honest downbeat.
-      bool grab = gateEdge(gl.gate_src) && randUnit() < clamp01(ch);
+      // The gate says when a window starts, CHANCE says whether that window
+      // repeats or passes through. Both go down, because the gate is also what
+      // ends the previous repeat.
+      bool edge = gateEdge(gl.gate_src);
+      bool take = edge && randUnit() < clamp01(ch);
       float wl, wr;
-      looper_.glitch(grab, &wl, &wr);
+      looper_.glitch(edge, take, &wl, &wr);
       float m01 = clamp01(gmix);
       a_l = a_l * (1.0f - m01) + wl * m01;
       a_r = a_r * (1.0f - m01) + wr * m01;

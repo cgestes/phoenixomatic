@@ -31,8 +31,11 @@ class Looper {
   void setGlitchLength(float ms);
   void setGlitchPitch(float ratio);   // 1 = as recorded, 0.5 = an octave down
   void setGlitchReverse(bool on);
-  // `grab` starts a new slice at the write head; it is the machine's own gate.
-  void glitch(bool grab, float* left, float* right);
+  // `gate_edge` is the machine's own gate arriving; `take` is whether this one
+  // wins its CHANCE roll. A gate that arrives and does not win *ends* the
+  // repeat, which is what makes CHANCE mean "how often", rather than only
+  // "how often the loop is replaced".
+  void glitch(bool gate_edge, bool take, float* left, float* right);
 
   // --- GRAIN ----------------------------------------------------------------
   void setGrainSize(float ms);

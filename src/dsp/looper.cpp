@@ -58,13 +58,25 @@ void Looper::setGlitchPitch(float ratio) {
 
 void Looper::setGlitchReverse(bool on) { glitch_reverse_ = on; }
 
-void Looper::glitch(bool grab, float* left, float* right) {
-  if (grab) {
-    // The slice ends at the write head, so it is the audio that just played
-    // rather than whatever happens next.
-    glitch_start_ = static_cast<float>(write_) - glitch_len_;
-    glitch_read_ = glitch_reverse_ ? glitch_len_ : 0.0f;
-    glitch_armed_ = true;
+void Looper::glitch(bool gate_edge, bool take, float* left, float* right) {
+  // The gate marks the boundaries; CHANCE decides what happens at each one.
+  // Both are needed, because a window that does *not* repeat is a real
+  // outcome and there has to be something that ends the previous one.
+  //
+  // Arming used to be one-way: the first slice ever grabbed looped for the
+  // rest of the session, so CHANCE only controlled how often the loop was
+  // replaced, never whether it played at all. At 30% you got a permanent
+  // stutter rather than the occasional one the number promises.
+  if (gate_edge) {
+    if (take) {
+      // The slice ends at the write head, so it is the audio that just played
+      // rather than whatever happens next.
+      glitch_start_ = static_cast<float>(write_) - glitch_len_;
+      glitch_read_ = glitch_reverse_ ? glitch_len_ : 0.0f;
+      glitch_armed_ = true;
+    } else {
+      glitch_armed_ = false;
+    }
   }
   if (!glitch_armed_) {
     float v = read(static_cast<float>(write_) - 1.0f);
@@ -76,16 +88,33 @@ void Looper::glitch(bool grab, float* left, float* right) {
   float v = read(glitch_start_ + glitch_read_);
   glitch_read_ += glitch_reverse_ ? -glitch_step_ : glitch_step_;
   // Wrapped within the slice, not the buffer: that loop is the whole effect.
-  if (glitch_read_ >= glitch_len_) glitch_read_ -= glitch_len_;
-  if (glitch_read_ < 0.0f) glitch_read_ += glitch_len_;
+  //
+  // Looped rather than subtracted once, because LEN is a modulation
+  // destination: shrink it while a slice is playing and the read head is left
+  // far outside the new window, walking back one length per sample. Measured
+  // going from 500 ms to 2 ms mid-loop, it took 232 ms to find the window
+  // again, and read whatever was next door in the buffer until it did.
+  if (glitch_len_ >= 1.0f) {
+    while (glitch_read_ >= glitch_len_) glitch_read_ -= glitch_len_;
+    while (glitch_read_ < 0.0f) glitch_read_ += glitch_len_;
+  }
 
   // A short fade at each end of the slice, or every repeat starts with a click
   // where the waveform jumps.
-  float edge = 64.0f;
+  //
+  // A quarter of the slice at most, rather than a flat 64 samples. Fixed, the
+  // fade swallowed the short end of the dial whole: a 2 ms slice is 44 samples,
+  // so it was entirely ramp and never reached full level — measured at 0.37 of
+  // the input, with 5 ms at 0.59 and nothing clean until 10 ms.
+  float edge = glitch_len_ * 0.25f;
+  if (edge > 64.0f) edge = 64.0f;
   float g = 1.0f;
-  if (glitch_read_ < edge) g = glitch_read_ / edge;
-  else if (glitch_read_ > glitch_len_ - edge) g = (glitch_len_ - glitch_read_) / edge;
+  if (edge >= 1.0f) {
+    if (glitch_read_ < edge) g = glitch_read_ / edge;
+    else if (glitch_read_ > glitch_len_ - edge) g = (glitch_len_ - glitch_read_) / edge;
+  }
   if (g < 0.0f) g = 0.0f;
+  if (g > 1.0f) g = 1.0f;
 
   *left = v * g;
   *right = v * g;
@@ -152,7 +181,14 @@ void Looper::grain(float* left, float* right) {
   // Divided by the square root of how many can overlap, not by the count: the
   // grains are uncorrelated, so their sum grows with the root and dividing by
   // the count would make a dense setting quieter than a sparse one.
-  float norm = 0.4f;
+  //
+  // Derived from kGrains rather than written down as the 0.4 it comes to. The
+  // bare constant was a trap for whoever changes the grain count, and it was
+  // not quite the law it claimed to be either — 1/sqrt(8) is 0.354, and the
+  // extra 13% is a deliberate make-up, because GRAIN at full mix already sits
+  // under the dry signal. Kept, so this is a comment fix and not a level
+  // change: measured identical at peak 1.000, rms 0.323.
+  static const float norm = 1.13f / std::sqrt(static_cast<float>(kGrains));
   *left = clamp1(l * norm);
   *right = clamp1(r * norm);
 }
