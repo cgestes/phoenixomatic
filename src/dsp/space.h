@@ -8,9 +8,20 @@
 // on the way in, and what happens inside the loop.
 //
 //   ROOM     diffused in, damped, medium lines. A plain reverb.
-//   SHIMMER  the loop is fed an octave-up copy of itself. Ambient.
+//   SHIMMER  the loop is fed a pitch-shifted copy of itself. Ambient.
 //   IRON     short undiffused lines that ring at a pitch, saturation in the
 //            loop, and the tail chopped by a gate. Industrial.
+//
+// A word on SHIMMER, because it is the one that can be asked to do something
+// impossible. Feeding a transposed copy of the tail back into the loop adds
+// gain, and transposing the same signal over and over walks it out of the
+// audible band -- upward it ends as a whistle, downward as a rumble. Both are
+// energy the reverb can no longer get rid of. So the shifted copy is blended
+// into the loop rather than added to it, which keeps the loop gain exactly
+// where DECAY put it, and it is band-limited on the way in, which is what
+// stops the stacking. With those two the feedback can safely reach unity, and
+// "very long but not growing" becomes a place on the dial rather than a knife
+// edge between silent and runaway.
 //
 // IRON's gate is the point of it. The tail is opened and closed by one of the
 // machine's own gate sources, so a gated reverb here is locked to the
@@ -48,6 +59,7 @@ class Space {
   static constexpr int kShiftLen = 2048;
 
   float delayRead(int line, int offset) const;
+  float readShift(float delay) const;
 
   float sample_rate_ = 22050.0f;
   uint8_t mode_ = SPACE_ROOM;
@@ -67,13 +79,19 @@ class Space {
   float diff_[kDiffusers][kMaxDiffuse] = {};
   int diff_write_[kDiffusers] = {0, 0, 0, 0};
 
-  // Two read pointers half a buffer apart, running at shift_rate_ times the
-  // write speed and crossfaded so the seam never lands on a hard edge. The
-  // rate is the only thing that decides the interval, and nothing in here
-  // cares whether it is above or below 1.
+  // Two taps half a buffer apart in delay, crossfaded so the seam never lands
+  // on a hard edge. The rate is the only thing that decides the interval, and
+  // nothing in here cares whether it is above or below 1.
   float shift_[kShiftLen] = {};
   int shift_write_ = 0;
-  float shift_read_ = 0.0f;
+  // The ramp, as a fraction of the buffer. Keeping the *delay* rather than an
+  // absolute read position is what lets the crossfade sit exactly on the wrap
+  // -- see the comment at the shifter.
+  float shift_phase_ = 0.0f;
+  // One pole each side of the shifted copy, so what rejoins the loop cannot
+  // walk out of the band it started in.
+  float shim_lp_ = 0.0f, shim_hp_ = 0.0f;
+  float shim_lp_k_ = 0.3f, shim_hp_k_ = 0.04f;
 
   // IRON's gate is an envelope, not a switch: a hard cut would click. Its
   // coefficient depends only on the sample rate, so it is resolved in init
