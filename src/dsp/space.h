@@ -57,9 +57,8 @@ class Space {
   void setSize(float v);      // 0..1
   void setDecay(float v);     // 0..1, feedback gain
   void setDamp(float v);      // 0..1, how fast the highs go
-  void setShimmer(float v);   // 0..1, how much of the shifted copy rejoins
-  void setShimmerRatio(float r);   // read speed: 2 is an octave up, 0.5 down
-  void setShimmerAlgo(uint8_t a);  // 0 = the built-in shifter, 1 = DaisySP's
+  void setShimmerMix(int layer, float v);  // one 0..1 send per interval
+  void setShimmerAlgo(uint8_t a);          // 0 = short grain, 1 = long grain
   void setDrive(float v);     // 0..1, saturation inside the loop (IRON)
 
   // One sample in, two out. `gate_open` only matters in IRON.
@@ -68,9 +67,17 @@ class Space {
  private:
   static constexpr int kLines = 4;
   static constexpr int kDiffusers = 4;
-  // The shifter's grain. A capacity and a duration at once -- ninety
-  // milliseconds is the grain length, so it scales with the rate.
-  static constexpr int kShiftLen = atMaxRate(2048);
+  // All interval layers read the same history at independent rates. Desktop
+  // can afford the long grain; hardware retains the short capacity and LONG
+  // gracefully becomes the same affordable window there.
+  static constexpr int kShiftShortBase = 2048;
+  static constexpr int kShiftLongBase = 16384;
+#if defined(PHX_EMBEDDED)
+  // A useful distinction without bringing back the old 128-KB allocation.
+  static constexpr int kShiftCapacity = atMaxRate(kShiftShortBase * 2);
+#else
+  static constexpr int kShiftCapacity = atMaxRate(kShiftLongBase);
+#endif
   // The plate needs the most: 16947 samples across its twelve elements at
   // 22050, and everything else lays itself out inside the same block. Scaled
   // for whatever rate this build allows, and checked against the exact figure
@@ -114,8 +121,9 @@ class Space {
 
   float sample_rate_ = 22050.0f;
   uint8_t mode_ = SPACE_ROOM;
-  float size_ = 0.5f, decay_ = 0.6f, damp_ = 0.5f, shimmer_ = 0.0f, drive_ = 0.0f;
-  float shift_rate_ = 2.0f;
+  float size_ = 0.5f, decay_ = 0.6f, damp_ = 0.5f, drive_ = 0.0f;
+  float shimmer_mix_[kShimmerCount] = {};
+  float shift_rate_[kShimmerCount] = {};
 
   float tank_[kTankMax] = {};
 
@@ -157,18 +165,21 @@ class Space {
   // Two taps half a buffer apart in delay, crossfaded so the seam never lands
   // on a hard edge. The rate is the only thing that decides the interval, and
   // nothing in here cares whether it is above or below 1.
-  float shift_[kShiftLen] = {};
+  float shift_[kShiftCapacity] = {};
   int shift_write_ = 0;
   // The ramp, as a fraction of the buffer. Keeping the *delay* rather than an
   // absolute read position is what lets the crossfade sit exactly on the wrap.
-  float shift_phase_ = 0.0f;
+  float shift_phase_[kShimmerCount] = {};
+  int shift_short_ = kShiftShortBase;
+  int shift_long_ = kShiftShortBase;
+  int shift_span_ = kShiftShortBase;
   float readShift(float delay) const;
   // One pole each side of the shifted copy, so what rejoins the loop cannot
   // walk out of the band it started in.
-  float shim_lp_ = 0.0f, shim_hp_ = 0.0f;
+  float shim_lp_[kShimmerCount] = {};
+  float shim_hp_[kShimmerCount] = {};
   float shim_lp_k_ = 0.3f, shim_hp_k_ = 0.04f;
   uint8_t shim_algo_ = 0;
-  DaisyShifter daisy_;
 
   // IRON's gate is an envelope, not a switch: a hard cut would click. Its
   // coefficient depends only on the sample rate, so it is resolved in init

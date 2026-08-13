@@ -109,7 +109,6 @@ class FuncPage : public IPage {
       // numbers above cannot tell you -- a gate that never arrives and a
       // gate that arrives constantly look identical from the settings.
       scr.reserve(kTraceCol, kTraceRow, kTraceCols, kTraceRows);
-      pushHistory(g);
     }
 
     scr.text(1, 13, "envelopes, 0-10V \x88 FN1 FN2 on the banks", PEN_FAINT);
@@ -128,7 +127,8 @@ class FuncPage : public IPage {
       return h;
     }
     if (nav_.field() == 1) {
-      return ParamHint{HINT_TIME, 1000.0f / f.rate, 20000.0f, nullptr, 0,
+      float hz = actualRate(f);
+      return ParamHint{HINT_TIME, 1000.0f / hz, 20000.0f, nullptr, 0,
                        "rise and fall together"};
     }
     return ParamHint{};
@@ -137,6 +137,8 @@ class FuncPage : public IPage {
   void drawOverlay(IGfx& gfx) override {
     {
       const int g = gen_;
+      const FuncState& f = model_.func[g];
+      const uint16_t pos = f.trace_pos;
       int y0 = TextScreen::pixelY(kTraceRow);
       int x0 = TextScreen::pixelX(kTraceCol);
       int w = kTraceCols * kCellW;
@@ -151,7 +153,7 @@ class FuncPage : public IPage {
 
       int prev = base;
       for (int x = 0; x < w && x < kHistory; ++x) {
-        float v = hist_[g][(hist_pos_[g] + x) % kHistory];
+        float v = f.trace[(pos + x) % kFuncTraceSamples];
         int yy = base - static_cast<int>(v * static_cast<float>(span));
         if (yy < y0) yy = y0;
         if (yy > base) yy = base;
@@ -167,7 +169,7 @@ class FuncPage : public IPage {
       // A tick along the bottom wherever the gate was open, so a shape that
       // did not happen can be told from a gate that never came.
       for (int x = 0; x < w && x < kHistory; ++x) {
-        if (gate_hist_[g][(hist_pos_[g] + x) % kHistory]) {
+        if (f.gate_trace[(pos + x) % kFuncTraceSamples]) {
           gfx.drawPixel(x0 + x, base, COLOR_EMBER);
         }
       }
@@ -312,40 +314,20 @@ class FuncPage : public IPage {
     return gateIsClock(f.gate_src) && model_.machine_mode == MODE_ADVANCED;
   }
 
-  // Sampled on an interval of its own rather than once a frame, and the
-  // interval follows the generator's rate so that about four shapes fill the
-  // window whether one takes twenty seconds or five milliseconds. A fixed
-  // window cannot do both, and this page spans a four-thousand-to-one range.
-  void pushHistory(int g) {
-    const FuncState& f = model_.func[g];
-    // The window follows whatever is actually setting the length -- the ratio
-    // when clocked, the rate when not -- so about four shapes fill it either
-    // way.
+  float actualRate(const FuncState& f) const {
     float hz = f.rate;
     if (locked(f)) {
       float sixteenth = clockHz(model_.clock.bpm);
       hz = sixteenth / gateSixteenths(f.gate_src, model_.clock.div) /
            clockRatioValue(f.ratio);
     }
-    if (hz < 0.01f) hz = 0.01f;
-    double every = static_cast<double>(4.0f / hz) / kHistory;
-    if (every < 0.0005) every = 0.0005;
-    if (every > 0.5) every = 0.5;
-    if (model_.time - last_sample_[g] < every) return;
-    last_sample_[g] = model_.time;
-    hist_[g][hist_pos_[g]] = f.out;
-    gate_hist_[g][hist_pos_[g]] = f.gate;
-    hist_pos_[g] = (hist_pos_[g] + 1) % kHistory;
+    return hz < 0.01f ? 0.01f : hz;
   }
 
   PhoenixModel& model_;
   RowNav nav_;
   uint8_t fields_[kRowsPer] = {};
   int gen_ = 0;
-  float hist_[kFuncGens][kHistory] = {};
-  bool gate_hist_[kFuncGens][kHistory] = {};
-  int hist_pos_[kFuncGens] = {0, 0};
-  double last_sample_[kFuncGens] = {0.0, 0.0};
 };
 
 }  // namespace

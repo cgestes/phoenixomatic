@@ -100,8 +100,9 @@ void PhoenixEngine::applyParams() {
   {
     const SpaceState& sp = model_.space;
     space_.setMode(sp.mode);
-    space_.setShimmer(sp.shimmer);
-    space_.setShimmerRatio(shimmerRatio(sp.shimmer_pitch));
+    for (int i = 0; i < kShimmerCount; ++i) {
+      space_.setShimmerMix(i, sp.shimmer_mix[i]);
+    }
     space_.setShimmerAlgo(sp.shimmer_algo);
     space_.setDrive(sp.drive);
   }
@@ -525,13 +526,13 @@ void PhoenixEngine::render(int16_t* out, size_t frames) {
       // otherwise. A shape that is supposed to land with the music should be
       // set in ratios rather than in hertz, and doing the division in your
       // head is not a feature.
+      float func_hz = f.rate;
       if (gateIsClock(f.gate_src) && model_.machine_mode == MODE_ADVANCED) {
         float sixteenth = clockHz(model_.clock.bpm);
         float gate_hz = sixteenth / gateSixteenths(f.gate_src, model_.clock.div);
-        func_[i].setRate(gate_hz / clockRatioValue(f.ratio));
-      } else {
-        func_[i].setRate(f.rate);
+        func_hz = gate_hz / clockRatioValue(f.ratio);
       }
+      func_[i].setRate(func_hz);
       func_[i].setMode(f.mode);
       // A level, not an edge. AR has to know the gate is still held, not only
       // that it once started -- so the gate sources are held open for a window
@@ -546,6 +547,20 @@ void PhoenixEngine::render(int16_t* out, size_t frames) {
       func_[i].process(1);
       model_.func[i].out = func_[i].value();
       model_.func[i].gate = func_hold_[i] > 0;
+
+      // Capture on the audio clock, not the 25-fps screen clock. The phase is
+      // chosen so roughly four complete shapes fill the 288-pixel trace.
+      float trace_inc = func_hz * static_cast<float>(kFuncTraceSamples) /
+                        (4.0f * sample_rate_);
+      func_trace_phase_[i] += trace_inc;
+      while (func_trace_phase_[i] >= 1.0f) {
+        func_trace_phase_[i] -= 1.0f;
+        FuncState& live = model_.func[i];
+        const uint16_t at = live.trace_pos;
+        live.trace[at] = live.out;
+        live.gate_trace[at] = live.gate ? 1 : 0;
+        live.trace_pos = static_cast<uint16_t>((at + 1) % kFuncTraceSamples);
+      }
     }
 
     publishBus();

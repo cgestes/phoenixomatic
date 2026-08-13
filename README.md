@@ -64,11 +64,11 @@ Open `phoenixomatic.ino` in the Arduino IDE with the M5Stack board support insta
 | `SHIFT+O` | zero every field on the page. Deliberately not the page's midpoint: a page-wide reset is worth a key, a page-wide "everything halfway" is not |
 | `P` / `SHIFT+P` | send the focused field / the page to the top of its range |
 | `R` / `T` / `SHIFT+R` | randomise the focused field / the whole row / the whole page |
-| `1`–`7` | mute/unmute OSC-1, OSC-2, COMP, KIK, SNR, HH, OH (`0` is reserved for mixing) |
+| `1`–`8` | mute/unmute OSC-1, OSC-2, COMP, FILTER, KIK, SNR, HH, OH (`0` is reserved for mixing) |
 | `-` / `=` | mute everything / start everything |
 | `ESC` | invert every mute |
 | `SPACE` | toggle the focused thing — a mod row on/off, a step to a rest. Above a module's bank it silences the module (freeze on CHAOS). On HOME it is play/stop. |
-| `[` `]` | previous / next screen — walks sub-pages too: 1 in CLASSIC and FUNKY, 17 in BENJOLIN, 24 in ADVANCED |
+| `[` `]` | previous / next screen — walks sub-pages too: 1 in CLASSIC and PHOENIXJOLIN, 17 in BENJOLIN, 24 in ADVANCED |
 | `CTRL`+`↑`/`↓` | jump sub-pages directly |
 | `BACKSPACE` | clear a step to a rest (SEQ) |
 

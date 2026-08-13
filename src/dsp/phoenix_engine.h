@@ -92,6 +92,7 @@ class PhoenixEngine {
   // How long the gate stays open after an edge. Every gate source on this
   // machine is an instant, and an envelope needs a duration.
   int func_hold_[kFuncGens] = {0, 0};
+  float func_trace_phase_[kFuncGens] = {0.0f, 0.0f};
   Dirt dirt_;
   // One per channel. DIRT is a transfer function rather than a send, so it has
   // no mono wet to mix back in and has to run twice or silently mono the

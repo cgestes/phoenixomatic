@@ -111,6 +111,13 @@ void Space::init(float sample_rate) {
   gate_k_ = 1.0f - std::exp(-1.0f / (0.003f * sample_rate_));
   shim_lp_k_ = 1.0f - std::exp(-kTwoPi * kShimHighHz / sample_rate_);
   shim_hp_k_ = 1.0f - std::exp(-kTwoPi * kShimLowHz / sample_rate_);
+  shift_short_ = static_cast<int>(kShiftShortBase * sample_rate_ / 22050.0f + 0.5f);
+  shift_long_ = static_cast<int>(kShiftLongBase * sample_rate_ / 22050.0f + 0.5f);
+  if (shift_short_ < 4) shift_short_ = 4;
+  if (shift_short_ > kShiftCapacity) shift_short_ = kShiftCapacity;
+  if (shift_long_ > kShiftCapacity) shift_long_ = kShiftCapacity;
+  shift_span_ = shim_algo_ == 1 ? shift_long_ : shift_short_;
+  for (int i = 0; i < kShimmerCount; ++i) shift_rate_[i] = shimmerRatio(i);
 
   // Every modulator gets its own rate, and none of them are related by a whole
   // number: two allpasses breathing in step is a chorus, not a reverb.
@@ -124,7 +131,6 @@ void Space::init(float sample_rate) {
   for (int i = 0; i < kDiffusers; ++i) setLfo(&diff_lfo_[i], diff_hz[i], i * 0.31f);
 
   mi_.init(sample_rate_);
-  daisy_.init(sample_rate_);
   layout();
   setSize(size_);
   setDecay(decay_);
@@ -210,11 +216,13 @@ void Space::reset() {
   plate_bw_ = 0.0f;
   cloud_fb_ = 0.0f;
   cloud_damp_ = 0.0f;
-  for (int i = 0; i < kShiftLen; ++i) shift_[i] = 0.0f;
+  for (int i = 0; i < kShiftCapacity; ++i) shift_[i] = 0.0f;
   shift_write_ = 0;
-  shift_phase_ = 0.0f;
-  shim_lp_ = 0.0f;
-  shim_hp_ = 0.0f;
+  for (int i = 0; i < kShimmerCount; ++i) {
+    shift_phase_[i] = 0.0f;
+    shim_lp_[i] = 0.0f;
+    shim_hp_[i] = 0.0f;
+  }
   gate_env_ = 0.0f;
   mi_.reset();
 }
@@ -313,25 +321,25 @@ void Space::setDamp(float v) {
   damp_coeff_ = dampCoeff(damp_);
   mi_.setDamp(damp_);
 }
-void Space::setShimmer(float v) { shimmer_ = clamp01(v); }
-void Space::setShimmerRatio(float r) {
-  shift_rate_ = r < 0.05f ? 0.05f : (r > 8.0f ? 8.0f : r);
-  daisy_.setRatio(shift_rate_);
+void Space::setShimmerMix(int layer, float v) {
+  if (layer < 0 || layer >= kShimmerCount) return;
+  shimmer_mix_[layer] = clamp01(v);
 }
 
 void Space::setShimmerAlgo(uint8_t a) {
-  // Falls back rather than pretending: on a build without the imported
-  // shifter compiled in there is one choice, and it is the built-in one.
-  uint8_t want = (a == 1 && DaisyShifter::available()) ? 1 : 0;
+  uint8_t want = a == 1 ? 1 : 0;
   if (want == shim_algo_) return;
   shim_algo_ = want;
-  // Their state is a window's worth of the old shifter's output. Cleared, or
-  // the swap arrives as a burst of the wrong pitch.
-  daisy_.init(sample_rate_);
-  daisy_.setRatio(shift_rate_);
-  for (int i = 0; i < kShiftLen; ++i) shift_[i] = 0.0f;
+  shift_span_ = shim_algo_ == 1 ? shift_long_ : shift_short_;
+  // State contains a window's worth of the other grain length. Cleared, or
+  // the swap arrives as a burst read from the wrong point in history.
+  for (int i = 0; i < kShiftCapacity; ++i) shift_[i] = 0.0f;
   shift_write_ = 0;
-  shift_phase_ = 0.0f;
+  for (int i = 0; i < kShimmerCount; ++i) {
+    shift_phase_[i] = 0.0f;
+    shim_lp_[i] = 0.0f;
+    shim_hp_[i] = 0.0f;
+  }
 }
 void Space::setDrive(float v) {
   drive_ = clamp01(v);
@@ -376,11 +384,11 @@ float Space::delayThrough(Line* l, float x, float delay) {
 // sample, and truncating it threw away that fraction as noise.
 float Space::readShift(float delay) const {
   float p = static_cast<float>(shift_write_) - delay;
-  while (p < 0.0f) p += static_cast<float>(kShiftLen);
+  while (p < 0.0f) p += static_cast<float>(kShiftCapacity);
   int i0 = static_cast<int>(p);
-  if (i0 >= kShiftLen) i0 -= kShiftLen;
+  if (i0 >= kShiftCapacity) i0 -= kShiftCapacity;
   float fr = p - std::floor(p);
-  int i1 = i0 + 1 >= kShiftLen ? 0 : i0 + 1;
+  int i1 = i0 + 1 >= kShiftCapacity ? 0 : i0 + 1;
   return shift_[i0] + (shift_[i1] - shift_[i0]) * fr;
 }
 
@@ -460,11 +468,12 @@ void Space::processFdn(float in, bool gate_open, float* left, float* right) {
   for (int i = 0; i < kLines; ++i) t[i] -= sum;
 
   float shimmer_in = 0.0f;
-  float shimmer_amt = 0.0f;
-  if (mode_ == SPACE_SHIMMER && shimmer_ > 0.0f) {
+  float shimmer_total = 0.0f;
+  for (int i = 0; i < kShimmerCount; ++i) shimmer_total += shimmer_mix_[i];
+  if (mode_ == SPACE_SHIMMER && shimmer_total > 0.0f) {
     float tail = (t[0] + t[1] + t[2] + t[3]) * 0.25f;
     shift_[shift_write_] = tail;
-    wrapInc(&shift_write_, kShiftLen);
+    wrapInc(&shift_write_, kShiftCapacity);
 
     // A delay that ramps, not a read pointer that free-runs.
     //
@@ -476,36 +485,26 @@ void Space::processFdn(float in, bool gate_open, float* left, float* right) {
     // zero, so every grain ended on a step. Ramping the delay puts the wrap
     // at phase zero by construction, and that is exactly where this window
     // has its null.
-    shift_phase_ += (1.0f - shift_rate_) / static_cast<float>(kShiftLen);
-    shift_phase_ -= std::floor(shift_phase_);
+    const float span = static_cast<float>(shift_span_ - 2);
+    for (int i = 0; i < kShimmerCount; ++i) {
+      if (shimmer_mix_[i] <= 0.0f) continue;
+      shift_phase_[i] += (1.0f - shift_rate_[i]) /
+                         static_cast<float>(shift_span_);
+      shift_phase_[i] -= std::floor(shift_phase_[i]);
 
-    const float span = static_cast<float>(kShiftLen - 2);
-    float pa = shift_phase_;
-    float pb = pa >= 0.5f ? pa - 0.5f : pa + 0.5f;
-    float sa = readShift(pa * span);
-    float sb = readShift(pb * span);
+      const float pa = shift_phase_[i];
+      const float pb = pa >= 0.5f ? pa - 0.5f : pa + 0.5f;
+      const float sa = readShift(pa * span);
+      const float sb = readShift(pb * span);
+      const float w = 1.0f - std::fabs(pa * 2.0f - 1.0f);
+      const float shifted = sa * std::sqrt(w) + sb * std::sqrt(1.0f - w);
 
-    // Constant power, not constant amplitude. The two taps are reading
-    // unrelated parts of the buffer, so a straight triangle crossfade dips
-    // three decibels in the middle of every grain -- which is the warble.
-    // Rooting the two halves makes their squares sum to one instead.
-    float w = 1.0f - std::fabs(pa * 2.0f - 1.0f);
-    float shifted = sa * std::sqrt(w) + sb * std::sqrt(1.0f - w);
-
-    // The imported shifter, if that is the one asked for. Its window is eight
-    // times longer than the one above -- two taps over sixteen thousand
-    // samples rather than two thousand -- so a held note keeps its body where
-    // the short one gives it a flutter. It costs 128 KB, which is why it is
-    // not the only one.
-    if (shim_algo_ == 1) shifted = daisy_.process(tail);
-
-    // Band-limit what rejoins. Transposing the same signal again and again
-    // walks it out of the audible range -- up it becomes a whistle, down a
-    // rumble -- and neither is energy the reverb can lose. These two corners
-    // are what stop it stacking.
-    shim_lp_ += (shifted - shim_lp_) * shim_lp_k_;
-    shim_hp_ += (shim_lp_ - shim_hp_) * shim_hp_k_;
-    shimmer_in = shim_lp_ - shim_hp_;
+      // Each layer has its own filter memory: sharing it would cross-modulate
+      // intervals before their independently controlled levels are applied.
+      shim_lp_[i] += (shifted - shim_lp_[i]) * shim_lp_k_;
+      shim_hp_[i] += (shim_lp_[i] - shim_hp_[i]) * shim_hp_k_;
+      shimmer_in += (shim_lp_[i] - shim_hp_[i]) * shimmer_mix_[i];
+    }
 
     // Added on top of the tail, not blended into it -- but only because the
     // two filters above make that safe now.
@@ -523,7 +522,11 @@ void Space::processFdn(float in, bool gate_open, float* left, float* right) {
     // own. Each pass moves it another interval along, and a few passes put it
     // outside the band and it is gone. The gain it contributes is therefore
     // transient by construction, and the limiter in the loop covers the rest.
-    shimmer_amt = shimmer_ * 0.8f;
+    // Preserve the old maximum loop contribution when several layers are at
+    // once. Below a combined unity send they add naturally; above it they are
+    // normalized as a blend instead of turning six safe sends into one unsafe
+    // feedback gain.
+    shimmer_in *= 0.8f / (shimmer_total > 1.0f ? shimmer_total : 1.0f);
   }
 
   // Saturation inside the loop, not after it: this is what makes IRON's ring
@@ -531,7 +534,7 @@ void Space::processFdn(float in, bool gate_open, float* left, float* right) {
   // same answer four times.
   const bool saturate = mode_ == SPACE_IRON && drive_ > 0.0f;
   for (int i = 0; i < kLines; ++i) {
-    float fed = t[i] + shimmer_in * shimmer_amt;
+    float fed = t[i] + shimmer_in;
     float v = x * 0.35f + fed * fb_gain_;
     if (saturate) v = std::tanh(v * drive_pre_) * drive_post_;
     // Always, in every mode: DECAY reaches unity now, and a unity loop needs

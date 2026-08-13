@@ -62,7 +62,7 @@ class SpacePage : public IPage {
                   PEN_VIOLET, nav_.at(kExtraRow, 0), ebg);
         scr.text(16, 3, "BLEND", PEN_DIM, ebg);
         drawFieldF(scr, 22, 3, kExtraRow, 1, PEN_VIOLET, nav_.at(kExtraRow, 1), ebg,
-                   "%d%%", static_cast<int>(sp.shimmer * 100.0f));
+                   "%d%%", static_cast<int>(selectedMix(sp) * 100.0f));
         // Which shifter is doing the transposing. Two words rather than a
         // number, because it is a choice between two machines and not a
         // setting on one.
@@ -119,7 +119,8 @@ class SpacePage : public IPage {
                            nullptr, 0, "against the original"};
         }
         if (nav_.field() == 2) return ParamHint{};   // a two-way switch
-        return ParamHint{HINT_MIX, sp.shimmer, 0.0f, nullptr, 0, "how much rejoins"};
+        return ParamHint{HINT_MIX, selectedMix(sp), 0.0f, nullptr, 0,
+                         "this interval's send"};
       }
       if (nav_.field() == 1) {
         return ParamHint{HINT_DRIVE, sp.drive, 0.0f, nullptr, 0, "inside the loop"};
@@ -164,8 +165,10 @@ class SpacePage : public IPage {
       if (nav_.field() == 0) {
         sp.shimmer_pitch =
             static_cast<uint8_t>((sp.shimmer_pitch + kShimmerCount + dir) % kShimmerCount);
+      } else if (nav_.field() == 1) {
+        adjustUnit(&selectedMix(sp), dir, ev.step);
       } else {
-        adjustUnit(&sp.shimmer, dir, ev.step);
+        sp.shimmer_algo = static_cast<uint8_t>(sp.shimmer_algo == 0 ? 1 : 0);
       }
     } else if (nav_.field() == 0) {
       sp.gate_src = stepGateOrNone(sp.gate_src, dir, model_.machine_mode);
@@ -204,7 +207,9 @@ class SpacePage : public IPage {
       else sp.damp = 0.0f;
     } else if (sp.mode == SPACE_SHIMMER) {
       // The origin is the familiar octave up, not the bottom of the list.
-      if (nav_.field() == 0) sp.shimmer_pitch = 3; else sp.shimmer = 0.0f;
+      if (nav_.field() == 0) sp.shimmer_pitch = 3;
+      else if (nav_.field() == 1) selectedMix(sp) = 0.0f;
+      else sp.shimmer_algo = 0;
     } else if (nav_.field() == 0) {
       sp.gate_src = kGateNone;
     } else {
@@ -249,7 +254,8 @@ class SpacePage : public IPage {
       else sp.damp = 0.5f;
     } else if (sp.mode == SPACE_SHIMMER) {
       if (nav_.field() == 0) sp.shimmer_pitch = kShimmerCount / 2;
-      else sp.shimmer = 0.5f;
+      else if (nav_.field() == 1) selectedMix(sp) = 0.5f;
+      else sp.shimmer_algo = 1;
     } else if (nav_.field() == 0) {
       sp.gate_src = midGate(model_.machine_mode);
     } else {
@@ -271,7 +277,8 @@ class SpacePage : public IPage {
       else sp.damp = 1.0f;
     } else if (sp.mode == SPACE_SHIMMER) {
       if (nav_.field() == 0) sp.shimmer_pitch = kShimmerCount - 1;
-      else sp.shimmer = 1.0f;
+      else if (nav_.field() == 1) selectedMix(sp) = 1.0f;
+      else sp.shimmer_algo = 1;
     } else if (nav_.field() == 0) {
       sp.gate_src = lastGate(model_.machine_mode);
     } else {
@@ -286,10 +293,11 @@ class SpacePage : public IPage {
     sp.size = 0.0f;
     sp.decay = 0.0f;
     sp.damp = 0.0f;
-    sp.shimmer = 0.0f;
+    for (int i = 0; i < kShimmerCount; ++i) sp.shimmer_mix[i] = 0.0f;
     sp.shimmer_pitch = 3;
+    sp.shimmer_algo = 0;
     sp.drive = 0.0f;
-    sp.gate_src = GATE_CMP_GT;
+    sp.gate_src = kGateNone;
     zeroBank(sp.mod, bank_index_, bank_count_);
   }
 
@@ -299,7 +307,8 @@ class SpacePage : public IPage {
     sp.size = 1.0f;
     sp.decay = 1.0f;
     sp.damp = 1.0f;
-    sp.shimmer = 1.0f;
+    for (int i = 0; i < kShimmerCount; ++i) sp.shimmer_mix[i] = 1.0f;
+    sp.shimmer_algo = 1;
     sp.drive = 1.0f;
     maxBank(sp.mod, bank_index_, bank_count_, SPDEST_COUNT);
   }
@@ -327,8 +336,10 @@ class SpacePage : public IPage {
     } else if (sp.mode == SPACE_SHIMMER) {
       if (nav_.field() == 0) {
         sp.shimmer_pitch = static_cast<uint8_t>(model_.random() % kShimmerCount);
+      } else if (nav_.field() == 1) {
+        selectedMix(sp) = model_.randomUnit();
       } else {
-        sp.shimmer = model_.randomUnit();
+        sp.shimmer_algo = static_cast<uint8_t>(model_.random() & 1u);
       }
     } else if (nav_.field() == 0) {
       sp.gate_src = rollGate(model_.random(), model_.machine_mode);
@@ -350,6 +361,10 @@ class SpacePage : public IPage {
     sp.size = model_.randomUnit();
     sp.decay = model_.randomUnit() * 0.85f;
     sp.damp = model_.randomUnit();
+    for (int i = 0; i < kShimmerCount; ++i) {
+      sp.shimmer_mix[i] = model_.randomUnit() < 0.55f ? model_.randomUnit() : 0.0f;
+    }
+    sp.shimmer_algo = static_cast<uint8_t>(model_.random() & 1u);
     for (int i = 0; i < bank_count_; ++i) {
       ModRow& m = sp.mod[bank_index_[i]];
       m.amount = model_.randomUnit() * 2.0f - 1.0f;
@@ -358,6 +373,15 @@ class SpacePage : public IPage {
   }
 
  private:
+  static int selectedLayer(const SpaceState& sp) {
+    return sp.shimmer_pitch < kShimmerCount ? sp.shimmer_pitch : 3;
+  }
+  static float& selectedMix(SpaceState& sp) {
+    return sp.shimmer_mix[selectedLayer(sp)];
+  }
+  static float selectedMix(const SpaceState& sp) {
+    return sp.shimmer_mix[selectedLayer(sp)];
+  }
   // Every mode but ROOM carries a third row: SHIMMER's pitch controls, or
   // the gate that all the others now answer to.
   bool hasExtra() const { return true; }

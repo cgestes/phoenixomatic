@@ -317,7 +317,7 @@ PhoenixModel::PhoenixModel() {
   // Boot with only the two oscillators audible. Everything downstream of the
   // comparator is already running and already wired — it is just muted — so
   // the machine starts as the thing you have to understand first: two
-  // oscillators and the interval between them. Un-mute with 1-7, or = for the
+  // oscillators and the interval between them. Un-mute with 1-8, or = for the
   // lot.
   comp.mute = true;
   filter.mute = true;

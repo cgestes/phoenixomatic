@@ -2,6 +2,13 @@
 
 #include <cstddef>
 
+// Arduino builds compile every source file separately, so a define placed in
+// the sketch does not reach the DSP translation units. Derive the hardware
+// profile from the toolchain's build-wide marker instead.
+#if defined(ARDUINO) && !defined(PHX_EMBEDDED)
+#define PHX_EMBEDDED 1
+#endif
+
 // Two different numbers, and confusing them is the whole hazard here.
 //
 // kSampleRate is what the machine runs at, and on desktop and web it is chosen

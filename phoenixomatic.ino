@@ -6,6 +6,13 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 
+// M5Cardputer exposes these HID values as global macros. The UI uses the same
+// names for its platform-neutral key enum, so release the macros after the
+// library has built its keyboard tables and before ui_core.h is included.
+#undef KEY_BACKSPACE
+#undef KEY_TAB
+#undef KEY_ENTER
+
 #include "cardputer_display.h"
 #include "src/core/model.h"
 #include "src/dsp/audio_config.h"

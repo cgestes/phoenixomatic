@@ -260,11 +260,7 @@ class ClassicPage : public IPage {
   void maxField() override { setFocused(PLACE_MAX); }
 
   void zeroPage() override {
-    for (int v = 0; v < 2; ++v) {
-      model_.osc[v].mod[0].amount = 0.0f;
-      model_.osc[v].mod[3].amount = 0.0f;
-    }
-    model_.filter.mod[0].amount = 0.0f;
+    forEachEditable([this] { zeroField(); }, true);
   }
 
   void randomizeField() override {
@@ -290,15 +286,22 @@ class ClassicPage : public IPage {
   void randomizeRow() override { nav_.forEachField([this] { randomizeField(); }); }
 
   void randomizePage() override {
-    for (int r = 0; r < kModeRow; ++r) {
-      for (int f = 0; f < kFields[r]; ++f) {
-        nav_.setCursor(r, f);
-        randomizeField();
-      }
-    }
+    forEachEditable([this] { randomizeField(); }, false);
   }
 
  private:
+  template <typename Fn>
+  void forEachEditable(Fn fn, bool include_mode) {
+    const int row = nav_.row(), field = nav_.field();
+    const int rows = include_mode ? kRows : kModeRow;
+    for (int r = 0; r < rows; ++r) {
+      for (int f = 0; f < kFields[r]; ++f) {
+        nav_.setCursor(r, f);
+        fn();
+      }
+    }
+    nav_.setCursor(row, field);
+  }
   static ParamHint withRow(ParamHint h, int row) {
     h.avoid_row = static_cast<int8_t>(row);
     return h;

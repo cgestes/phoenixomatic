@@ -227,7 +227,7 @@ int main(int argc, char** argv) {
           "  space            toggle what is focused (play on HOME)\n"
           "  [ ]              previous / next screen\n"
           "  ctrl+up/down     sub-page\n"
-          "  1-7              mute an instrument\n"
+          "  1-8              mute an instrument\n"
           "  - = esc          mute all / unmute all / invert\n"
           "\n"
           "  --rate <hz>      8000 11025 16000 22050 32000 44100 48000\n"

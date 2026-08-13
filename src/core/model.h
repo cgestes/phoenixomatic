@@ -360,6 +360,9 @@ inline float gateSixteenths(uint8_t g, const int* div) {
 extern const char* const kFuncModeLabel[FUNC_MODE_COUNT];
 
 inline constexpr int kFuncGens = 2;
+// One audio-owned ring per generator. The plot is 36 cells wide at eight
+// pixels per cell, so one sample per pixel fills it without interpolation.
+inline constexpr int kFuncTraceSamples = 288;
 
 struct FuncState {
   // Tides' three, and they divide the contour the way Tides divides it.
@@ -377,10 +380,13 @@ struct FuncState {
   // a generator waiting for something that never comes -- which is why the
   // default is a real source rather than none.
   uint8_t gate_src = GATE_CMP_GT;
-  // Published by the engine every block, for the page to plot. Live, not a
-  // setting: nothing writes it from a page.
+  // Published by the engine for meters and the audio-rate trace. Live, not
+  // settings: nothing writes these from a page.
   float out = 0.0f;
   bool gate = false;
+  float trace[kFuncTraceSamples] = {};
+  uint8_t gate_trace[kFuncTraceSamples] = {};
+  uint16_t trace_pos = 0;       // next slot written by the audio engine
 };
 
 // Both chaos oscillators reach both audio oscillators, so a single chaos
@@ -819,12 +825,13 @@ struct SpaceState {
   float size = 0.5f;
   float decay = 0.6f;
   float damp = 0.5f;
-  float shimmer = 0.5f;      // SHIMMER only: how much rejoins the loop
-  uint8_t shimmer_pitch = 3; // index into kShimmerSemis; 3 is +1 octave
-  // Which pitch shifter does the transposing. The built-in one has a short
-  // window and a fast flutter; the imported one has a window eight times
-  // longer and keeps a held note's body. See dsp/daisy_bits.h.
-  uint8_t shimmer_algo = 0;  // 0 = built in, 1 = the DaisySP one
+  // Each interval is its own send into the feedback loop. shimmer_pitch is
+  // only the layer currently selected on the compact UI row.
+  float shimmer_mix[kShimmerCount] = {0.0f, 0.0f, 0.0f, 0.5f, 0.0f, 0.0f};
+  uint8_t shimmer_pitch = 3; // selected layer; 3 is the familiar +1 octave
+  // SHORT has a fast flutter; LONG uses an eight-times-longer shared grain and
+  // keeps held notes fuller. Embedded builds cap LONG at the affordable size.
+  uint8_t shimmer_algo = 0;
   float drive = 0.4f;        // IRON only
   // No gate unless one is asked for. Every mode honours it now, so a default
   // of "the comparator" would have chopped six reverbs that never used to be

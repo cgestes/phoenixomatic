@@ -11,7 +11,7 @@
 CXX ?= clang++
 # third_party/mi is on the include path so the vendored Mutable headers can
 # find each other by their own paths ("stmlib/stmlib.h") and stay unmodified.
-CXXFLAGS ?= -std=c++17 -O2 -Wall -Wextra -I.. -I../third_party/mi -I../third_party/daisysp -I../third_party/daisysp/Utility
+CXXFLAGS ?= -std=c++17 -O2 -Wall -Wextra -I.. -I../third_party/mi
 
 SDL_CFLAGS := $(shell sdl2-config --cflags 2>/dev/null)
 SDL_LIBS := $(shell sdl2-config --libs 2>/dev/null)
@@ -46,8 +46,6 @@ SOURCES := \
   ../src/dsp/space.cpp \
   ../src/dsp/mi_reverb.cpp \
   ../src/dsp/daisy_bits.cpp \
-  ../third_party/daisysp/Noise/clockednoise.cpp \
-  ../third_party/daisysp/Control/phasor.cpp \
   ../src/dsp/phoenix_engine.cpp \
   ../src/ui/text_screen.cpp \
   ../src/ui/phoenix_display.cpp \
@@ -83,7 +81,7 @@ HEADERS := $(shell find .. -name '*.h' -not -path '../web/*' 2>/dev/null)
 ROOT := $(abspath ..)
 DOCKER ?= docker
 EMCC_IMAGE ?= emscripten/emsdk
-WASM_FLAGS := -I.. -I../third_party/mi -I../third_party/daisysp -I../third_party/daisysp/Utility -I../third_party/daisysp -I../third_party/daisysp/Utility -std=c++17 -O2 -sUSE_SDL=2 -sALLOW_MEMORY_GROWTH=1 \
+WASM_FLAGS := -I.. -I../third_party/mi -std=c++17 -O2 -sUSE_SDL=2 -sALLOW_MEMORY_GROWTH=1 \
               -sSTACK_SIZE=262144 -sEXPORTED_RUNTIME_METHODS='[UTF8ToString]'
 
 APP_BUNDLE := phoenixomatic.app

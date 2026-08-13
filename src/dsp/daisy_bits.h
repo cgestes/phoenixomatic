@@ -2,31 +2,21 @@
 //
 // `third_party/daisysp` holds Electrosmith's files unmodified. Two of them are
 // themselves ports of Émilie Gillet's code and say so in their own headers.
-// Everything needed to build them outside their own tree happens here:
+// Everything needed to build the one used module outside that tree happens
+// here:
 //
 //   - clockednoise.h names RAND_MAX without including <cstdlib>, which works
 //     in their build because daisysp.h is always included first.
-//   - the .cpp files include "dsp.h" by its bare name, so Utility is on the
-//     include path as well as the root.
-//
-// Wrapped rather than used directly so that the rest of the project never sees
-// their names or their conventions, and so the one expensive one can be left
-// out of a build that cannot afford it.
+// Its implementation lives in daisy_bits.cpp rather than being compiled from
+// third_party directly. That keeps the vendor file untouched while putting
+// the implementation under src/, where Arduino's source discovery can see it.
 #pragma once
 
 #include <cstdint>
 #include <cstdlib>   // before the vendored header, for RAND_MAX
 
-#include "Noise/clockednoise.h"
-
-// The pitch shifter reserves two delay lines of 16384 floats -- 128 KB, which
-// is affordable on desktop and web and is not on the Cardputer. Rather than
-// pretend the choice exists everywhere, the embedded build gets a stub and the
-// adapter falls back to the machine's own shifter.
-#if !defined(PHX_EMBEDDED)
-#include "Effects/pitchshifter.h"
-#define PHX_HAS_DAISY_SHIFTER 1
-#endif
+#include "audio_config.h"
+#include "../../third_party/daisysp/Noise/clockednoise.h"
 
 // White noise through a sample-and-hold running at a set rate, with the step
 // band-limited so it does not alias the way a naive hold does. Out of Plaits
@@ -50,24 +40,4 @@ class ClockedNoise {
  private:
   daisysp::ClockedNoise n_;
   float rate_ = 22050.0f;
-};
-
-// A pitch shifter with a far longer window than the one inside SPACE, and a
-// randomised delay wobble of its own. Where the built-in one is two taps over
-// two thousand samples, this is two over sixteen thousand -- longer grains,
-// so a held note keeps its body where the short one gets a flutter.
-class DaisyShifter {
- public:
-  void init(float sample_rate);
-  void setRatio(float ratio);   // 2 is an octave up, 0.5 an octave down
-  float process(float in);
-  // False where the build left it out, so callers can say so rather than
-  // silently doing something else.
-  static bool available();
-
- private:
-#if defined(PHX_HAS_DAISY_SHIFTER)
-  daisysp::PitchShifter s_;
-#endif
-  float ratio_ = 2.0f;
 };
