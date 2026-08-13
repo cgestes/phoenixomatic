@@ -37,6 +37,7 @@ enum HintKind : uint8_t {
   HINT_CRUSH,      // a wave with the levels it is allowed to take
   HINT_STEPS,      // the register, a cells around
   HINT_RATIO,      // a ratio as two lengths; a is div, b is mult
+  HINT_ENVELOPE,   // the contour: a is shape, b is slope, b2 is smoothness
   HINT_CSHAPE,     // A and B, and what the comparator makes of them;
                    // a is the shape index, b the drive
 };
@@ -51,12 +52,18 @@ struct ParamHint {
   // The screen row the control being edited sits on, so the panel can go in
   // whichever band is not that one. -1 means "anywhere".
   int8_t avoid_row = -1;
+  // A third number, for the one sketch that needs three: an envelope's shape,
+  // slope and smoothness only mean anything together. Last in the struct on
+  // purpose -- every other hint is built with a positional initialiser, and
+  // putting this next to `b` where it belongs would have rewritten them all.
+  float b2 = 0.0f;
 
   // Everything a redraw depends on, folded into one number. The change
   // detector used to compare a and b only, which meant a hint whose value
   // lives in tap_count or the taps array never raised the panel at all.
   float signature() const {
     float sig = static_cast<float>(kind) * 7.7f + a * 3.1f + b * 1.9f +
+                b2 * 2.3f +
                 static_cast<float>(tap_count) * 0.7f;
     if (taps) {
       for (int i = 0; i < tap_count * 3; ++i) sig += taps[i] * (0.11f + i * 0.013f);

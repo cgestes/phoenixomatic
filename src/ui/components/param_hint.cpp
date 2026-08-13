@@ -308,6 +308,47 @@ void filterCurve(IGfx& g, const Box& b, float cutoff, float res, int mode,
   }
 }
 
+// The contour an envelope will actually make, all three controls at once --
+// which is the only way any of them means anything. Deliberately the same
+// arithmetic as dsp/func_gen.cpp rather than an impression of it: a sketch
+// that disagrees with the sound is worse than no sketch.
+void envelope(IGfx& g, const Box& b, float shape, float slope, float smooth,
+              IGfxColor c) {
+  baseline(g, b);
+  float rise = 0.02f + slope * 0.96f;
+  float k = std::exp2((shape - 0.5f) * 4.0f);
+  int prev = -1;
+  float lp = 0.0f;
+  for (int i = 0; i < b.w; ++i) {
+    float u = static_cast<float>(i) / static_cast<float>(b.w - 1);
+    // Up to the peak, then down: level is the linear position along whichever
+    // segment we are in.
+    float level = u < rise ? u / rise : 1.0f - (u - rise) / (1.0f - rise);
+    if (level < 0.0f) level = 0.0f;
+    float v = std::pow(level, k);
+    if (smooth < 0.5f) {
+      float amount = (0.5f - smooth) * 2.0f;
+      float bumps = 1.0f + amount * 5.0f;
+      v += std::sin(6.2831853f * v * bumps) * amount * 0.45f * (1.0f - v);
+    }
+    if (v < 0.0f) v = 0.0f;
+    if (v > 1.0f) v = 1.0f;
+    if (smooth > 0.5f) {
+      // The rounding, at the sketch's own scale rather than the engine's: the
+      // point is that the corners go, not the exact millisecond they take.
+      float amount = (smooth - 0.5f) * 2.0f;
+      float a = 1.0f - amount * 0.92f;
+      lp += (v - lp) * (a * a);
+      v = lp;
+    } else {
+      lp = v;
+    }
+    int yy = b.py(v);
+    if (prev >= 0) g.drawLine(b.x + i - 1, prev, b.x + i, yy, c);
+    prev = yy;
+  }
+}
+
 void pwm(IGfx& g, const Box& b, float offset, IGfxColor c) {
   // Two signals and the threshold between them, with the square that falls
   // out drawn underneath — the comparator in one picture.
@@ -705,6 +746,7 @@ void drawHintOverlay(IGfx& gfx, const ParamHint& hint, float flash) {
     case HINT_CHANCE:   chance(gfx, b, hint.a, c); break;
     case HINT_DIVIDE:   divide(gfx, b, static_cast<int>(hint.a), c); break;
     case HINT_FILTER:   filterCurve(gfx, b, hint.a, hint.b, hint.tap_count, c); break;
+    case HINT_ENVELOPE: envelope(gfx, b, hint.a, hint.b, hint.b2, c); break;
     case HINT_PWM:      pwm(gfx, b, hint.a, c); break;
     case HINT_CRUSH:    crush(gfx, b, hint.a, c); break;
     case HINT_STEPS:    steps(gfx, b, static_cast<int>(hint.a), c); break;

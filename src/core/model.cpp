@@ -6,9 +6,7 @@
 const char* const kSourceLabel[SRC_COUNT] = {
   "CHA", "CHB", "OS1", "OS2", "SQ1", "SQ2", "CMP", "CLK", "FN1", "FN2"
 };
-const char* const kFuncShapeLabel[FUNC_SHAPE_COUNT] = {
-  "TRI", "RAMP", "SAW", "PULSE", "SINE", "EXP", "RND"
-};
+const char* const kFuncModeLabel[FUNC_MODE_COUNT] = { "AR", "AHR", "CYCLE" };
 
 const char* const kGateLabel[GATE_COUNT] = {
   "CMP A>B", "CMP A<B",

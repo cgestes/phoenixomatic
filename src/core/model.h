@@ -329,23 +329,25 @@ inline int randomRatioTerm(float unit, int max_term = kRatioMax) {
 
 // FUNC — two function generators. See dsp/func_gen.h for what the shapes and
 // the skew actually are; this is only what the page keeps.
-enum FuncShape : uint8_t {
-  FUNC_TRI = 0, FUNC_RAMP, FUNC_SAW, FUNC_SQR, FUNC_SINE, FUNC_EXP, FUNC_RND,
-  FUNC_SHAPE_COUNT
-};
-extern const char* const kFuncShapeLabel[FUNC_SHAPE_COUNT];
+// How it is started. See dsp/func_gen.h for what the three actually do; the
+// short of it is that AR follows the gate, AHR guarantees the whole attack,
+// and CYCLE does not wait to be asked.
+enum FuncMode : uint8_t { FUNC_AR = 0, FUNC_AHR, FUNC_CYCLE, FUNC_MODE_COUNT };
+extern const char* const kFuncModeLabel[FUNC_MODE_COUNT];
 
 inline constexpr int kFuncGens = 2;
 
 struct FuncState {
-  uint8_t shape = FUNC_TRI;
-  float skew = 0.0f;          // -1..1
-  float rate = 1.0f;          // Hz
-  bool loop = true;           // false is a one-shot: an envelope
-  // Which gate restarts it, or kGateNone for free running. The same field does
-  // both jobs because they are the same question -- "what starts this?" -- and
-  // "nothing, it just runs" is a legitimate answer to it.
-  uint8_t clock_src = kGateNone;
+  // Tides' three, and they divide the contour the way Tides divides it.
+  float shape = 0.5f;         // 0..1: logarithmic .. straight .. exponential
+  float slope = 0.5f;         // 0..1: where the top of the shape sits
+  float smooth = 0.5f;        // 0..1: ripples .. clean .. rounded off
+  float rate = 1.0f;          // Hz, a whole rise and fall
+  uint8_t mode = FUNC_AR;
+  // What opens the gate. In CYCLE it restarts the shape instead, and NONE is
+  // a generator waiting for something that never comes -- which is why the
+  // default is a real source rather than none.
+  uint8_t gate_src = GATE_CMP_GT;
 };
 
 // Both chaos oscillators reach both audio oscillators, so a single chaos

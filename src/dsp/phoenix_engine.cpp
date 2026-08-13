@@ -48,7 +48,7 @@ void PhoenixEngine::setSampleRate(float sample_rate) {
   }
   filter_.init(sample_rate_);
   for (int i = 0; i < kFuncGens; ++i) {
-    func_[i].init(sample_rate_, 0x51EDu + static_cast<uint32_t>(i) * 7919u);
+    func_[i].init(sample_rate_);
   }
   delay_.init(sample_rate_);
   dirt_.init(sample_rate_);
@@ -494,16 +494,20 @@ void PhoenixEngine::render(int16_t* out, size_t frames) {
     for (int i = 0; i < kFuncGens; ++i) {
       const FuncState& f = model_.func[i];
       func_[i].setShape(f.shape);
-      func_[i].setSkew(f.skew);
+      func_[i].setSlope(f.slope);
+      func_[i].setSmooth(f.smooth);
       func_[i].setRate(f.rate);
-      func_[i].setLoop(f.loop);
-      // A clock restarts the shape; it does not set its speed. Free running is
-      // the same generator with nothing telling it when to begin.
-      if (f.clock_src != kGateNone) {
-        bool now = gateEdge(f.clock_src);
-        if (now && !func_gate_[i]) func_[i].trigger();
-        func_gate_[i] = now;
+      func_[i].setMode(f.mode);
+      // A level, not an edge. AR has to know the gate is still held, not only
+      // that it once started -- so the gate sources are held open for a window
+      // the same way IRON's is, since every one of them is an instant.
+      if (f.gate_src != kGateNone) {
+        if (gateEdge(f.gate_src)) func_hold_[i] = gate_hold_samples_;
+        else if (func_hold_[i] > 0) --func_hold_[i];
+      } else {
+        func_hold_[i] = 0;
       }
+      func_[i].setGate(func_hold_[i] > 0);
       func_[i].process(1);
     }
 

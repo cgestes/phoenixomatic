@@ -1,8 +1,9 @@
-// FUNC — two function generators.
+// FUNC — two envelope generators, after Tides.
 //
-// Two rows each, because five controls on one row leaves no room to read any
-// of them: the shape and its skew on the first, what starts it and how fast on
-// the second. See dsp/func_gen.h for what they actually do.
+// Three rows each, because six controls will not fit on fewer and still be
+// readable: the contour on the first, its character and how it is started on
+// the second, and what starts it and how fast on the third. See
+// dsp/func_gen.h for what any of them actually do.
 #include <cmath>
 #include <cstdio>
 
@@ -13,8 +14,8 @@
 
 namespace {
 
-// Two rows per generator, one after the other.
-constexpr int kRowsPer = 2;
+// Three rows per generator, one after the other.
+constexpr int kRowsPer = 3;
 
 class FuncPage : public IPage {
  public:
@@ -28,66 +29,69 @@ class FuncPage : public IPage {
   void draw(TextScreen& scr) override {
     for (int g = 0; g < kFuncGens; ++g) {
       const FuncState& f = model_.func[g];
-      int shape_row = g * kRowsPer;
-      int clock_row = shape_row + 1;
-      int y = 1 + g * 3;
+      int r0 = g * kRowsPer;
+      int y = 1 + g * 4;
 
-      bool sr = nav_.atRow(shape_row);
-      uint8_t sbg = rowBg(sr);
-      if (sr) scr.highlight(1, y, kScreenCols - 2, PEN_PANEL);
+      bool a = nav_.atRow(r0);
+      uint8_t abg = rowBg(a);
+      if (a) scr.highlight(1, y, kScreenCols - 2, PEN_PANEL);
       char name[8];
       snprintf(name, sizeof(name), "FN-%d", g + 1);
-      scr.text(1, y, name, PEN_BRIGHT, sbg);
-      drawField(scr, 7, y, shape_row, 0, kFuncShapeLabel[f.shape], PEN_HOT,
-                nav_.at(shape_row, 0), sbg);
-      scr.text(14, y, "SKEW", PEN_DIM, sbg);
-      drawFieldF(scr, 19, y, shape_row, 1, PEN_VIOLET, nav_.at(shape_row, 1),
-                 sbg, "%+d", static_cast<int>(f.skew * 100.0f));
-      // What it is doing right now, which is the thing a page cannot infer
-      // from the settings alone: a one-shot that has finished looks exactly
-      // like one that has not been triggered yet.
-      if (!f.loop && f.clock_src != kGateNone) {
-        scr.text(26, y, "\x88", PEN_FAINT, sbg);
-      }
+      scr.text(1, y, name, PEN_BRIGHT, abg);
+      scr.text(7, y, "SHAPE", PEN_DIM, abg);
+      drawFieldF(scr, 13, y, r0, 0, PEN_HOT, nav_.at(r0, 0), abg, "%+d",
+                 static_cast<int>((f.shape - 0.5f) * 200.0f));
+      scr.text(21, y, "SLOPE", PEN_DIM, abg);
+      drawFieldF(scr, 27, y, r0, 1, PEN_VIOLET, nav_.at(r0, 1), abg, "%d",
+                 static_cast<int>(f.slope * 100.0f));
 
-      bool cr = nav_.atRow(clock_row);
-      uint8_t cbg = rowBg(cr);
-      if (cr) scr.highlight(1, y + 1, kScreenCols - 2, PEN_PANEL);
-      scr.text(3, y + 1, "FROM", PEN_DIM, cbg);
-      drawField(scr, 8, y + 1, clock_row, 0,
-                f.clock_src == kGateNone ? "FREE" : kGateLabel[f.clock_src],
-                PEN_EMBER, nav_.at(clock_row, 0), cbg);
-      scr.text(17, y + 1, f.loop ? "RATE" : "LEN", PEN_DIM, cbg);
-      // Below a cycle a second the useful number is seconds, not hertz: 0.2 Hz
-      // reads as nothing and "5.0s" reads as a length.
+      bool b = nav_.atRow(r0 + 1);
+      uint8_t bbg = rowBg(b);
+      if (b) scr.highlight(1, y + 1, kScreenCols - 2, PEN_PANEL);
+      scr.text(3, y + 1, "SMOOTH", PEN_DIM, bbg);
+      drawFieldF(scr, 13, y + 1, r0 + 1, 0, PEN_COOL, nav_.at(r0 + 1, 0), bbg,
+                 "%+d", static_cast<int>((f.smooth - 0.5f) * 200.0f));
+      scr.text(21, y + 1, "MODE", PEN_DIM, bbg);
+      drawField(scr, 27, y + 1, r0 + 1, 1, kFuncModeLabel[f.mode], PEN_EMBER,
+                nav_.at(r0 + 1, 1), bbg);
+
+      bool c = nav_.atRow(r0 + 2);
+      uint8_t cbg = rowBg(c);
+      if (c) scr.highlight(1, y + 2, kScreenCols - 2, PEN_PANEL);
+      scr.text(3, y + 2, "FROM", PEN_DIM, cbg);
+      drawField(scr, 13, y + 2, r0 + 2, 0,
+                f.gate_src == kGateNone ? "NONE" : kGateLabel[f.gate_src],
+                PEN_EMBER, nav_.at(r0 + 2, 0), cbg);
+      scr.text(21, y + 2, "RATE", PEN_DIM, cbg);
+      // Below a cycle a second the useful number is seconds: 0.2 Hz reads as
+      // nothing and "5.0s" reads as a length.
       if (f.rate >= 1.0f) {
-        drawFieldF(scr, 22, y + 1, clock_row, 1, PEN_BRIGHT,
-                   nav_.at(clock_row, 1), cbg, "%.2fHz",
-                   static_cast<double>(f.rate));
+        drawFieldF(scr, 27, y + 2, r0 + 2, 1, PEN_BRIGHT, nav_.at(r0 + 2, 1),
+                   cbg, "%.2fHz", static_cast<double>(f.rate));
       } else {
-        drawFieldF(scr, 22, y + 1, clock_row, 1, PEN_BRIGHT,
-                   nav_.at(clock_row, 1), cbg, "%.1fs",
-                   static_cast<double>(1.0f / f.rate));
+        drawFieldF(scr, 27, y + 2, r0 + 2, 1, PEN_BRIGHT, nav_.at(r0 + 2, 1),
+                   cbg, "%.1fs", static_cast<double>(1.0f / f.rate));
       }
-      scr.text(31, y + 1, f.loop ? "LOOP" : "ONCE", PEN_FAINT, cbg);
     }
 
-    scr.text(2, 13, "shapes for everything else \x88 FN1 FN2 on the banks",
-             PEN_FAINT);
+    scr.text(2, 13, "envelopes, 0-10V \x88 FN1 FN2 on the banks", PEN_FAINT);
   }
 
   ParamHint focusedHint() const override {
     const FuncState& f = model_.func[nav_.row() / kRowsPer];
-    if (nav_.row() % kRowsPer == 0) {
-      // The shape as it will actually come out, skew and all, so the sketch is
-      // the thing rather than a picture of the thing.
-      ParamHint h{HINT_WAVE, static_cast<float>(f.shape), f.skew};
-      h.caption = "skew moves the middle";
+    int sub = nav_.row() % kRowsPer;
+    // The contour as it will actually come out -- shape, slope and smoothness
+    // all at once -- rather than a picture of whichever one is under the
+    // cursor. They only mean anything together.
+    if (sub < 2) {
+      ParamHint h{HINT_ENVELOPE, f.shape, f.slope};
+      h.b2 = f.smooth;
+      h.caption = "slope moves the top";
       return h;
     }
     if (nav_.field() == 1) {
       return ParamHint{HINT_TIME, 1000.0f / f.rate, 20000.0f, nullptr, 0,
-                       f.loop ? "one cycle" : "how long it takes"};
+                       "rise and fall together"};
     }
     return ParamHint{};
   }
@@ -101,18 +105,23 @@ class FuncPage : public IPage {
     if (ev.code != KEY_LEFT && ev.code != KEY_RIGHT) return false;
     int dir = ev.code == KEY_RIGHT ? 1 : -1;
     FuncState& f = model_.func[nav_.row() / kRowsPer];
+    int sub = nav_.row() % kRowsPer;
 
-    if (nav_.row() % kRowsPer == 0) {
+    if (sub == 0) {
+      adjustUnit(nav_.field() == 0 ? &f.shape : &f.slope, dir, ev.step);
+      return true;
+    }
+    if (sub == 1) {
       if (nav_.field() == 0) {
-        f.shape = static_cast<uint8_t>(
-            (f.shape + FUNC_SHAPE_COUNT + dir) % FUNC_SHAPE_COUNT);
+        adjustUnit(&f.smooth, dir, ev.step);
       } else {
-        adjustBipolar(&f.skew, dir, ev.step);
+        f.mode = static_cast<uint8_t>(
+            (f.mode + FUNC_MODE_COUNT + dir) % FUNC_MODE_COUNT);
       }
       return true;
     }
     if (nav_.field() == 0) {
-      f.clock_src = stepGateOrNone(f.clock_src, dir, model_.machine_mode);
+      f.gate_src = stepGateOrNone(f.gate_src, dir, model_.machine_mode);
       return true;
     }
     // Geometric, so the same press means the same musical change at both ends
@@ -125,24 +134,18 @@ class FuncPage : public IPage {
   }
 
   bool toggleField() override {
-    // The one two-state thing on the page, and it is the one that decides
-    // whether this is an envelope or an LFO.
-    model_.func[nav_.row() / kRowsPer].loop =
-        !model_.func[nav_.row() / kRowsPer].loop;
+    // Straight to the one that decides whether it waits to be asked.
+    FuncState& f = model_.func[nav_.row() / kRowsPer];
+    f.mode = f.mode == FUNC_CYCLE ? FUNC_AR : FUNC_CYCLE;
     return true;
   }
 
   void zeroField() override { place(0.0f); }
   void midField() override { place(0.5f); }
   void maxField() override { place(1.0f); }
-  void minField() override {
-    FuncState& f = model_.func[nav_.row() / kRowsPer];
-    if (nav_.row() % kRowsPer == 0 && nav_.field() == 1) {
-      f.skew = -1.0f;   // the only field here with a below-zero end
-      return;
-    }
-    place(0.0f);
-  }
+  // Nothing on this page runs below zero -- an envelope that went negative
+  // would not be an envelope -- so the bottom and the zero are the same place.
+  void minField() override { place(0.0f); }
 
   void zeroPage() override { forEach([this] { zeroField(); }); }
   void minPage() override { forEach([this] { minField(); }); }
@@ -150,18 +153,20 @@ class FuncPage : public IPage {
 
   void randomizeField() override {
     FuncState& f = model_.func[nav_.row() / kRowsPer];
-    if (nav_.row() % kRowsPer == 0) {
-      if (nav_.field() == 0) {
-        f.shape = static_cast<uint8_t>(model_.random() % FUNC_SHAPE_COUNT);
-      } else {
-        f.skew = model_.randomUnit() * 2.0f - 1.0f;
-      }
+    int sub = nav_.row() % kRowsPer;
+    if (sub == 0) {
+      *(nav_.field() == 0 ? &f.shape : &f.slope) = model_.randomUnit();
+      return;
+    }
+    if (sub == 1) {
+      if (nav_.field() == 0) f.smooth = model_.randomUnit();
+      else f.mode = static_cast<uint8_t>(model_.random() % FUNC_MODE_COUNT);
       return;
     }
     if (nav_.field() == 0) {
-      f.clock_src = rollGate(model_.random(), model_.machine_mode);
+      f.gate_src = rollGate(model_.random(), model_.machine_mode);
     } else {
-      // Log-uniform between a cycle every ten seconds and thirty a second:
+      // Log-uniform between a shape every ten seconds and thirty a second:
       // uniform in hertz would put nine rolls out of ten above 20 Hz.
       f.rate = 0.1f * std::pow(300.0f, model_.randomUnit());
     }
@@ -187,19 +192,21 @@ class FuncPage : public IPage {
   // middle, the top. Shapes and clocks are lists, so they land on an entry.
   void place(float u) {
     FuncState& f = model_.func[nav_.row() / kRowsPer];
-    if (nav_.row() % kRowsPer == 0) {
-      if (nav_.field() == 0) {
-        f.shape = static_cast<uint8_t>(
-            static_cast<float>(FUNC_SHAPE_COUNT - 1) * u + 0.5f);
-      } else {
-        f.skew = u * 2.0f - 1.0f;
-      }
+    int sub = nav_.row() % kRowsPer;
+    if (sub == 0) {
+      *(nav_.field() == 0 ? &f.shape : &f.slope) = u;
+      return;
+    }
+    if (sub == 1) {
+      if (nav_.field() == 0) f.smooth = u;
+      else f.mode = static_cast<uint8_t>(
+               static_cast<float>(FUNC_MODE_COUNT - 1) * u + 0.5f);
       return;
     }
     if (nav_.field() == 0) {
-      f.clock_src = u <= 0.0f ? kGateNone
-                              : (u >= 1.0f ? lastGate(model_.machine_mode)
-                                           : midGate(model_.machine_mode));
+      f.gate_src = u <= 0.0f ? kGateNone
+                             : (u >= 1.0f ? lastGate(model_.machine_mode)
+                                          : midGate(model_.machine_mode));
       return;
     }
     // The rate's ends are its ends; the middle is the middle of the ratio, not
