@@ -12,6 +12,7 @@
 void ChaosOsc::init(float sample_rate, uint32_t seed) {
   sample_rate_ = sample_rate > 1.0f ? sample_rate : 22050.0f;
   rng_ = seed ? seed : 1u;
+  for (int i = 0; i < 3; ++i) clocked_[i].init(sample_rate_);
   reset();
 }
 
@@ -228,6 +229,9 @@ void ChaosOsc::process(int dt_samples) {
       case CHAOS_LORENZ:  dt = seconds * core_rate * 6.0f; break;
       case CHAOS_ROSSLER: dt = seconds * core_rate * 22.0f; break;
       case CHAOS_RND:     dt = seconds * core_rate * 90.0f; break;
+      // Not integrated at all -- it is clocked, so the rate goes straight to
+      // the hold and there is nothing to step.
+      case CHAOS_CLOCKED: dt = 0.0f; break;
       default:            dt = seconds * core_rate * 18.0f; break;
     }
     // Forward Euler needs a small step; subdivide rather than blow up.
@@ -240,6 +244,13 @@ void ChaosOsc::process(int dt_samples) {
       case CHAOS_LORENZ:  raw = c.x * 0.055f; break;
       case CHAOS_ROSSLER: raw = c.x * 0.09f; break;
       case CHAOS_RND:     raw = c.x; break;
+      case CHAOS_CLOCKED: {
+        // The dial reads in hertz and means it: at the bottom this is a slow
+        // stepped wander, and at the top it is noise with a pitch to it.
+        clocked_[i].setFreq(core_rate * 40.0f);
+        raw = clocked_[i].process();
+        break;
+      }
       default:            raw = c.x * 0.42f; break;
     }
     out_[i] = clamp1(raw + skew_ * 0.2f);

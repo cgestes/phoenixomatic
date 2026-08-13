@@ -60,6 +60,7 @@ enum GateSource : uint8_t {
 };
 extern const char* const kGateLabel[GATE_COUNT];    // "CLK", "CMP A>B", ...
 
+
 // True for the gates that only exist in ADVANCED mode. BENJOLIN has no clock
 // and no second rungler, and a trigger menu should not list doors that are not
 // there.
@@ -89,6 +90,34 @@ inline uint8_t lastGate(uint8_t machine_mode) {
   }
   return GATE_CMP_GT;
 }
+// Not a gate source: the absence of one. Only the reverb offers it, and there
+// it means the tail is never closed -- which turns IRON from a gated reverb
+// into a short bright one. Kept out of the enum on purpose, because as a
+// *trigger* source "none" would mean a drum that never fires, and that is a
+// different idea wearing the same word.
+inline constexpr uint8_t kGateNone = 0xFF;
+inline const char* gateLabel(uint8_t g) {
+  return g == kGateNone ? "NONE" : kGateLabel[g < GATE_COUNT ? g : 0];
+}
+inline uint8_t firstGate(uint8_t machine_mode) {
+  for (int g = 0; g < GATE_COUNT; ++g) {
+    if (!gateHidden(static_cast<uint8_t>(g), machine_mode)) {
+      return static_cast<uint8_t>(g);
+    }
+  }
+  return GATE_CMP_GT;
+}
+// The gate list with NONE on the end of it, so it is reachable by stepping off
+// either end rather than by a separate key.
+inline uint8_t stepGateOrNone(uint8_t gate, int dir, uint8_t machine_mode) {
+  if (gate == kGateNone) {
+    return dir > 0 ? firstGate(machine_mode) : lastGate(machine_mode);
+  }
+  if (dir > 0 && gate == lastGate(machine_mode)) return kGateNone;
+  if (dir < 0 && gate == firstGate(machine_mode)) return kGateNone;
+  return stepGate(gate, dir, machine_mode);
+}
+
 
 // The middle of the list this mode offers, for O.
 inline uint8_t midGate(uint8_t machine_mode) {
@@ -166,6 +195,11 @@ extern const char* const kSeqDestLabel[DEST_COUNT];
 // pattern is a function of the tuning and a groove you find stays found.
 enum ChaosMode : uint8_t {
   CHAOS_SLOTH = 0, CHAOS_LORENZ, CHAOS_ROSSLER, CHAOS_RND, CHAOS_RUNGLER,
+  // Noise through a sample-and-hold at the rate on the dial, with the step
+  // band-limited so it does not alias. Out of Plaits by way of DaisySP; see
+  // dsp/daisy_bits.h. Where RND is stepped noise that answers to nobody, this
+  // one is stepped noise that answers to RATE all the way up to audio.
+  CHAOS_CLOCKED,
   CHAOS_MODE_COUNT
 };
 extern const char* const kChaosModeLabel[CHAOS_MODE_COUNT];
@@ -717,6 +751,10 @@ struct SpaceState {
   float damp = 0.5f;
   float shimmer = 0.5f;      // SHIMMER only: how much rejoins the loop
   uint8_t shimmer_pitch = 3; // index into kShimmerSemis; 3 is +1 octave
+  // Which pitch shifter does the transposing. The built-in one has a short
+  // window and a fast flutter; the imported one has a window eight times
+  // longer and keeps a held note's body. See dsp/daisy_bits.h.
+  uint8_t shimmer_algo = 0;  // 0 = built in, 1 = the DaisySP one
   float drive = 0.4f;        // IRON only
   uint8_t gate_src = GATE_CMP_GT;   // IRON only
   ModRow mod[kSpaceModRows];

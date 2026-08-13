@@ -36,7 +36,7 @@ const char* const kFxEntryWhat[ENTRY_COUNT] = {
 };
 
 const char* const kChaosModeLabel[CHAOS_MODE_COUNT] = {
-  "SLOTH", "LORENZ", "ROSSLER", "RND", "RUNGLER"
+  "SLOTH", "LORENZ", "ROSSLER", "RND", "RUNGLER", "CLOCKED"
 };
 const char* const kChaosOutLabel[3] = { "TORPOR", "INERTIA", "APATHY" };
 const char* const kWaveLabel[WAVE_COUNT] = { "SIN", "TRI", "SAW", "SQR" };

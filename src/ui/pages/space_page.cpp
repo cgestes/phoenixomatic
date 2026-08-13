@@ -63,9 +63,15 @@ class SpacePage : public IPage {
         scr.text(16, 3, "BLEND", PEN_DIM, ebg);
         drawFieldF(scr, 22, 3, kExtraRow, 1, PEN_VIOLET, nav_.at(kExtraRow, 1), ebg,
                    "%d%%", static_cast<int>(sp.shimmer * 100.0f));
+        // Which shifter is doing the transposing. Two words rather than a
+        // number, because it is a choice between two machines and not a
+        // setting on one.
+        drawField(scr, 30, 3, kExtraRow, 2,
+                  sp.shimmer_algo == 1 ? "LONG" : "SHORT", PEN_FAINT,
+                  nav_.at(kExtraRow, 2), ebg);
       } else {
         scr.text(1, 3, "GATE", PEN_DIM, ebg);
-        drawField(scr, 6, 3, kExtraRow, 0, kGateLabel[sp.gate_src], PEN_HOT,
+        drawField(scr, 6, 3, kExtraRow, 0, gateLabel(sp.gate_src), PEN_HOT,
                   nav_.at(kExtraRow, 0), ebg);
         scr.text(16, 3, "DRIVE", PEN_DIM, ebg);
         drawFieldF(scr, 22, 3, kExtraRow, 1, PEN_EMBER, nav_.at(kExtraRow, 1), ebg,
@@ -106,6 +112,7 @@ class SpacePage : public IPage {
           return ParamHint{HINT_INTERVAL, shimmerRatio(sp.shimmer_pitch), 0.0f,
                            nullptr, 0, "against the original"};
         }
+        if (nav_.field() == 2) return ParamHint{};   // a two-way switch
         return ParamHint{HINT_MIX, sp.shimmer, 0.0f, nullptr, 0, "how much rejoins"};
       }
       if (nav_.field() == 1) {
@@ -155,7 +162,7 @@ class SpacePage : public IPage {
         adjustUnit(&sp.shimmer, dir, ev.step);
       }
     } else if (nav_.field() == 0) {
-      sp.gate_src = stepGate(sp.gate_src, dir, model_.machine_mode);
+      sp.gate_src = stepGateOrNone(sp.gate_src, dir, model_.machine_mode);
     } else {
       adjustUnit(&sp.drive, dir, ev.step);
     }
@@ -193,7 +200,7 @@ class SpacePage : public IPage {
       // The origin is the familiar octave up, not the bottom of the list.
       if (nav_.field() == 0) sp.shimmer_pitch = 3; else sp.shimmer = 0.0f;
     } else if (nav_.field() == 0) {
-      sp.gate_src = GATE_CMP_GT;
+      sp.gate_src = kGateNone;
     } else {
       sp.drive = 0.0f;
     }
@@ -370,7 +377,10 @@ class SpacePage : public IPage {
     int r = 0;
     fields_[r++] = 2;                                   // MODE, MIX
     fields_[r++] = 3;                                   // SIZE, DECAY, DAMP
-    if (hasExtra()) fields_[r++] = 2;   // both modes carry two now
+    // SHIMMER carries a third: which shifter is doing the work.
+    if (hasExtra()) {
+      fields_[r++] = model_.space.mode == SPACE_SHIMMER ? 3 : 2;
+    }
     for (int i = 0; i < bank_count_; ++i) fields_[r++] = 2;
     nav_.configure(fields_, r);
   }

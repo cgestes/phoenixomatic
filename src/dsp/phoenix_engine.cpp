@@ -95,6 +95,7 @@ void PhoenixEngine::applyParams() {
     space_.setMode(sp.mode);
     space_.setShimmer(sp.shimmer);
     space_.setShimmerRatio(shimmerRatio(sp.shimmer_pitch));
+    space_.setShimmerAlgo(sp.shimmer_algo);
     space_.setDrive(sp.drive);
   }
 
@@ -140,6 +141,9 @@ void PhoenixEngine::publishBus() {
 }
 
 bool PhoenixEngine::gateEdge(uint8_t gate_src) const {
+  // The reverb can be set to no gate at all, which is not an edge that never
+  // comes -- it is a tail that is never closed. Handled where the gate is
+  // used, not here; this is only asked about real sources.
   // A gate the current mode does not have never fires, and a module waiting on
   // one is a module that has silently stopped — a rungler frozen mid-pattern,
   // a drum that quit, and nothing on the panel to say why. Substituted here
@@ -441,9 +445,15 @@ void PhoenixEngine::stageSpace(float* l, float* r) {
   space_.setDamp(damp);
   // A gate source is an instant, not a duration, so IRON holds it open for a
   // fixed window -- otherwise the tail would be shut before it started.
-  const bool edge = gateEdge(sp.gate_src);
+  //
+  // NONE is not a source that never fires; it is no gate at all, and the tail
+  // simply stays open. That turns IRON from a gated reverb into a short bright
+  // one, which is a thing worth being able to ask for.
+  const bool ungated = sp.gate_src == kGateNone;
+  const bool edge = ungated ? false : gateEdge(sp.gate_src);
   float wl = 0.0f, wr = 0.0f;
-  space_.process((*l + *r) * 0.5f, edge || space_gate_hold_ > 0, &wl, &wr);
+  space_.process((*l + *r) * 0.5f, ungated || edge || space_gate_hold_ > 0,
+                 &wl, &wr);
   if (edge) space_gate_hold_ = gate_hold_samples_;
   else if (space_gate_hold_ > 0) --space_gate_hold_;
   float m01 = clamp01(mix);

@@ -8,6 +8,8 @@
 
 #include <cstdint>
 
+#include "daisy_bits.h"
+
 class ChaosOsc {
  public:
   void init(float sample_rate, uint32_t seed);
@@ -57,6 +59,9 @@ class ChaosOsc {
   bool shiftRungler(bool edge, bool data_high);
 
   Core core_[3];
+  // One per output, so the three channels are three different noises rather
+  // than one noise read three times.
+  ClockedNoise clocked_[3];
   float out_[3] = {0, 0, 0};
   float sample_rate_ = 22050.0f;
   float rate_ = 0.04f;

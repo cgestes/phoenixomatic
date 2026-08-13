@@ -46,6 +46,7 @@
 #include "../core/model.h"
 #include "audio_config.h"
 #include "mi_reverb.h"
+#include "daisy_bits.h"
 
 class Space {
  public:
@@ -58,6 +59,7 @@ class Space {
   void setDamp(float v);      // 0..1, how fast the highs go
   void setShimmer(float v);   // 0..1, how much of the shifted copy rejoins
   void setShimmerRatio(float r);   // read speed: 2 is an octave up, 0.5 down
+  void setShimmerAlgo(uint8_t a);  // 0 = the built-in shifter, 1 = DaisySP's
   void setDrive(float v);     // 0..1, saturation inside the loop (IRON)
 
   // One sample in, two out. `gate_open` only matters in IRON.
@@ -165,6 +167,8 @@ class Space {
   // walk out of the band it started in.
   float shim_lp_ = 0.0f, shim_hp_ = 0.0f;
   float shim_lp_k_ = 0.3f, shim_hp_k_ = 0.04f;
+  uint8_t shim_algo_ = 0;
+  DaisyShifter daisy_;
 
   // IRON's gate is an envelope, not a switch: a hard cut would click. Its
   // coefficient depends only on the sample rate, so it is resolved in init

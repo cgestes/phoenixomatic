@@ -124,6 +124,7 @@ void Space::init(float sample_rate) {
   for (int i = 0; i < kDiffusers; ++i) setLfo(&diff_lfo_[i], diff_hz[i], i * 0.31f);
 
   mi_.init(sample_rate_);
+  daisy_.init(sample_rate_);
   layout();
   setSize(size_);
   setDecay(decay_);
@@ -315,6 +316,22 @@ void Space::setDamp(float v) {
 void Space::setShimmer(float v) { shimmer_ = clamp01(v); }
 void Space::setShimmerRatio(float r) {
   shift_rate_ = r < 0.05f ? 0.05f : (r > 8.0f ? 8.0f : r);
+  daisy_.setRatio(shift_rate_);
+}
+
+void Space::setShimmerAlgo(uint8_t a) {
+  // Falls back rather than pretending: on a build without the imported
+  // shifter compiled in there is one choice, and it is the built-in one.
+  uint8_t want = (a == 1 && DaisyShifter::available()) ? 1 : 0;
+  if (want == shim_algo_) return;
+  shim_algo_ = want;
+  // Their state is a window's worth of the old shifter's output. Cleared, or
+  // the swap arrives as a burst of the wrong pitch.
+  daisy_.init(sample_rate_);
+  daisy_.setRatio(shift_rate_);
+  for (int i = 0; i < kShiftLen; ++i) shift_[i] = 0.0f;
+  shift_write_ = 0;
+  shift_phase_ = 0.0f;
 }
 void Space::setDrive(float v) {
   drive_ = clamp01(v);
@@ -461,6 +478,13 @@ void Space::processFdn(float in, bool gate_open, float* left, float* right) {
     // Rooting the two halves makes their squares sum to one instead.
     float w = 1.0f - std::fabs(pa * 2.0f - 1.0f);
     float shifted = sa * std::sqrt(w) + sb * std::sqrt(1.0f - w);
+
+    // The imported shifter, if that is the one asked for. Its window is eight
+    // times longer than the one above -- two taps over sixteen thousand
+    // samples rather than two thousand -- so a held note keeps its body where
+    // the short one gives it a flutter. It costs 128 KB, which is why it is
+    // not the only one.
+    if (shim_algo_ == 1) shifted = daisy_.process(tail);
 
     // Band-limit what rejoins. Transposing the same signal again and again
     // walks it out of the audible range -- up it becomes a whistle, down a
