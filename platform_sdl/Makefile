@@ -72,8 +72,8 @@ SOURCES := \
   ../src/ui/pages/delay_page.cpp \
   ../src/ui/pages/space_page.cpp \
   ../src/ui/pages/mix_page.cpp \
+  ../src/ui/pages/help_page.cpp \
   ../src/ui/pages/config_page.cpp \
-  ../src/ui/pages/project_page.cpp \
   sdl_display.cpp \
   sdl_audio.cpp \
   sdl_main.cpp

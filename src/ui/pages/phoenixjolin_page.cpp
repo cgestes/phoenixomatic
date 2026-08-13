@@ -117,15 +117,11 @@ class PhoenixjolinPage : public IPage {
     scr.put(34, 12, model_.comp.a_gt_b ? phx_glyphs::kLedOn : phx_glyphs::kLedOff,
             model_.comp.a_gt_b ? PEN_HOT : PEN_FAINT);
 
-    bool mr = nav_.atRow(kModeRow);
-    uint8_t mbg = rowBg(mr);
-    if (mr) scr.highlight(1, 13, kScreenCols - 2, PEN_PANEL);
-    scr.text(2, 13, "MODE", PEN_DIM, mbg);
-    drawField(scr, 7, 13, kModeRow, 0, kMachineModeLabel[model_.machine_mode],
-              PEN_COOL, nav_.at(kModeRow, 0), mbg);
-    // The name is twelve cells wide, so the reminder is shortened rather
-    // than run into it -- and SPACE means something else on every other row.
-    scr.text(21, 13, "= play", PEN_FAINT);
+    // The header says PHOENIXJOLIN, so a MODE field saying PHOENIXJOLIN was
+    // repeating it -- and it was the field whose position could not be made
+    // to agree with HOME's, since neither page has a free row where the other
+    // one does.
+    scr.text(2, 13, "SPACE plays   CMD+A S D F picks a mode", PEN_FAINT);
   }
 
   void setCursor(int row, int field) override { nav_.setCursor(row, field); }

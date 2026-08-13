@@ -26,5 +26,4 @@ std::unique_ptr<IPage> makeDelayPage(PhoenixModel& m);
 std::unique_ptr<IPage> makeSpacePage(PhoenixModel& m);
 std::unique_ptr<IPage> makeMixPage(PhoenixModel& m);
 std::unique_ptr<IPage> makeConfigPage(PhoenixModel& m);
-std::unique_ptr<IPage> makeProjectPage(PhoenixModel& m);
 std::unique_ptr<IPage> makeHelpPage(PhoenixModel& m);

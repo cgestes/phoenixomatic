@@ -38,7 +38,6 @@ PhoenixDisplay::PhoenixDisplay(IGfx& gfx, PhoenixModel& model)
   pages_.push_back(makeSpacePage(model));
   pages_.push_back(makeMixPage(model));
   pages_.push_back(makeConfigPage(model));
-  pages_.push_back(makeProjectPage(model));
   pages_.push_back(makeHelpPage(model));
 
   // Page zero is CLASSIC's single screen, which most modes do not have. Seat
@@ -445,6 +444,39 @@ bool PhoenixDisplay::handleGlobalKey(const UIEvent& ev) {
     }
     return true;
   }
+  // CMD (or CTRL) + a/s/d/f picks a machine mode, from any page. It is the
+  // biggest single decision on the machine and it used to be a field that sat
+  // in a different place on every page that showed it -- row 1 on HOME, row 13
+  // on the two single-page modes -- because no row was free on all three. A
+  // key has no place to be in the wrong.
+  if (ev.ctrl && ev.key) {
+    int want = -1;
+    switch (ev.key) {
+      case 'a': want = MODE_CLASSIC; break;
+      case 's': want = MODE_PHOENIXJOLIN; break;
+      case 'd': want = MODE_BENJOLIN; break;
+      case 'f': want = MODE_ADVANCED; break;
+      default: break;
+    }
+    if (want >= 0) {
+      if (model_.machine_mode != static_cast<uint8_t>(want)) {
+        model_.machine_mode = static_cast<uint8_t>(want);
+        model_.applyMachineMode();
+        // The page list changes with the mode, so whatever was on screen may
+        // no longer exist. Seat the cursor on the first page the new mode has.
+        page_index_ = 0;
+        while (page_index_ < static_cast<int>(pages_.size()) &&
+               !available(page_index_)) {
+          ++page_index_;
+        }
+        if (page_index_ >= static_cast<int>(pages_.size())) page_index_ = 0;
+        pages_[page_index_]->setSubPage(0);
+        screen_.invalidate();
+      }
+      return true;
+    }
+  }
+
   // CTRL+UP/DOWN steps sub-pages.
   if (ev.ctrl && (ev.code == KEY_UP || ev.code == KEY_DOWN)) {
     int n = page->subPageCount();

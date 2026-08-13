@@ -146,9 +146,52 @@ class MixPage : public IPage {
   }
 
   bool toggleField() override {
+    // On CHAIN the rows are effect stages, not mixer strips. Without this it
+    // muted whichever instrument happened to share a row number with the
+    // stage under the cursor -- pressing SPACE on DELAY silenced a drum. The
+    // other page keys already had the guard; this one did not.
+    if (sub_ != 0) return toggleStage();
     if (nav_.row() >= strip_count_) return false;
     model_.toggleMute(strip_index_[nav_.row()]);
     return true;
+  }
+
+  // The same gesture the mixer's SPACE makes, aimed at what this page is
+  // actually showing: the stage under the cursor goes to no mix and back
+  // again. Stashed rather than remembered as a flag, so coming back returns
+  // the amount that was there instead of "on".
+  bool toggleStage() {
+    int row = nav_.row();
+    if (row < 0 || row >= kChainStages) return false;
+    uint8_t stage = model_.chain[row];
+    float* mix = stageMix(stage);
+    if (!mix) return false;              // DRY has nothing to turn down
+    if (*mix > 0.0f) {
+      stashed_[stage] = *mix;
+      *mix = 0.0f;
+      // GLITCH and GRAIN share one stage, so one keypress has to take both.
+      if (stage == ENTRY_GLITCH) {
+        stashed_grain_ = model_.grain.mix;
+        model_.grain.mix = 0.0f;
+      }
+    } else {
+      *mix = stashed_[stage] > 0.0f ? stashed_[stage] : 1.0f;
+      if (stage == ENTRY_GLITCH) {
+        model_.grain.mix = stashed_grain_ > 0.0f ? stashed_grain_ : 0.5f;
+      }
+    }
+    return true;
+  }
+
+  float* stageMix(uint8_t stage) {
+    switch (stage) {
+      case ENTRY_DIRT:   return &model_.dirt.mix;
+      case ENTRY_FX:     return &model_.fx.mix;
+      case ENTRY_GLITCH: return &model_.glitch.mix;
+      case ENTRY_DELAY:  return &model_.delay.mix;
+      case ENTRY_SPACE:  return &model_.space.mix;
+      default:           return nullptr;
+    }
   }
 
   // On CHAIN these act on the order, not on a strip that is not on screen.
@@ -338,6 +381,10 @@ class MixPage : public IPage {
   RowNav nav_;
   uint8_t fields_[kMaxStrips + 1] = {};
   int strip_index_[kMaxStrips] = {};
+  // What each stage's mix was before SPACE turned it off, so coming back
+  // returns the amount rather than "on".
+  float stashed_[ENTRY_COUNT] = {};
+  float stashed_grain_ = 0.0f;
   int strip_count_ = 0;
   uint8_t nav_mode_ = 0xFF;
   int sub_ = 0;

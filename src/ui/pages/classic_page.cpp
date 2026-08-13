@@ -33,7 +33,7 @@ constexpr int kOsc1Row = 0;    // FREQ | RUNGLER | CROSS
 constexpr int kOsc2Row = 1;
 constexpr int kRungRow = 2;    // STEPS | CHANCE | CLK
 constexpr int kFiltRow = 3;    // FREQ | RUNGLER
-constexpr int kModeRow = 4;
+constexpr int kModeRow = 4;   // gone from the screen; see below
 constexpr uint8_t kFields[] = {3, 3, 3, 2, 1};
 constexpr int kRows = 5;
 
@@ -168,13 +168,11 @@ class ClassicPage : public IPage {
             model_.comp.a_gt_b ? phx_glyphs::kLedOn : phx_glyphs::kLedOff,
             model_.comp.a_gt_b ? PEN_HOT : PEN_FAINT);
 
-    bool mr = nav_.atRow(kModeRow);
-    uint8_t mbg = rowBg(mr);
-    if (mr) scr.highlight(1, 13, kScreenCols - 2, PEN_PANEL);
-    scr.text(2, 13, "MODE", PEN_DIM, mbg);
-    drawField(scr, 7, 13, kModeRow, 0, kMachineModeLabel[model_.machine_mode],
-              PEN_COOL, nav_.at(kModeRow, 0), mbg);
-    scr.text(20, 13, "SPACE plays", PEN_FAINT);
+    // No MODE field here any more. The page is called CLASSIC, so a line
+    // underneath saying the mode is CLASSIC was telling you what the header
+    // already had -- and it was the only page where that field sat on row 13,
+    // which is what made its position inconsistent everywhere else.
+    scr.text(2, 13, "SPACE plays   CMD+A S D F picks a mode", PEN_FAINT);
   }
 
   void drawOverlay(IGfx& gfx) override {
