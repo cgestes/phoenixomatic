@@ -38,6 +38,7 @@ SOURCES := \
   ../src/dsp/osc.cpp \
   ../src/dsp/drum_voices.cpp \
   ../src/dsp/filter.cpp \
+  ../src/dsp/func_gen.cpp \
   ../src/dsp/delay.cpp \
   ../src/dsp/dirt.cpp \
   ../src/dsp/fx.cpp \
@@ -54,6 +55,7 @@ SOURCES := \
   ../src/ui/components/param_hint.cpp \
   ../src/ui/components/phoenix_sprite.cpp \
   ../src/ui/pages/classic_page.cpp \
+  ../src/ui/pages/func_page.cpp \
   ../src/ui/pages/phoenixjolin_page.cpp \
   ../src/ui/pages/home_page.cpp \
   ../src/ui/pages/chaos_page.cpp \

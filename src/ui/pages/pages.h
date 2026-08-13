@@ -16,6 +16,7 @@ std::unique_ptr<IPage> makeSeqPage(PhoenixModel& m);
 std::unique_ptr<IPage> makeLogicPage(PhoenixModel& m);
 std::unique_ptr<IPage> makeClockPage(PhoenixModel& m);
 std::unique_ptr<IPage> makeFilterPage(PhoenixModel& m);
+std::unique_ptr<IPage> makeFuncPage(PhoenixModel& m);
 std::unique_ptr<IPage> makeDrumPage(PhoenixModel& m);
 std::unique_ptr<IPage> makeDirtPage(PhoenixModel& m);
 std::unique_ptr<IPage> makeFxPage(PhoenixModel& m);

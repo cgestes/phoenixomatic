@@ -47,6 +47,9 @@ void PhoenixEngine::setSampleRate(float sample_rate) {
                   0xBEEFu + static_cast<uint32_t>(i) * 2654435761u);
   }
   filter_.init(sample_rate_);
+  for (int i = 0; i < kFuncGens; ++i) {
+    func_[i].init(sample_rate_, 0x51EDu + static_cast<uint32_t>(i) * 7919u);
+  }
   delay_.init(sample_rate_);
   dirt_.init(sample_rate_);
   dirt_r_.init(sample_rate_);
@@ -138,6 +141,8 @@ void PhoenixEngine::publishBus() {
   // can open a filter or nudge a pitch without going through a trigger input.
   // In BENJOLIN mode the clock does not run and this reads as a flat -1.
   bus_[SRC_CLK] = clk_hold_ > 0 ? 1.0f : -1.0f;
+  bus_[SRC_FN1] = func_[0].value();
+  bus_[SRC_FN2] = func_[1].value();
 }
 
 bool PhoenixEngine::gateEdge(uint8_t gate_src) const {
@@ -481,6 +486,25 @@ void PhoenixEngine::render(int16_t* out, size_t frames) {
         if (!model_.chaos[i].freeze) chaos_[i].process(kChaosStride);
         for (int o = 0; o < 3; ++o) model_.chaos[i].out[o] = chaos_[i].out(o);
       }
+    }
+
+    // --- function generators -----------------------------------------------
+    // Before the bus is published, because everything downstream reads them
+    // from it this sample rather than the last one.
+    for (int i = 0; i < kFuncGens; ++i) {
+      const FuncState& f = model_.func[i];
+      func_[i].setShape(f.shape);
+      func_[i].setSkew(f.skew);
+      func_[i].setRate(f.rate);
+      func_[i].setLoop(f.loop);
+      // A clock restarts the shape; it does not set its speed. Free running is
+      // the same generator with nothing telling it when to begin.
+      if (f.clock_src != kGateNone) {
+        bool now = gateEdge(f.clock_src);
+        if (now && !func_gate_[i]) func_[i].trigger();
+        func_gate_[i] = now;
+      }
+      func_[i].process(1);
     }
 
     publishBus();

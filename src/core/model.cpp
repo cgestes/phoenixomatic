@@ -4,7 +4,10 @@
 #include <cstdio>
 
 const char* const kSourceLabel[SRC_COUNT] = {
-  "CHA", "CHB", "OS1", "OS2", "SQ1", "SQ2", "CMP", "CLK"
+  "CHA", "CHB", "OS1", "OS2", "SQ1", "SQ2", "CMP", "CLK", "FN1", "FN2"
+};
+const char* const kFuncShapeLabel[FUNC_SHAPE_COUNT] = {
+  "TRI", "RAMP", "SAW", "PULSE", "SINE", "EXP", "RND"
 };
 
 const char* const kGateLabel[GATE_COUNT] = {
@@ -120,13 +123,18 @@ PhoenixModel::PhoenixModel() {
   // --- oscillator banks: chaos, own sequencer, the other oscillator, the
   // comparator, and self-feedback. This is the default normalling.
   const char* osc_names[2][kOscModRows] = {
-    { "CHAOS-A", "CHAOS-B", "SEQ-1", "OSC-2", "COMP", "FDBK" },
-    { "CHAOS-A", "CHAOS-B", "SEQ-2", "OSC-1", "COMP", "FDBK" },
+    { "CHAOS-A", "CHAOS-B", "SEQ-1", "OSC-2", "COMP", "FDBK", "FUNC-1" },
+    { "CHAOS-A", "CHAOS-B", "SEQ-2", "OSC-1", "COMP", "FDBK", "FUNC-2" },
   };
   const SourceId osc_srcs[2][kOscModRows] = {
-    { SRC_CHA, SRC_CHB, SRC_SQ1, SRC_OS2, SRC_CMP, SRC_OS1 },
-    { SRC_CHA, SRC_CHB, SRC_SQ2, SRC_OS1, SRC_CMP, SRC_OS2 },
+    { SRC_CHA, SRC_CHB, SRC_SQ1, SRC_OS2, SRC_CMP, SRC_OS1, SRC_FN1 },
+    { SRC_CHA, SRC_CHB, SRC_SQ2, SRC_OS1, SRC_CMP, SRC_OS2, SRC_FN2 },
   };
+  // One function generator each, the way one sequencer each is already
+  // normalled: FN-1 to the first oscillator, FN-2 to the second. The other one
+  // is still reachable -- the filter, the sequencers, the delay and the reverb
+  // all list both -- but the oscillator page has room for seven rows and a
+  // scope, and this is the seventh that earns its place.
   for (int v = 0; v < 2; ++v) {
     for (int i = 0; i < kOscModRows; ++i) {
       osc[v].mod[i].name = osc_names[v][i];
@@ -161,6 +169,9 @@ PhoenixModel::PhoenixModel() {
 
   // --- sequencer banks: the other sequencer, both oscillators, both chaos.
   const char* seq_names[2][kSeqModRows] = {
+    // No function generator here: the page has room for five rows under the
+    // step display and the gate line, and a generator aimed at a sequencer is
+    // the one place it adds least -- the sequencer already has its own shape.
     { "SEQ-2", "OSC-1", "OSC-2", "CHAOS-A", "CHAOS-B" },
     { "SEQ-1", "OSC-1", "OSC-2", "CHAOS-A", "CHAOS-B" },
   };
@@ -218,10 +229,10 @@ PhoenixModel::PhoenixModel() {
   // --- filter: the rungler sweeps it and the second oscillator shades it,
   // which is the Benjolin's own arrangement.
   const char* filt_names[kFilterModRows] = {
-    "CHAOS-A", "CHAOS-B", "OSC-1", "OSC-2", "SEQ-1", "SEQ-2"
+    "CHAOS-A", "CHAOS-B", "OSC-1", "OSC-2", "SEQ-1", "SEQ-2", "FUNC-1", "FUNC-2"
   };
   const SourceId filt_srcs[kFilterModRows] = {
-    SRC_CHA, SRC_CHB, SRC_OS1, SRC_OS2, SRC_SQ1, SRC_SQ2
+    SRC_CHA, SRC_CHB, SRC_OS1, SRC_OS2, SRC_SQ1, SRC_SQ2, SRC_FN1, SRC_FN2
   };
   for (int i = 0; i < kFilterModRows; ++i) {
     filter.mod[i].name = filt_names[i];
@@ -239,8 +250,13 @@ PhoenixModel::PhoenixModel() {
       delay.tap[i].level = t_lvl[i];
       delay.tap[i].pan = t_pan[i];
     }
-    const char* dly_names[kDelayModRows] = { "CHAOS-A", "CHAOS-B", "SEQ-1", "CMP" };
-    const SourceId dly_srcs[kDelayModRows] = { SRC_CHA, SRC_CHB, SRC_SQ1, SRC_CMP };
+    // One generator here, not two: this page has room for five rows and a
+    // line of its own, and the line is worth more than a second copy of
+    // something the filter and the reverb both list.
+    const char* dly_names[kDelayModRows] = { "CHAOS-A", "CHAOS-B", "SEQ-1", "CMP",
+                                            "FUNC-1" };
+    const SourceId dly_srcs[kDelayModRows] = { SRC_CHA, SRC_CHB, SRC_SQ1, SRC_CMP,
+                                              SRC_FN1 };
     for (int i = 0; i < kDelayModRows; ++i) {
       delay.mod[i].name = dly_names[i];
       delay.mod[i].src = dly_srcs[i];
@@ -250,8 +266,10 @@ PhoenixModel::PhoenixModel() {
   }
 
   {
-    const char* space_names[kSpaceModRows] = { "CHAOS-A", "CHAOS-B", "OSC-2", "CMP" };
-    const SourceId space_srcs[kSpaceModRows] = { SRC_CHA, SRC_CHB, SRC_OS2, SRC_CMP };
+    const char* space_names[kSpaceModRows] = { "CHAOS-A", "CHAOS-B", "OSC-2", "CMP",
+                                              "FUNC-1", "FUNC-2" };
+    const SourceId space_srcs[kSpaceModRows] = { SRC_CHA, SRC_CHB, SRC_OS2, SRC_CMP,
+                                                SRC_FN1, SRC_FN2 };
     for (int i = 0; i < kSpaceModRows; ++i) {
       space.mod[i].name = space_names[i];
       space.mod[i].src = space_srcs[i];

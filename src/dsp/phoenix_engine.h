@@ -28,6 +28,7 @@
 #include "fx.h"
 #include "looper.h"
 #include "space.h"
+#include "func_gen.h"
 #include "osc.h"
 
 class PhoenixEngine {
@@ -87,6 +88,8 @@ class PhoenixEngine {
   OscVoice osc_[2];
   DrumVoice drum_[kDrumVoices];
   Filter filter_;
+  FuncGen func_[kFuncGens];
+  bool func_gate_[kFuncGens] = {false, false};
   Dirt dirt_;
   // One per channel. DIRT is a transfer function rather than a send, so it has
   // no mono wet to mix back in and has to run twice or silently mono the

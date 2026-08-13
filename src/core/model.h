@@ -42,6 +42,7 @@ extern const char* const kMachineModeLabel[MACHINE_MODE_COUNT];
 // mode adds a real one — see ClockState — and the eighth slot carries it.
 enum SourceId : uint8_t {
   SRC_CHA = 0, SRC_CHB, SRC_OS1, SRC_OS2, SRC_SQ1, SRC_SQ2, SRC_CMP, SRC_CLK,
+  SRC_FN1, SRC_FN2,          // the two function generators
   SRC_COUNT
 };
 extern const char* const kSourceLabel[SRC_COUNT];   // "CHA", "CHB", ...
@@ -326,9 +327,30 @@ inline int randomRatioTerm(float unit, int max_term = kRatioMax) {
   return v < 1 ? 1 : (v > max_term ? max_term : v);
 }
 
+// FUNC — two function generators. See dsp/func_gen.h for what the shapes and
+// the skew actually are; this is only what the page keeps.
+enum FuncShape : uint8_t {
+  FUNC_TRI = 0, FUNC_RAMP, FUNC_SAW, FUNC_SQR, FUNC_SINE, FUNC_EXP, FUNC_RND,
+  FUNC_SHAPE_COUNT
+};
+extern const char* const kFuncShapeLabel[FUNC_SHAPE_COUNT];
+
+inline constexpr int kFuncGens = 2;
+
+struct FuncState {
+  uint8_t shape = FUNC_TRI;
+  float skew = 0.0f;          // -1..1
+  float rate = 1.0f;          // Hz
+  bool loop = true;           // false is a one-shot: an envelope
+  // Which gate restarts it, or kGateNone for free running. The same field does
+  // both jobs because they are the same question -- "what starts this?" -- and
+  // "nothing, it just runs" is a legitimate answer to it.
+  uint8_t clock_src = kGateNone;
+};
+
 // Both chaos oscillators reach both audio oscillators, so a single chaos
 // source can drive the pair — which is what BENJOLIN mode leans on.
-inline constexpr int kOscModRows = 6;
+inline constexpr int kOscModRows = 7;
 
 struct Osc {
   uint8_t wave = WAVE_TRI;
@@ -689,7 +711,7 @@ struct FxState {
 
 // DELAY — one line, four taps, each with a time, a level and a place in the
 // stereo field. See src/dsp/delay.h for why it is one buffer and not four.
-inline constexpr int kDelayModRows = 4;
+inline constexpr int kDelayModRows = 5;
 
 enum DelayDest : uint8_t { DDEST_TIME = 0, DDEST_FEED, DDEST_DAMP, DDEST_MIX, DDEST_COUNT };
 extern const char* const kDelayDestLabel[DDEST_COUNT];
@@ -710,7 +732,7 @@ struct DelayState {
 
 // SPACE — reverb, shimmer and a gated metal ring, sharing one delay network.
 // See src/dsp/space.h for why they are one module rather than three.
-inline constexpr int kSpaceModRows = 4;
+inline constexpr int kSpaceModRows = 6;
 
 enum SpaceDest : uint8_t { SPDEST_SIZE = 0, SPDEST_DECAY, SPDEST_DAMP, SPDEST_MIX, SPDEST_COUNT };
 
@@ -766,7 +788,7 @@ struct SpaceState {
 // The Benjolin's filter: the comparator's pulse train through a resonant
 // multimode filter, swept by the rungler. Cutoff and resonance are both CV
 // destinations, so they get an attenuverter bank like everything else.
-inline constexpr int kFilterModRows = 6;
+inline constexpr int kFilterModRows = 8;
 
 // The filter's four responses -- which part of the sound survives.
 //
@@ -864,7 +886,11 @@ struct Drum {
 // you cannot see is worse than no control at all.
 inline bool sourceHidden(SourceId s, uint8_t machine_mode) {
   if (machine_mode == MODE_ADVANCED) return false;
-  return s == SRC_SQ1 || s == SRC_SQ2 || s == SRC_CHB;
+  // The function generators are hidden with the sequencers: a Benjolin has
+  // neither, and BENJOLIN mode is meant to be the instrument rather than the
+  // instrument plus everything else that turned out to fit.
+  return s == SRC_SQ1 || s == SRC_SQ2 || s == SRC_CHB ||
+         s == SRC_FN1 || s == SRC_FN2;
 }
 
 // ---------------------------------------------------------------------------
@@ -985,6 +1011,7 @@ class PhoenixModel {
   // What the engine is actually running at. The UI needs it -- the oscillator
   // page warns when a note has gone past Nyquist, and on desktop Nyquist is no
   // longer a constant. Published by the engine, never edited from a page.
+  FuncState func[kFuncGens];
   float sample_rate = static_cast<float>(kSampleRate);
   uint8_t machine_mode = MODE_BENJOLIN;
   float rate_offset = -4.0f;
