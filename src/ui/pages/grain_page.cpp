@@ -220,6 +220,12 @@ class GrainPage : public IPage {
 
   void randomizeRow() override { nav_.forEachField([this] { randomizeField(); }); }
 
+  // E: this page's bank only. See mod_bank_view.h.
+  bool randomizeEnables() override {
+    randomizeBankEnables(model_.grain.mod, bank_index_, bank_count_, model_.random());
+    return true;
+  }
+
   void randomizePage() override {
     GrainState& d = model_.grain;
     d.size_ms = 10.0f + model_.randomUnit() * 120.0f;

@@ -300,6 +300,15 @@ class OscPage : public IPage {
 
   void randomizeRow() override { nav_.forEachField([this] { randomizeField(); }); }
 
+  // E: this voice's bank. The other voice keeps whatever it had -- the cursor
+  // is on one of them, and a key that quietly changed both would make the
+  // sub-page a lie.
+  bool randomizeEnables() override {
+    randomizeBankEnables(model_.osc[voice_].mod, bank_index_, bank_count_,
+                         model_.random());
+    return true;
+  }
+
   void randomizePage() override {
     Osc& o = model_.osc[voice_];
     o.wave = static_cast<uint8_t>(model_.random() % WAVE_COUNT);

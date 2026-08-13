@@ -19,25 +19,43 @@ constexpr int kRowsPer = 3;
 
 // The plot under each generator. Wide, because an envelope is a shape in time
 // and a narrow window shows a slope rather than a contour.
-constexpr int kTraceCol = 3;
-constexpr int kTraceCols = 34;
-constexpr int kTraceRows = 2;
+constexpr int kTraceCol = 2;
+constexpr int kTraceRow = 5;
+constexpr int kTraceCols = 36;
+constexpr int kTraceRows = 6;
 constexpr int kHistory = kTraceCols * kCellW;
 
 class FuncPage : public IPage {
  public:
   explicit FuncPage(PhoenixModel& m) : model_(m) {
-    for (int i = 0; i < kFuncGens * kRowsPer; ++i) fields_[i] = 2;
-    nav_.configure(fields_, kFuncGens * kRowsPer);
+    for (int i = 0; i < kRowsPer; ++i) fields_[i] = 2;
+    nav_.configure(fields_, kRowsPer);
   }
 
-  const char* title() const override { return "FUNC"; }
+  const char* title() const override { return gen_ ? "FUNC-2" : "FUNC-1"; }
+
+  // One generator a page, the way OSC and CHAOS do it. Two of them crammed
+  // onto one screen left each with three cramped rows and a plot too short to
+  // read; apart, each gets the plot it deserves.
+  int subPageCount() const override { return kFuncGens; }
+  int subPage() const override { return gen_; }
+  void setSubPage(int i) override { gen_ = i & 1; }
+  const char* subPageDots() const override { return "1 2"; }
+
+  // Not in a Benjolin. There is no envelope generator in the instrument this
+  // machine is pretending to be, and the sources are hidden outside ADVANCED
+  // already -- leaving the page visible would have offered a control whose
+  // output nothing could listen to.
+  bool availableIn(uint8_t machine_mode) const override {
+    return machine_mode == MODE_ADVANCED;
+  }
 
   void draw(TextScreen& scr) override {
-    for (int g = 0; g < kFuncGens; ++g) {
+    {
+      const int g = gen_;
       const FuncState& f = model_.func[g];
-      int r0 = g * kRowsPer;
-      int y = 1 + g * 6;
+      const int r0 = 0;
+      const int y = 1;
 
       bool a = nav_.atRow(r0);
       uint8_t abg = rowBg(a);
@@ -69,10 +87,18 @@ class FuncPage : public IPage {
       drawField(scr, 13, y + 2, r0 + 2, 0,
                 f.gate_src == kGateNone ? "NONE" : kGateLabel[f.gate_src],
                 PEN_EMBER, nav_.at(r0 + 2, 0), cbg);
-      scr.text(21, y + 2, "RATE", PEN_DIM, cbg);
-      // Below a cycle a second the useful number is seconds: 0.2 Hz reads as
-      // nothing and "5.0s" reads as a length.
-      if (f.rate >= 1.0f) {
+      // Two different controls behind one field, because they answer the same
+      // question. Started by a clock, the length is a ratio to that clock and
+      // the field says so; started by anything else, there is no period to
+      // take a ratio of and it is a time.
+      bool clocked = locked(f);
+      scr.text(21, y + 2, clocked ? "LEN" : "RATE", PEN_DIM, cbg);
+      if (clocked) {
+        drawField(scr, 27, y + 2, r0 + 2, 1, kClockRatioLabel[f.ratio],
+                  PEN_BRIGHT, nav_.at(r0 + 2, 1), cbg);
+      } else if (f.rate >= 1.0f) {
+        // Below a cycle a second the useful number is seconds: 0.2 Hz reads as
+        // nothing and "5.0s" reads as a length.
         drawFieldF(scr, 27, y + 2, r0 + 2, 1, PEN_BRIGHT, nav_.at(r0 + 2, 1),
                    cbg, "%.2fHz", static_cast<double>(f.rate));
       } else {
@@ -82,7 +108,7 @@ class FuncPage : public IPage {
       // The shape as it actually came out, which is the one thing the six
       // numbers above cannot tell you -- a gate that never arrives and a
       // gate that arrives constantly look identical from the settings.
-      scr.reserve(kTraceCol, y + 3, kTraceCols, kTraceRows);
+      scr.reserve(kTraceCol, kTraceRow, kTraceCols, kTraceRows);
       pushHistory(g);
     }
 
@@ -90,7 +116,7 @@ class FuncPage : public IPage {
   }
 
   ParamHint focusedHint() const override {
-    const FuncState& f = model_.func[nav_.row() / kRowsPer];
+    const FuncState& f = model_.func[gen_];
     int sub = nav_.row() % kRowsPer;
     // The contour as it will actually come out -- shape, slope and smoothness
     // all at once -- rather than a picture of whichever one is under the
@@ -109,8 +135,9 @@ class FuncPage : public IPage {
   }
 
   void drawOverlay(IGfx& gfx) override {
-    for (int g = 0; g < kFuncGens; ++g) {
-      int y0 = TextScreen::pixelY(1 + g * 6 + 3);
+    {
+      const int g = gen_;
+      int y0 = TextScreen::pixelY(kTraceRow);
       int x0 = TextScreen::pixelX(kTraceCol);
       int w = kTraceCols * kCellW;
       int h = kTraceRows * kCellH;
@@ -155,7 +182,7 @@ class FuncPage : public IPage {
     if (!nav_.mapFieldKey(ev) && nav_.handleNavKey(ev)) return true;
     if (ev.code != KEY_LEFT && ev.code != KEY_RIGHT) return false;
     int dir = ev.code == KEY_RIGHT ? 1 : -1;
-    FuncState& f = model_.func[nav_.row() / kRowsPer];
+    FuncState& f = model_.func[gen_];
     int sub = nav_.row() % kRowsPer;
 
     if (sub == 0) {
@@ -175,6 +202,13 @@ class FuncPage : public IPage {
       f.gate_src = stepGateOrNone(f.gate_src, dir, model_.machine_mode);
       return true;
     }
+    if (locked(f)) {
+      int r = static_cast<int>(f.ratio) + dir;
+      if (r < 0) r = 0;
+      if (r >= kClockRatioCount) r = kClockRatioCount - 1;
+      f.ratio = static_cast<uint8_t>(r);
+      return true;
+    }
     // Geometric, so the same press means the same musical change at both ends
     // of a four-thousand-to-one range.
     float k = 1.0f + 0.08f * stepScale(ev.step);
@@ -186,7 +220,7 @@ class FuncPage : public IPage {
 
   bool toggleField() override {
     // Straight to the one that decides whether it waits to be asked.
-    FuncState& f = model_.func[nav_.row() / kRowsPer];
+    FuncState& f = model_.func[gen_];
     f.mode = f.mode == FUNC_CYCLE ? FUNC_AR : FUNC_CYCLE;
     return true;
   }
@@ -203,7 +237,7 @@ class FuncPage : public IPage {
   void maxPage() override { forEach([this] { maxField(); }); }
 
   void randomizeField() override {
-    FuncState& f = model_.func[nav_.row() / kRowsPer];
+    FuncState& f = model_.func[gen_];
     int sub = nav_.row() % kRowsPer;
     if (sub == 0) {
       *(nav_.field() == 0 ? &f.shape : &f.slope) = model_.randomUnit();
@@ -216,6 +250,8 @@ class FuncPage : public IPage {
     }
     if (nav_.field() == 0) {
       f.gate_src = rollGate(model_.random(), model_.machine_mode);
+    } else if (locked(f)) {
+      f.ratio = static_cast<uint8_t>(model_.random() % kClockRatioCount);
     } else {
       // Log-uniform between a shape every ten seconds and thirty a second:
       // uniform in hertz would put nine rolls out of ten above 20 Hz.
@@ -230,7 +266,7 @@ class FuncPage : public IPage {
   template <typename Fn>
   void forEach(Fn fn) {
     int row = nav_.row(), field = nav_.field();
-    for (int r = 0; r < kFuncGens * kRowsPer; ++r) {
+    for (int r = 0; r < kRowsPer; ++r) {
       for (int c = 0; c < 2; ++c) {
         nav_.setCursor(r, c);
         fn();
@@ -242,7 +278,7 @@ class FuncPage : public IPage {
   // I, O and P land the field somewhere along its own range: the bottom, the
   // middle, the top. Shapes and clocks are lists, so they land on an entry.
   void place(float u) {
-    FuncState& f = model_.func[nav_.row() / kRowsPer];
+    FuncState& f = model_.func[gen_];
     int sub = nav_.row() % kRowsPer;
     if (sub == 0) {
       *(nav_.field() == 0 ? &f.shape : &f.slope) = u;
@@ -260,10 +296,20 @@ class FuncPage : public IPage {
                                           : midGate(model_.machine_mode));
       return;
     }
+    if (locked(f)) {
+      f.ratio = static_cast<uint8_t>(
+          static_cast<float>(kClockRatioCount - 1) * u + 0.5f);
+      return;
+    }
     // The rate's ends are its ends; the middle is the middle of the ratio, not
     // of the number, which on a range this wide is the only middle that means
     // anything.
     f.rate = u <= 0.0f ? 0.05f : (u >= 1.0f ? 200.0f : std::sqrt(0.05f * 200.0f));
+  }
+
+  // Whether the length is a ratio to a clock rather than a time of its own.
+  bool locked(const FuncState& f) const {
+    return gateIsClock(f.gate_src) && model_.machine_mode == MODE_ADVANCED;
   }
 
   // Sampled on an interval of its own rather than once a frame, and the
@@ -272,7 +318,17 @@ class FuncPage : public IPage {
   // window cannot do both, and this page spans a four-thousand-to-one range.
   void pushHistory(int g) {
     const FuncState& f = model_.func[g];
-    double every = static_cast<double>(4.0f / f.rate) / kHistory;
+    // The window follows whatever is actually setting the length -- the ratio
+    // when clocked, the rate when not -- so about four shapes fill it either
+    // way.
+    float hz = f.rate;
+    if (locked(f)) {
+      float sixteenth = clockHz(model_.clock.bpm);
+      hz = sixteenth / gateSixteenths(f.gate_src, model_.clock.div) /
+           clockRatioValue(f.ratio);
+    }
+    if (hz < 0.01f) hz = 0.01f;
+    double every = static_cast<double>(4.0f / hz) / kHistory;
     if (every < 0.0005) every = 0.0005;
     if (every > 0.5) every = 0.5;
     if (model_.time - last_sample_[g] < every) return;
@@ -284,7 +340,8 @@ class FuncPage : public IPage {
 
   PhoenixModel& model_;
   RowNav nav_;
-  uint8_t fields_[kFuncGens * kRowsPer] = {};
+  uint8_t fields_[kRowsPer] = {};
+  int gen_ = 0;
   float hist_[kFuncGens][kHistory] = {};
   bool gate_hist_[kFuncGens][kHistory] = {};
   int hist_pos_[kFuncGens] = {0, 0};

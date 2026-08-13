@@ -124,6 +124,25 @@ inline ModRow& bankRowAt(ModRow* rows, const int* index, int count, int i) {
 // randomised amounts but not modes, FILTER did both — three behaviours for one
 // keypress, none of them chosen. A named operation makes the drift impossible
 // rather than merely visible in review.
+// Which rows are switched on, decided by coin. Not the amounts and not the
+// destinations -- only whether each row is in the patch at all, which is the
+// one thing the dice never touched and the one thing that changes a patch
+// most for the least keystrokes.
+//
+// A floor of one row on: an empty bank is a page doing nothing, and a dice
+// that can land on "nothing" is a dice you stop pressing.
+inline void randomizeBankEnables(ModRow* rows, const int* index, int count,
+                                 uint32_t roll) {
+  if (count <= 0) return;
+  int live = 0;
+  for (int i = 0; i < count; ++i) {
+    bool on = ((roll >> (i & 31)) & 1u) != 0;
+    rows[index[i]].on = on;
+    if (on) ++live;
+  }
+  if (live == 0) rows[index[roll % static_cast<uint32_t>(count)]].on = true;
+}
+
 inline void zeroBank(ModRow* rows, const int* index, int count) {
   for (int i = 0; i < count; ++i) zeroModRow(rows[index[i]]);
 }

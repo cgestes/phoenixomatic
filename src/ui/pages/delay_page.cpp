@@ -307,6 +307,12 @@ class DelayPage : public IPage {
 
   void randomizeRow() override { nav_.forEachField([this] { randomizeField(); }); }
 
+  // E: this page's bank only. See mod_bank_view.h.
+  bool randomizeEnables() override {
+    randomizeBankEnables(model_.delay.mod, bank_index_, bank_count_, model_.random());
+    return true;
+  }
+
   void randomizePage() override {
     DelayState& d = model_.delay;
     d.feedback = model_.randomUnit() * 0.8f;

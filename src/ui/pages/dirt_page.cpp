@@ -214,6 +214,12 @@ class DirtPage : public IPage {
 
   void randomizeRow() override { nav_.forEachField([this] { randomizeField(); }); }
 
+  // E: this page's bank only. See mod_bank_view.h.
+  bool randomizeEnables() override {
+    randomizeBankEnables(model_.dirt.mod, bank_index_, bank_count_, model_.random());
+    return true;
+  }
+
   void randomizePage() override {
     DirtState& d = model_.dirt;
     d.mode = static_cast<uint8_t>(model_.random() % DIRT_MODE_COUNT);

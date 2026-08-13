@@ -496,7 +496,17 @@ void PhoenixEngine::render(int16_t* out, size_t frames) {
       func_[i].setShape(f.shape);
       func_[i].setSlope(f.slope);
       func_[i].setSmooth(f.smooth);
-      func_[i].setRate(f.rate);
+      // Locked to the clock when it is a clock that starts it, free
+      // otherwise. A shape that is supposed to land with the music should be
+      // set in ratios rather than in hertz, and doing the division in your
+      // head is not a feature.
+      if (gateIsClock(f.gate_src) && model_.machine_mode == MODE_ADVANCED) {
+        float sixteenth = clockHz(model_.clock.bpm);
+        float gate_hz = sixteenth / gateSixteenths(f.gate_src, model_.clock.div);
+        func_[i].setRate(gate_hz / clockRatioValue(f.ratio));
+      } else {
+        func_[i].setRate(f.rate);
+      }
       func_[i].setMode(f.mode);
       // A level, not an edge. AR has to know the gate is still held, not only
       // that it once started -- so the gate sources are held open for a window

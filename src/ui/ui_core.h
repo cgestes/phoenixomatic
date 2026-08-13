@@ -57,6 +57,10 @@ class IPage {
   }
 
   // Sub-pages are stepped with CTRL+UP/DOWN and shown as dots in the header.
+  // E: which modulation rows are switched on, by coin. Returns false where a
+  // page has no bank, so the key can fall back to doing it everywhere.
+  virtual bool randomizeEnables() { return false; }
+
   virtual int subPageCount() const { return 1; }
   virtual int subPage() const { return 0; }
   virtual void setSubPage(int index) { (void)index; }

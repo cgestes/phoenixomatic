@@ -432,6 +432,19 @@ bool PhoenixDisplay::handleGlobalKey(const UIEvent& ev) {
     page->randomizeRow();
     return true;
   }
+  if (ev.key == 'e') {
+    // E on its own is this page's bank; SHIFT+E is every bank on the machine,
+    // which is the fastest way to make the patch a different patch without
+    // touching a single number.
+    if (ev.shift || !page->randomizeEnables()) {
+      model_.forEachModBank([this](ModRow* rows, int n) {
+        for (int i = 0; i < n; ++i) {
+          rows[i].on = (model_.random() & 1u) != 0;
+        }
+      });
+    }
+    return true;
+  }
   // CTRL+UP/DOWN steps sub-pages.
   if (ev.ctrl && (ev.code == KEY_UP || ev.code == KEY_DOWN)) {
     int n = page->subPageCount();

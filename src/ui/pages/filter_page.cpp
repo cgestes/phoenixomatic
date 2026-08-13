@@ -277,6 +277,12 @@ class FilterPage : public IPage {
 
   void randomizeRow() override { nav_.forEachField([this] { randomizeField(); }); }
 
+  // E: this page's bank only. See mod_bank_view.h.
+  bool randomizeEnables() override {
+    randomizeBankEnables(model_.filter.mod, bank_index_, bank_count_, model_.random());
+    return true;
+  }
+
   void randomizePage() override {
     FilterState& f = model_.filter;
     f.freq = model_.randomUnit();

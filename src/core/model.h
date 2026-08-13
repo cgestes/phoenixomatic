@@ -333,6 +333,30 @@ inline int randomRatioTerm(float unit, int max_term = kRatioMax) {
 // short of it is that AR follows the gate, AHR guarantees the whole attack,
 // and CYCLE does not wait to be asked.
 enum FuncMode : uint8_t { FUNC_AR = 0, FUNC_AHR, FUNC_CYCLE, FUNC_MODE_COUNT };
+
+// How long something lasts, as a fraction of a clock period. Shared, because
+// the envelopes are the first thing to need it and they will not be the last:
+// the delay's time and the glitch's length both want it too.
+inline constexpr int kClockRatioCount = 9;
+inline constexpr uint8_t kClockRatioUnity = 4;   // the 1/1 entry
+extern const char* const kClockRatioLabel[kClockRatioCount];
+// How many clock periods one whole shape takes.
+inline float clockRatioValue(uint8_t i) {
+  const float v[kClockRatioCount] = {0.125f, 0.25f, 1.0f / 3.0f, 0.5f, 1.0f,
+                                     2.0f,   3.0f, 4.0f,        8.0f};
+  return v[i < kClockRatioCount ? i : kClockRatioUnity];
+}
+// True for the gate sources that are a clock, and therefore have a period a
+// ratio can be taken of. The comparator has edges but no tempo.
+inline bool gateIsClock(uint8_t g) {
+  return g == GATE_CLK || g == GATE_CLK_1 || g == GATE_CLK_2;
+}
+// That gate's period, in sixteenths.
+inline float gateSixteenths(uint8_t g, const int* div) {
+  if (g == GATE_CLK_1) return static_cast<float>(div[0] < 1 ? 1 : div[0]);
+  if (g == GATE_CLK_2) return static_cast<float>(div[1] < 1 ? 1 : div[1]);
+  return 1.0f;
+}
 extern const char* const kFuncModeLabel[FUNC_MODE_COUNT];
 
 inline constexpr int kFuncGens = 2;
@@ -342,7 +366,12 @@ struct FuncState {
   float shape = 0.5f;         // 0..1: logarithmic .. straight .. exponential
   float slope = 0.5f;         // 0..1: where the top of the shape sits
   float smooth = 0.5f;        // 0..1: ripples .. clean .. rounded off
-  float rate = 1.0f;          // Hz, a whole rise and fall
+  float rate = 1.0f;          // Hz, a whole rise and fall -- when free
+  // ...and when the source is one of the clocks, the length is a ratio to that
+  // clock's own period instead. A number in hertz is the wrong control for
+  // something that is supposed to land with the music, and doing the division
+  // in your head is not a feature.
+  uint8_t ratio = kClockRatioUnity;
   uint8_t mode = FUNC_AR;
   // What opens the gate. In CYCLE it restarts the shape instead, and NONE is
   // a generator waiting for something that never comes -- which is why the
