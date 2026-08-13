@@ -123,6 +123,7 @@ void Space::init(float sample_rate) {
   for (int i = 0; i < kLines; ++i) setLfo(&fdn_lfo_[i], fdn_hz[i], i * 0.21f);
   for (int i = 0; i < kDiffusers; ++i) setLfo(&diff_lfo_[i], diff_hz[i], i * 0.31f);
 
+  mi_.init(sample_rate_);
   layout();
   setSize(size_);
   setDecay(decay_);
@@ -214,12 +215,14 @@ void Space::reset() {
   shim_lp_ = 0.0f;
   shim_hp_ = 0.0f;
   gate_env_ = 0.0f;
+  mi_.reset();
 }
 
 void Space::setMode(uint8_t mode) {
   uint8_t m = mode < SPACE_MODE_COUNT ? mode : 0;
   if (m == mode_) return;
   mode_ = m;
+  mi_.setWhich(m == SPACE_MI_RINGS ? MiReverb::RINGS : MiReverb::CLOUDS);
   setSize(size_);   // IRON wants much shorter lines than the others
   // The three machines share one block, so whatever is in it belongs to the
   // one that just stopped. Left alone it comes back as a burst of somebody
@@ -257,6 +260,11 @@ void Space::setSize(float v) {
     cloud_in_len_[i] = scaled(kCloudIn[i], rscale);
   }
   for (int i = 0; i < 5; ++i) cloud_len_[i] = scaled(kCloudLoop[i], rscale * scale);
+  // The imported pair cannot scale their delay lengths -- those are template
+  // parameters -- so SIZE reaches them as diffusion instead, which is the
+  // nearest thing they expose to a sense of room.
+  mi_.setDiffusion(size_);
+  mi_.setInputGain(1.0f);
 
   // The output taps have to stay inside the elements they read from, which
   // shrank with SIZE. Clamped rather than scaled, so the near taps keep their
@@ -296,11 +304,13 @@ void Space::setDecay(float v) {
   // returns some energy of its own, so unity there arrives sooner. Measured to
   // give roughly the same range of tail lengths as the other two.
   cloud_fb_ = 0.25f + 0.735f * decay_;
+  mi_.setDecay(decay_);
 }
 
 void Space::setDamp(float v) {
   damp_ = clamp01(v);
   damp_coeff_ = dampCoeff(damp_);
+  mi_.setDamp(damp_);
 }
 void Space::setShimmer(float v) { shimmer_ = clamp01(v); }
 void Space::setShimmerRatio(float r) {
@@ -361,6 +371,8 @@ void Space::process(float in, bool gate_open, float* left, float* right) {
   switch (mode_) {
     case SPACE_PLATE: processPlate(in, left, right); return;
     case SPACE_CLOUD: processCloud(in, left, right); return;
+    case SPACE_MI_CLOUD:
+    case SPACE_MI_RINGS: mi_.process(in, left, right); return;
     default: processFdn(in, gate_open, left, right); return;
   }
 }

@@ -700,6 +700,10 @@ enum SpaceMode : uint8_t {
   SPACE_ROOM = 0, SPACE_SHIMMER, SPACE_IRON,
   SPACE_PLATE,    // Dattorro's figure-of-eight tank
   SPACE_CLOUD,    // one long allpass loop, diffused eight times
+  // The two below are not ours. They are Emilie Gillet's, vendored unmodified
+  // under third_party/mi and reached through src/dsp/mi_reverb.h.
+  SPACE_MI_CLOUD,
+  SPACE_MI_RINGS,
   SPACE_MODE_COUNT
 };
 

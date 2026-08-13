@@ -14,6 +14,11 @@
 //   CLOUD    one long allpass loop, diffused four times on the way in and four
 //            more times inside it. Denser than the plate, and with almost no
 //            early reflections: it arrives as a wash rather than as a room.
+//   MI-CLOUD Emilie Gillet's Clouds reverb, vendored unmodified.
+//   MI-RINGS Emilie Gillet's Rings reverb, likewise. Both live behind
+//            dsp/mi_reverb.h and keep their own memory -- they store their
+//            tails as packed words rather than floats, so they cannot share
+//            the block the three above share.
 //
 // All three share one block of memory, because only one of them can run at a
 // time. Sized for the largest, which is the plate. Separate buffers would have
@@ -40,6 +45,7 @@
 // these and they include the model rather than the DSP.
 #include "../core/model.h"
 #include "audio_config.h"
+#include "mi_reverb.h"
 
 class Space {
  public:
@@ -100,6 +106,7 @@ class Space {
 
   void layout();
   void processFdn(float in, bool gate_open, float* left, float* right);
+  MiReverb mi_;
   void processPlate(float in, float* left, float* right);
   void processCloud(float in, float* left, float* right);
 

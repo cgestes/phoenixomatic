@@ -353,6 +353,8 @@ class SpacePage : public IPage {
       case SPACE_IRON:    return "short, driven, gated by the machine";
       case SPACE_PLATE:   return "a plate: one loop, folded, and moving";
       case SPACE_CLOUD:   return "eight diffusions \x88 a wash, not a room";
+      case SPACE_MI_CLOUD: return "the Clouds reverb, as it is";
+      case SPACE_MI_RINGS: return "the Rings reverb, as it is";
       default:            return "diffused and damped \x88 a plain room";
     }
   }
