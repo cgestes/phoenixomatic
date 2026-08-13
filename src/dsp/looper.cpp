@@ -11,6 +11,9 @@ void Looper::init(float sample_rate) {
 
 void Looper::reset() {
   for (int i = 0; i < kLen; ++i) buf_[i] = 0.0f;
+#if defined(PHX_LOOPER_STEREO)
+  for (int i = 0; i < kLen; ++i) buf_r_[i] = 0.0f;
+#endif
   write_ = 0;
   glitch_read_ = 0.0f;
   glitch_start_ = 0.0f;
@@ -26,12 +29,17 @@ uint32_t Looper::rng() {
   return rng_;
 }
 
-void Looper::write(float in) {
-  buf_[write_] = in;
+void Looper::write(float l, float r) {
+#if defined(PHX_LOOPER_STEREO)
+  buf_[write_] = l;
+  buf_r_[write_] = r;
+#else
+  buf_[write_] = (l + r) * 0.5f;
+#endif
   wrapInc(&write_, kLen);
 }
 
-float Looper::read(float pos) const {
+void Looper::read(float pos, float* l, float* r) const {
   // Wrapped and interpolated: both readers move their heads at rates other
   // than one sample per sample, so neither lands on an integer.
   while (pos < 0.0f) pos += static_cast<float>(kLen);
@@ -40,7 +48,12 @@ float Looper::read(float pos) const {
   if (i0 >= kLen) i0 -= kLen;          // a wrap can round up onto the end
   float frac = pos - std::floor(pos);
   int i1 = i0 + 1 >= kLen ? 0 : i0 + 1;
-  return buf_[i0] * (1.0f - frac) + buf_[i1] * frac;
+  *l = buf_[i0] * (1.0f - frac) + buf_[i1] * frac;
+#if defined(PHX_LOOPER_STEREO)
+  *r = buf_r_[i0] * (1.0f - frac) + buf_r_[i1] * frac;
+#else
+  *r = *l;
+#endif
 }
 
 // --- GLITCH -----------------------------------------------------------------
@@ -79,13 +92,12 @@ void Looper::glitch(bool gate_edge, bool take, float* left, float* right) {
     }
   }
   if (!glitch_armed_) {
-    float v = read(static_cast<float>(write_) - 1.0f);
-    *left = v;
-    *right = v;
+    read(static_cast<float>(write_) - 1.0f, left, right);
     return;
   }
 
-  float v = read(glitch_start_ + glitch_read_);
+  float vl, vr;
+  read(glitch_start_ + glitch_read_, &vl, &vr);
   glitch_read_ += glitch_reverse_ ? -glitch_step_ : glitch_step_;
   // Wrapped within the slice, not the buffer: that loop is the whole effect.
   //
@@ -116,8 +128,8 @@ void Looper::glitch(bool gate_edge, bool take, float* left, float* right) {
   if (g < 0.0f) g = 0.0f;
   if (g > 1.0f) g = 1.0f;
 
-  *left = v * g;
-  *right = v * g;
+  *left = vl * g;
+  *right = vr * g;
 }
 
 // --- GRAIN ------------------------------------------------------------------
@@ -169,10 +181,16 @@ void Looper::grain(float* left, float* right) {
     // without the seams adding up into clicks.
     float u = g.age / g.len;
     float w = 0.5f - 0.5f * std::cos(u * kTwoPi);
-    float v = read(g.pos) * w;
+    float vl, vr;
+    read(g.pos, &vl, &vr);
+    vl *= w;
+    vr *= w;
+    // Panned, but starting from what the two channels already were rather
+    // than from one number in the middle: a grain taken out of a wide passage
+    // keeps its own width, and PAN moves it from there.
     float ang = (g.pan * 0.5f + 0.5f) * kHalfPi;
-    l += v * std::cos(ang);
-    r += v * std::sin(ang);
+    l += vl * std::cos(ang) * kSqrt2;
+    r += vr * std::sin(ang) * kSqrt2;
     g.pos += g.step;
     g.age += 1.0f;
     if (g.age >= g.len) g.on = false;

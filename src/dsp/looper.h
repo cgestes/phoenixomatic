@@ -25,7 +25,9 @@ class Looper {
 
   // Always call this, every sample, whatever is switched on: the buffer is
   // what both readers are reading.
-  void write(float in);
+  // Both channels. On a build that cannot afford two buffers the right one
+  // aliases the left and this is the mono sum, which is what it always was.
+  void write(float l, float r);
 
   // --- GLITCH ---------------------------------------------------------------
   void setGlitchLength(float ms);
@@ -57,7 +59,9 @@ class Looper {
   static constexpr int kLen = kMaxSampleRate;
   static constexpr int kGrains = 8;
 
-  float read(float pos) const;
+  // One position, both channels. Reading them together rather than one at a
+  // time is what keeps the interpolation between them in step.
+  void read(float pos, float* l, float* r) const;
 
   struct Grain {
     bool on = false;
@@ -70,7 +74,19 @@ class Looper {
 
   uint32_t rng();
 
+  // Stereo where there is room for it. A repeat or a grain taken from a mono
+  // sum is mono however wide the thing that fed it was, and GLITCH at any mix
+  // then flattened the image -- which is the bug this fixes at the source
+  // rather than by not touching the signal.
+  //
+  // The Cardputer cannot afford the second second: 88 KB there against 192 on
+  // desktop, on top of an engine that is already most of its memory. It keeps
+  // the sum, and the two reads return the same number.
   float buf_[kLen] = {};
+#if !defined(PHX_EMBEDDED)
+#define PHX_LOOPER_STEREO 1
+  float buf_r_[kLen] = {};
+#endif
   int write_ = 0;
   float sample_rate_ = kSampleRate;
 

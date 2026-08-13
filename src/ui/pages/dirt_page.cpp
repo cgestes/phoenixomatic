@@ -53,6 +53,9 @@ class DirtPage : public IPage {
     scr.text(18, 1, "MIX", PEN_DIM, tbg);
     drawFieldF(scr, 22, 1, kTopRow, 1, PEN_BRIGHT, nav_.at(kTopRow, 1), tbg,
                "%d%%", static_cast<int>(d.mix * 100.0f));
+    scr.text(29, 1, "WIDTH", PEN_DIM, tbg);
+    drawFieldF(scr, 35, 1, kTopRow, 2, PEN_VIOLET, nav_.at(kTopRow, 2), tbg,
+               "%d", static_cast<int>(d.width * 100.0f));
 
     bool ar = nav_.atRow(kAmtRow);
     uint8_t abg = rowBg(ar);
@@ -91,7 +94,7 @@ class DirtPage : public IPage {
       if (nav_.field() == 0) {
         d.mode = static_cast<uint8_t>((d.mode + DIRT_MODE_COUNT + dir) % DIRT_MODE_COUNT);
       } else {
-        adjustUnit(&d.mix, dir, ev.step);
+        adjustUnit(nav_.field() == 1 ? &d.mix : &d.width, dir, ev.step);
       }
       return true;
     }
@@ -116,7 +119,9 @@ class DirtPage : public IPage {
     DirtState& d = model_.dirt;
     if (nav_.row() >= kBankRow0) { zeroModField(bankRow(), nav_.field()); return; }
     if (nav_.row() == kTopRow) {
-      if (nav_.field() == 0) d.mode = DIRT_SOFT; else d.mix = 0.0f;
+      if (nav_.field() == 0) d.mode = DIRT_SOFT;
+      else if (nav_.field() == 1) d.mix = 0.0f;
+      else d.width = 0.0f;
       return;
     }
     if (nav_.field() == 0) d.drive = 0.0f;
@@ -146,7 +151,9 @@ class DirtPage : public IPage {
       return;
     }
     if (nav_.row() == kTopRow) {
-      if (nav_.field() == 0) d.mode = DIRT_MODE_COUNT / 2; else d.mix = 0.5f;
+      if (nav_.field() == 0) d.mode = DIRT_MODE_COUNT / 2;
+      else if (nav_.field() == 1) d.mix = 0.5f;
+      else d.width = 0.5f;
       return;
     }
     if (nav_.field() == 0) d.drive = 0.5f;
@@ -161,7 +168,9 @@ class DirtPage : public IPage {
       return;
     }
     if (nav_.row() == kTopRow) {
-      if (nav_.field() == 0) d.mode = DIRT_MODE_COUNT - 1; else d.mix = 1.0f;
+      if (nav_.field() == 0) d.mode = DIRT_MODE_COUNT - 1;
+      else if (nav_.field() == 1) d.mix = 1.0f;
+      else d.width = 1.0f;
       return;
     }
     if (nav_.field() == 0) d.drive = 1.0f;
@@ -201,8 +210,13 @@ class DirtPage : public IPage {
       return;
     }
     if (nav_.row() == kTopRow) {
-      if (nav_.field() == 0) d.mode = static_cast<uint8_t>(model_.random() % DIRT_MODE_COUNT);
-      else d.mix = model_.randomUnit();
+      if (nav_.field() == 0) {
+        d.mode = static_cast<uint8_t>(model_.random() % DIRT_MODE_COUNT);
+      } else if (nav_.field() == 1) {
+        d.mix = model_.randomUnit();
+      } else {
+        d.width = model_.randomUnit();
+      }
       return;
     }
     // Short of the top on all three: everything at once is noise, not dirt.
@@ -252,7 +266,7 @@ class DirtPage : public IPage {
     if (nav_mode_ == model_.machine_mode) return;
     nav_mode_ = model_.machine_mode;
     bank_count_ = visibleModRows(model_.dirt.mod, kDirtModRows, nav_mode_, bank_index_);
-    fields_[kTopRow] = 2;
+    fields_[kTopRow] = 3;   // SHAPE, MIX, WIDTH
     fields_[kAmtRow] = 3;
     for (int i = 0; i < bank_count_; ++i) fields_[kBankRow0 + i] = 2;
     nav_.configure(fields_, kBankRow0 + bank_count_);

@@ -11,6 +11,10 @@
 inline constexpr float kPi = 3.14159265f;
 inline constexpr float kTwoPi = 6.28318531f;
 inline constexpr float kHalfPi = 1.57079633f;
+// For a constant-power pan applied to a signal that is already stereo:
+// cos and sin are both 1/sqrt(2) in the middle, so a centred source would
+// otherwise come out three decibels down.
+inline constexpr float kSqrt2 = 1.41421356f;
 
 inline float clamp1(float v) { return v < -1.0f ? -1.0f : (v > 1.0f ? 1.0f : v); }
 inline float clamp01(float v) { return v < 0.0f ? 0.0f : (v > 1.0f ? 1.0f : v); }

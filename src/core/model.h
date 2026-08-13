@@ -634,6 +634,14 @@ extern const char* const kDirtModeLabel[4];
 
 struct DirtState {
   uint8_t mode = 0;
+  // How far apart the two channels are driven. Nought is one distortion in
+  // both ears; up from there they get different amounts of it and the sound
+  // spreads. This exists because the machine did it by accident for months --
+  // the mode was only ever set on the left instance, so the right one stayed
+  // clean whatever the page said, and it sounded good. It was still a bug: a
+  // channel quietly running a different algorithm is not a stereo control, it
+  // is a lie. This is the same effect, on purpose and with a number on it.
+  float width = 0.0f;
   float drive = 0.08f;      // where the old MIX DRIVE of 8 landed
   float crush = 0.0f;
   float down = 0.0f;
@@ -654,6 +662,11 @@ inline constexpr float kGlitchMaxMs = 500.0f;
 
 struct GlitchState {
   float mix = 0.0f;
+  // SYNC's ratio, from the shared table. The gap between the gate's own pulses
+  // is measured rather than worked out from the tempo, so this follows the
+  // comparator as readily as the clock -- which the envelope's version, built
+  // on BPM, cannot do.
+  uint8_t ratio = kClockRatioUnity;
   float len_ms = 90.0f;
   // Take the slice length from the gate instead of from LEN — one repeat
   // exactly filling the gap between triggers, which is what a beat repeat is.

@@ -80,7 +80,12 @@ class GlitchPage : public IPage {
     // O lands on it. The alternative was a fourth field on a row that is
     // already thirty-seven cells wide.
     if (d.sync) {
-      drawField(scr, 5, 2, kSliceRow, 0, "SYNC", PEN_HOT, nav_.at(kSliceRow, 0), abg);
+      // The ratio rather than the word: SYNC on its own said the length came
+      // from the gate but not how much of it, and one gate can carry a slice
+      // an eighth of its length or eight times it.
+      char buf[12];
+      snprintf(buf, sizeof(buf), "\x88%s", kClockRatioLabel[d.ratio]);
+      drawField(scr, 5, 2, kSliceRow, 0, buf, PEN_HOT, nav_.at(kSliceRow, 0), abg);
     } else {
       drawFieldF(scr, 5, 2, kSliceRow, 0, PEN_EMBER, nav_.at(kSliceRow, 0), abg,
                  "%dms", static_cast<int>(d.len_ms));
@@ -140,9 +145,15 @@ class GlitchPage : public IPage {
       // stepping off the bottom of a length is where "no length of its own"
       // belongs, and it costs no column on a row already thirty-seven wide.
       if (d.sync) {
-        if (dir > 0) { d.sync = false; d.len_ms = kGlitchMinMs; }
+        // Stepping up through the ratios and then off the top of them is what
+        // leaves SYNC, so one field still carries both without a second key.
+        int r = static_cast<int>(d.ratio) + dir;
+        if (r >= kClockRatioCount) { d.sync = false; d.len_ms = kGlitchMinMs; }
+        else if (r < 0) d.ratio = 0;
+        else d.ratio = static_cast<uint8_t>(r);
       } else if (dir < 0 && d.len_ms <= kGlitchMinMs) {
         d.sync = true;
+        d.ratio = static_cast<uint8_t>(kClockRatioCount - 1);
       } else {
         // The coarse step has to cross half a second without a hundred
         // presses; a/z is there for the ones in between.

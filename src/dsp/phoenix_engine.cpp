@@ -78,6 +78,10 @@ float PhoenixEngine::randUnit() {
 void PhoenixEngine::applyParams() {
   {
     dirt_.setMode(model_.dirt.mode);
+    // Both of them. Only the left one was ever told, so the right channel
+    // ran SOFT however the page was set: measured at BRUTAL with drive 75,
+    // the right channel's level was identical to SOFT's to the digit.
+    dirt_r_.setMode(model_.dirt.mode);
     looper_.setGlitchReverse(model_.glitch.reverse);
     looper_.setGlitchPitch(shimmerRatio(model_.glitch.pitch));
     looper_.setGrainPitch(shimmerRatio(model_.grain.pitch));
@@ -292,9 +296,15 @@ void PhoenixEngine::stageDirt(float* l, float* r) {
   // than a send, so there is no mono wet to mix in: run it on the sum and both
   // channels come out identical, which would silently mono the signal the
   // moment DIRT is moved after anything that made it stereo.
-  dirt_.setDrive(drv);   dirt_.setCrush(cru);
+  // WIDTH drives the two channels by different amounts. Symmetric about what
+  // the dial says, so turning it up spreads the sound rather than tilting it,
+  // and at zero the two are the same number and the output is mono-safe.
+  float w = clamp01(model_.dirt.width);
+  float dl = drv * (1.0f + w * 0.55f);
+  float dr = drv * (1.0f - w * 0.55f);
+  dirt_.setDrive(dl);    dirt_.setCrush(cru);
   dirt_.setDownsample(dwn); dirt_.setMix(dmix);
-  dirt_r_.setDrive(drv); dirt_r_.setCrush(cru);
+  dirt_r_.setDrive(dr);  dirt_r_.setCrush(cru);
   dirt_r_.setDownsample(dwn); dirt_r_.setMix(dmix);
   *l = dirt_.process(*l);
   *r = dirt_r_.process(*r);
@@ -340,7 +350,7 @@ void PhoenixEngine::stageLoop(float* l, float* r, bool* written) {
   // are one routing entry: they cannot be on opposite sides of their own
   // buffer.
   if (!*written) {
-    looper_.write((*l + *r) * 0.5f);
+    looper_.write(*l, *r);
     *written = true;
   }
   {
@@ -366,7 +376,11 @@ void PhoenixEngine::stageLoop(float* l, float* r, bool* written) {
     }
     ++glitch_gap_;
     if (gl.sync && glitch_period_ > 0) {
-      len = static_cast<float>(glitch_period_) * 1000.0f / sample_rate_;
+      // The measured gap, times whatever fraction of it was asked for. One to
+      // one is a repeat exactly filling the gate; a half is two repeats in it,
+      // and four is a slice that outlasts four triggers.
+      len = static_cast<float>(glitch_period_) * 1000.0f / sample_rate_ *
+            clockRatioValue(gl.ratio);
     }
     looper_.setGlitchLength(len);
     model_.glitch.live_ms = looper_.glitchLengthMs();
