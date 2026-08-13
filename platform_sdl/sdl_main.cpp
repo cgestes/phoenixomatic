@@ -142,7 +142,9 @@ int captureAll(SDLDisplay& gfx, PhoenixModel& model, PhoenixDisplay& ui,
   double sum_sq = 0.0, diff_sq = 0.0;
   int peak = 0;
   size_t total = 0;
-  for (int b = 0; b < kSampleRate / static_cast<int>(kBlockSize); ++b) {
+  for (int b = 0; b < static_cast<int>(engine.sampleRate()) /
+                          static_cast<int>(kBlockSize);
+       ++b) {
     engine.render(buf, kBlockSize);
     for (size_t i = 0; i < kBlockSize; ++i) {
       int l = buf[i * kChannels], r = buf[i * kChannels + 1];
@@ -199,6 +201,7 @@ int main(int argc, char** argv) {
   // device you want is not the system default and you would rather not click.
   bool list_devices = false;
   int device_index = -1;
+  int rate_hz = kSampleRate;
   for (int i = 1; i < argc; ++i) {
     const char* a = argv[i];
     if (SDL_strcmp(a, "-h") == 0 || SDL_strcmp(a, "--help") == 0) {
@@ -227,14 +230,25 @@ int main(int argc, char** argv) {
           "  1-7              mute an instrument\n"
           "  - = esc          mute all / unmute all / invert\n"
           "\n"
+          "  --rate <hz>      8000 11025 16000 22050 32000 44100 48000\n"
+          "\n"
           "mouse: click a value, then drag or scroll. one notch or ten pixels\n"
-          "       is one keypress. on macOS the menu bar picks the output.\n",
+          "       is one keypress. on macOS the menu bar picks the output and\n"
+          "       the rate.\n",
           kDefaultScale);
       return 0;
     }
     if (SDL_strcmp(a, "--audio-list") == 0) list_devices = true;
     else if (SDL_strcmp(a, "--audio") == 0 && i + 1 < argc) {
       device_index = atoi(argv[++i]);
+    } else if (SDL_strcmp(a, "--rate") == 0 && i + 1 < argc) {
+      rate_hz = atoi(argv[++i]);
+      if (rate_hz < 4000 || rate_hz > kMaxSampleRate) {
+        fprintf(stderr,
+                "phoenixomatic: --rate %d is outside 4000..%d, using %d\n",
+                rate_hz, kMaxSampleRate, kSampleRate);
+        rate_hz = kSampleRate;
+      }
     }
   }
   if (shot_mode) {
@@ -269,20 +283,25 @@ int main(int argc, char** argv) {
 
   PhoenixModel model;
   PhoenixDisplay ui(gfx, model);
-  PhoenixEngine engine(model, static_cast<float>(kSampleRate));
+  PhoenixEngine engine(model, static_cast<float>(rate_hz));
 
   // Screenshot mode stays silent — it runs faster than real time.
   SdlAudio audio;
   if (!shot_mode) {
-    if (!audio.start(&engine)) {
+    if (!audio.start(&engine, rate_hz)) {
       fprintf(stderr, "phoenixomatic: no audio (%s) — running silent\n", SDL_GetError());
     }
-    // The picker lives in the menu bar rather than on a page: it is a
-    // property of this machine, not of the instrument, and the Cardputer and
-    // the browser have no choice to offer.
-    if (audio.count() > 1) installAudioMenu(&audio);
+    // The pickers live in the menu bar rather than on a page: they are
+    // properties of this machine, not of the instrument, and the Cardputer has
+    // no choice to offer on either. Installed even with one device, because
+    // the rate is always worth choosing.
+    installAudioMenu(&audio);
     if (device_index >= 0 && !audio.select(device_index)) {
       fprintf(stderr, "phoenixomatic: device %d not available\n", device_index);
+    }
+    if (audio.rate() != rate_hz) {
+      fprintf(stderr, "phoenixomatic: %d Hz refused, running at %d\n", rate_hz,
+              audio.rate());
     }
   }
 

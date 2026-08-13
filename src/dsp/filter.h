@@ -29,10 +29,12 @@
 // FilterMode and FilterType live in core/model.h beside FilterInput, because
 // the pages have to name these and they include the model rather than the DSP.
 #include "../core/model.h"
+#include "audio_config.h"
 
-// The comb's line. 1200 samples reaches 18 Hz at the machine's rate, which is
-// below the bottom of the tuning range, so the dial is never buffer-limited.
-inline constexpr int kCombMax = 1200;
+// The comb's line. 1200 samples reaches 18 Hz at 22050, which is below the
+// bottom of the tuning range, so the dial is never buffer-limited -- and it has
+// to stay that way at every rate the build offers, so it is a capacity.
+inline constexpr int kCombMax = atMaxRate(1200);
 
 class Filter {
  public:

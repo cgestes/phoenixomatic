@@ -39,6 +39,7 @@
 // SpaceMode lives in core/model.h beside the filter's, because the pages name
 // these and they include the model rather than the DSP.
 #include "../core/model.h"
+#include "audio_config.h"
 
 class Space {
  public:
@@ -59,13 +60,17 @@ class Space {
  private:
   static constexpr int kLines = 4;
   static constexpr int kDiffusers = 4;
-  static constexpr int kShiftLen = 2048;
-  // The plate needs the most: 16947 samples across its twelve elements, and
-  // everything else lays itself out inside the same block. The exact figure is
-  // checked against this in layout(), because getting it wrong does not fail
-  // loudly -- the layout simply runs off the end and writes over the structs
-  // that describe it, which presents as a hang rather than as a wrong number.
-  static constexpr int kTankMax = 17000;
+  // The shifter's grain. A capacity and a duration at once -- ninety
+  // milliseconds is the grain length, so it scales with the rate.
+  static constexpr int kShiftLen = atMaxRate(2048);
+  // The plate needs the most: 16947 samples across its twelve elements at
+  // 22050, and everything else lays itself out inside the same block. Scaled
+  // for whatever rate this build allows, and checked against the exact figure
+  // in layout() -- because getting it wrong does not fail loudly. The layout
+  // simply runs off the end and writes over the structs that describe it,
+  // which presents as a hang rather than as a wrong number. That is not
+  // hypothetical: it is what the first version of the plate did.
+  static constexpr int kTankMax = atMaxRate(16947) + 64;
 
   // One stretch of the shared block, with its own write cursor. Read at a
   // fractional delay, because every one of these is modulated by something.
@@ -111,6 +116,8 @@ class Space {
   Lfo fdn_lfo_[kLines];
   Lfo diff_lfo_[kDiffusers];
   float fdn_delay_[kLines] = {8.0f, 8.0f, 8.0f, 8.0f};
+  float diff_run_[kDiffusers] = {};   // diffuser lengths at the running rate
+  float mod_room_ = 24.0f;           // how far a modulator may swing
   float lp_[kLines] = {0.0f, 0.0f, 0.0f, 0.0f};
 
   // --- the plate -------------------------------------------------------------

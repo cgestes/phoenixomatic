@@ -5,6 +5,7 @@
 #import <Cocoa/Cocoa.h>
 
 #include "sdl_audio.h"
+#include "../src/dsp/audio_config.h"
 
 // The menu items need an Objective-C object to send their action to, and it
 // has to outlive the call that builds them, so it is a file-scope singleton
@@ -13,8 +14,10 @@
  @public
   SdlAudio* audio;
   NSMenu* menu;
+  NSMenu* rates;
 }
 - (void)pick:(id)sender;
+- (void)pickRate:(id)sender;
 - (void)refreshTicks;
 @end
 
@@ -28,12 +31,25 @@
   [self refreshTicks];
 }
 
+// The tag is the rate in hertz, which is also what the label says, so there is
+// nothing to keep in step between them.
+- (void)pickRate:(id)sender {
+  NSMenuItem* item = (NSMenuItem*)sender;
+  if (audio) audio->setRate(static_cast<int>(item.tag));
+  [self refreshTicks];
+}
+
 - (void)refreshTicks {
   if (!audio) return;
   int current = audio->current();
   for (NSMenuItem* item in menu.itemArray) {
     item.state = (item.tag == current) ? NSControlStateValueOn
                                        : NSControlStateValueOff;
+  }
+  int hz = audio->rate();
+  for (NSMenuItem* item in rates.itemArray) {
+    item.state = (item.tag == hz) ? NSControlStateValueOn
+                                  : NSControlStateValueOff;
   }
 }
 
@@ -78,6 +94,28 @@ void installAudioMenu(SdlAudio* audio) {
                                           keyEquivalent:@""];
     [top setSubmenu:submenu];
     [main addItem:top];
+
+    // The rate sits beside the device because it is the same kind of choice: a
+    // property of this machine rather than of the instrument. The low ones are
+    // there on purpose -- at 8 kHz the comparator aliases into something the
+    // machine cannot make any other way.
+    NSMenu* rate_menu = [[NSMenu alloc] initWithTitle:@"Sample Rate"];
+    g_target->rates = rate_menu;
+    for (int i = 0; i < kRateCount; ++i) {
+      NSString* title = [NSString stringWithFormat:@"%d Hz", kRates[i]];
+      NSMenuItem* item = [[NSMenuItem alloc] initWithTitle:title
+                                                   action:@selector(pickRate:)
+                                            keyEquivalent:@""];
+      item.target = g_target;
+      item.tag = kRates[i];
+      [rate_menu addItem:item];
+    }
+    NSMenuItem* rate_top = [[NSMenuItem alloc] initWithTitle:@"Sample Rate"
+                                                     action:nil
+                                              keyEquivalent:@""];
+    [rate_top setSubmenu:rate_menu];
+    [main addItem:rate_top];
+
     [g_target refreshTicks];
   }
 }

@@ -34,12 +34,15 @@ class PhoenixEngine {
  public:
   PhoenixEngine(PhoenixModel& model, float sample_rate);
 
+  // Rebuilds every buffer and coefficient for a new rate. Silences the
+  // machine while it does: nothing that was in flight survives.
+  void setSampleRate(float sample_rate);
+  float sampleRate() const { return sample_rate_; }
+
   // Interleaved stereo, 16-bit: `frames` frames, so 2 * frames samples written.
   // The Cardputer's speaker is mono but its headphone jack is not, and reverb
   // is the one thing that really needs two channels.
   void render(int16_t* out, size_t frames);
-
-  float sampleRate() const { return sample_rate_; }
 
  private:
   void applyParams();

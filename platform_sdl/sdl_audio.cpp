@@ -31,7 +31,7 @@ const char* SdlAudio::name(int index) const {
 
 bool SdlAudio::open(int index) {
   SDL_AudioSpec want{};
-  want.freq = kSampleRate;
+  want.freq = rate_;
   want.format = AUDIO_S16SYS;
   want.channels = kChannels;
   want.samples = static_cast<Uint16>(kBlockSize);
@@ -52,8 +52,32 @@ bool SdlAudio::open(int index) {
   return true;
 }
 
-bool SdlAudio::start(PhoenixEngine* engine) {
+// A rate change is not a parameter change: every delay line, filter state and
+// reverb tail in the engine was built for the old rate and means nothing at the
+// new one. So the device is closed, the engine rebuilt, and the device opened
+// again -- which also means the callback cannot be running while the buffers it
+// reads are being resized.
+bool SdlAudio::setRate(int hz) {
+  if (hz <= 0 || hz == rate_) return true;
+  int previous = rate_;
+  if (device_) {
+    SDL_CloseAudioDevice(device_);
+    device_ = 0;
+  }
+  rate_ = hz;
+  if (engine_) engine_->setSampleRate(static_cast<float>(hz));
+  if (open(current_)) return true;
+  // The device refused the new rate. Go back rather than leaving the app
+  // silent, and rebuild the engine for the rate that does work.
+  rate_ = previous;
+  if (engine_) engine_->setSampleRate(static_cast<float>(previous));
+  open(current_);
+  return false;
+}
+
+bool SdlAudio::start(PhoenixEngine* engine, int hz) {
   engine_ = engine;
+  if (hz > 0) rate_ = hz;
   // Negative means the platform will not enumerate, which is not an error —
   // it just means there is no choice to offer.
   int n = SDL_GetNumAudioDevices(0);

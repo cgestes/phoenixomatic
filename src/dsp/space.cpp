@@ -10,19 +10,26 @@ namespace {
 // Mutually prime-ish so the lines do not line up and thin the tail out into a
 // flutter. Scaled by SIZE at run time.
 constexpr float kLineFrac[4] = {1.000f, 0.816f, 0.633f, 0.457f};
-constexpr int kLineCap[4] = {3308, 2700, 2095, 1512};
+// Capacities: 150 ms on the longest line, at whatever rate this build allows.
+constexpr int kLineCap[4] = {atMaxRate(3308), atMaxRate(2700), atMaxRate(2095),
+                             atMaxRate(1512)};
+// Lengths, in samples, and therefore rate-dependent -- these are durations
+// dressed as counts. Resolved against the running rate in layout().
 constexpr int kDiffuseLen[4] = {113, 173, 241, 317};
 constexpr float kDiffuseGain = 0.62f;
 // Room under every read for the modulation to swing without the read pointer
 // ever passing the write pointer.
-constexpr int kModRoom = 24;
+constexpr int kModRoom = atMaxRate(24);
 
 // --- the plate --------------------------------------------------------------
 // Dattorro's numbers, from "Effect Design Part 1: Reverberator and Other
 // Filters" (JAES 1997), scaled from the 29761 Hz he wrote them for. They are
 // chosen so nothing in the tank is a whole multiple of anything else in it;
 // rounding them to this machine's rate keeps that true.
-constexpr float kPlateScale = 22050.0f / 29761.0f;
+// Dattorro wrote his lengths for 29761 Hz. Everything here is scaled from
+// that to whatever rate the machine is actually running at, which is the
+// difference between a plate and a plate played back at the wrong speed.
+constexpr float kPlateBaseRate = 29761.0f;
 constexpr int kPlateIn[4] = {142, 107, 379, 277};
 // Each branch is allpass, delay, allpass, delay.
 constexpr int kPlateA[4] = {672, 4453, 1800, 3720};
@@ -72,19 +79,23 @@ constexpr float kShimHighHz = 3400.0f;  // above this, an upward one does
 // What each layout actually needs, worked out at compile time so the shared
 // block can be checked against it rather than guessed at.
 constexpr int plateElem(int base) {
-  return static_cast<int>(static_cast<float>(base) * kPlateScale) + kModRoom;
+  return static_cast<int>(static_cast<float>(base) *
+                          (static_cast<float>(kMaxSampleRate) / kPlateBaseRate)) +
+         kModRoom;
 }
-constexpr int kFdnTotal = 3308 + 2700 + 2095 + 1512 +
-                          (113 + kModRoom) + (173 + kModRoom) +
-                          (241 + kModRoom) + (317 + kModRoom);
+constexpr int kFdnTotal = kLineCap[0] + kLineCap[1] + kLineCap[2] + kLineCap[3] +
+                          (atMaxRate(113) + kModRoom) + (atMaxRate(173) + kModRoom) +
+                          (atMaxRate(241) + kModRoom) + (atMaxRate(317) + kModRoom);
 constexpr int kPlateTotal =
     plateElem(142) + plateElem(107) + plateElem(379) + plateElem(277) +
     plateElem(672) + plateElem(4453) + plateElem(1800) + plateElem(3720) +
     plateElem(908) + plateElem(4217) + plateElem(2656) + plateElem(3163);
 constexpr int kCloudTotal =
-    (113 + kModRoom) + (162 + kModRoom) + (241 + kModRoom) + (399 + kModRoom) +
-    (1051 + kModRoom) + (1583 + kModRoom) + (2179 + kModRoom) +
-    (2749 + kModRoom) + (3673 + kModRoom);
+    (atMaxRate(113) + kModRoom) + (atMaxRate(162) + kModRoom) +
+    (atMaxRate(241) + kModRoom) + (atMaxRate(399) + kModRoom) +
+    (atMaxRate(1051) + kModRoom) + (atMaxRate(1583) + kModRoom) +
+    (atMaxRate(2179) + kModRoom) + (atMaxRate(2749) + kModRoom) +
+    (atMaxRate(3673) + kModRoom);
 
 float scaled(int base, float scale) {
   float v = static_cast<float>(base) * scale;
@@ -151,24 +162,38 @@ void Space::layout() {
     at += n;
   };
 
+  // Every length below is a duration in disguise, so it is resolved against
+  // the rate the machine is running at now -- not the rate the build is sized
+  // for. The two are the same on hardware and rarely the same on desktop.
+  const float r = sample_rate_ / 22050.0f;
+  auto atRate = [r](int n) {
+    int v = static_cast<int>(static_cast<float>(n) * r + 0.5f);
+    return v < 4 ? 4 : v;
+  };
+  const float pscale = sample_rate_ / kPlateBaseRate;
+  auto atPlate = [pscale](int n) {
+    int v = static_cast<int>(static_cast<float>(n) * pscale + 0.5f);
+    return v < 4 ? 4 : v;
+  };
+  const int room = atRate(24);
+
   at = 0;
   for (int i = 0; i < kLines; ++i) take(&fdn_[i], kLineCap[i]);
-  for (int i = 0; i < kDiffusers; ++i) take(&diff_[i], kDiffuseLen[i] + kModRoom);
+  for (int i = 0; i < kDiffusers; ++i) take(&diff_[i], atRate(kDiffuseLen[i]) + room);
+  diff_run_[0] = static_cast<float>(atRate(kDiffuseLen[0]));
+  diff_run_[1] = static_cast<float>(atRate(kDiffuseLen[1]));
+  diff_run_[2] = static_cast<float>(atRate(kDiffuseLen[2]));
+  diff_run_[3] = static_cast<float>(atRate(kDiffuseLen[3]));
 
   at = 0;
-  for (int i = 0; i < 4; ++i) {
-    take(&pin_[i], static_cast<int>(kPlateIn[i] * kPlateScale) + kModRoom);
-  }
-  for (int i = 0; i < 4; ++i) {
-    take(&pa_[i], static_cast<int>(kPlateA[i] * kPlateScale) + kModRoom);
-  }
-  for (int i = 0; i < 4; ++i) {
-    take(&pb_[i], static_cast<int>(kPlateB[i] * kPlateScale) + kModRoom);
-  }
+  for (int i = 0; i < 4; ++i) take(&pin_[i], atPlate(kPlateIn[i]) + room);
+  for (int i = 0; i < 4; ++i) take(&pa_[i], atPlate(kPlateA[i]) + room);
+  for (int i = 0; i < 4; ++i) take(&pb_[i], atPlate(kPlateB[i]) + room);
 
   at = 0;
-  for (int i = 0; i < 4; ++i) take(&cin_[i], kCloudIn[i] + kModRoom);
-  for (int i = 0; i < 5; ++i) take(&cloop_[i], kCloudLoop[i] + kModRoom);
+  for (int i = 0; i < 4; ++i) take(&cin_[i], atRate(kCloudIn[i]) + room);
+  for (int i = 0; i < 5; ++i) take(&cloop_[i], atRate(kCloudLoop[i]) + room);
+  mod_room_ = static_cast<float>(room);
 }
 
 void Space::reset() {
@@ -223,13 +248,15 @@ void Space::setSize(float v) {
   // box, all of them a hall. The input diffusers do not scale -- they are
   // smearing the attack, and that job does not get bigger with the room.
   float scale = 0.35f + 0.65f * size_;
+  const float pscale = sample_rate_ / kPlateBaseRate;
+  const float rscale = sample_rate_ / 22050.0f;
   for (int i = 0; i < 4; ++i) {
-    plate_in_len_[i] = scaled(kPlateIn[i], kPlateScale);
-    plate_a_len_[i] = scaled(kPlateA[i], kPlateScale * scale);
-    plate_b_len_[i] = scaled(kPlateB[i], kPlateScale * scale);
-    cloud_in_len_[i] = static_cast<float>(kCloudIn[i]);
+    plate_in_len_[i] = scaled(kPlateIn[i], pscale);
+    plate_a_len_[i] = scaled(kPlateA[i], pscale * scale);
+    plate_b_len_[i] = scaled(kPlateB[i], pscale * scale);
+    cloud_in_len_[i] = scaled(kCloudIn[i], rscale);
   }
-  for (int i = 0; i < 5; ++i) cloud_len_[i] = scaled(kCloudLoop[i], scale);
+  for (int i = 0; i < 5; ++i) cloud_len_[i] = scaled(kCloudLoop[i], rscale * scale);
 
   // The output taps have to stay inside the elements they read from, which
   // shrank with SIZE. Clamped rather than scaled, so the near taps keep their
@@ -247,8 +274,8 @@ void Space::setSize(float v) {
   for (int i = 0; i < 7; ++i) {
     (void)srcL;
     (void)srcR;
-    float l = static_cast<float>(kTapL[i]) * kPlateScale;
-    float r = static_cast<float>(kTapR[i]) * kPlateScale;
+    float l = static_cast<float>(kTapL[i]) * pscale;
+    float r = static_cast<float>(kTapR[i]) * pscale;
     tap_l_[i] = l > lenL[i] - 2.0f ? lenL[i] - 2.0f : l;
     tap_r_[i] = r > lenR[i] - 2.0f ? lenR[i] - 2.0f : r;
     if (tap_l_[i] < 1.0f) tap_l_[i] = 1.0f;
@@ -349,7 +376,7 @@ void Space::processFdn(float in, bool gate_open, float* left, float* right) {
       // Modulated, by a few samples at a fraction of a hertz. A fixed allpass
       // chain has a fixed comb pattern in it, and a fixed comb pattern under a
       // sustained sound is a ringing note rather than a room.
-      float d = static_cast<float>(kDiffuseLen[i]) + lfoStep(&diff_lfo_[i]) * 6.0f;
+      float d = diff_run_[i] + lfoStep(&diff_lfo_[i]) * mod_room_ * 0.25f;
       x = allpass(&diff_[i], x, kDiffuseGain, d);
     }
   }
@@ -509,7 +536,7 @@ void Space::processPlate(float in, float* left, float* right) {
     // under a hertz, and it is the single thing that separates a plate from a
     // ringing box: without it the tank has fixed modes and finds them.
     v = allpass(&pa_[0], v, -kPlateDecayDiff1,
-                plate_a_len_[0] + lfoStep(&pa_lfo_) * 6.0f);
+                plate_a_len_[0] + lfoStep(&pa_lfo_) * mod_room_ * 0.25f);
     v = delayThrough(&pa_[1], v, plate_a_len_[1]);
     plate_damp_a_ += (v - plate_damp_a_) * (1.0f - damp);
     v = plate_damp_a_ * decay;
@@ -520,7 +547,7 @@ void Space::processPlate(float in, float* left, float* right) {
   {
     float v = x + plate_a_ * decay;
     v = allpass(&pb_[0], v, -kPlateDecayDiff1,
-                plate_b_len_[0] + lfoStep(&pb_lfo_) * 6.0f);
+                plate_b_len_[0] + lfoStep(&pb_lfo_) * mod_room_ * 0.25f);
     v = delayThrough(&pb_[1], v, plate_b_len_[1]);
     plate_damp_b_ += (v - plate_damp_b_) * (1.0f - damp);
     v = plate_damp_b_ * decay;
@@ -555,17 +582,17 @@ void Space::processCloud(float in, float* left, float* right) {
   // under a drum.
   float x = in * 0.5f;
   for (int i = 0; i < 4; ++i) {
-    float wob = i == 1 ? lfoStep(&c_lfo_a_) * 4.0f : 0.0f;
+    float wob = i == 1 ? lfoStep(&c_lfo_a_) * mod_room_ * 0.17f : 0.0f;
     x = allpass(&cin_[i], x, kCloudInDiff, cloud_in_len_[i] + wob);
   }
 
   float v = x + cloud_damp_ * cloud_fb_;
   v = allpass(&cloop_[0], v, kCloudLoopDiff,
-              cloud_len_[0] + lfoStep(&c_lfo_a_) * 8.0f);
+              cloud_len_[0] + lfoStep(&c_lfo_a_) * mod_room_ * 0.33f);
   v = allpass(&cloop_[1], v, kCloudLoopDiff, cloud_len_[1]);
   float mid = v;
   v = allpass(&cloop_[2], v, kCloudLoopDiff,
-              cloud_len_[2] + lfoStep(&c_lfo_b_) * 8.0f);
+              cloud_len_[2] + lfoStep(&c_lfo_b_) * mod_room_ * 0.33f);
   v = allpass(&cloop_[3], v, kCloudLoopDiff, cloud_len_[3]);
   v = delayThrough(&cloop_[4], v, cloud_len_[4]);
   cloud_damp_ += (v - cloud_damp_) * (1.0f - damp_coeff_);

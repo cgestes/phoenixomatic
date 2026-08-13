@@ -25,7 +25,19 @@ inline float noteToBus(int8_t note) {
 }  // namespace
 
 PhoenixEngine::PhoenixEngine(PhoenixModel& model, float sample_rate)
-    : model_(model), sample_rate_(sample_rate > 1.0f ? sample_rate : 22050.0f) {
+    : model_(model) {
+  setSampleRate(sample_rate);
+}
+
+// Everything downstream takes its rate at init and derives its coefficients
+// from it, so changing rate is the same work as building the engine -- which
+// is why this is what the constructor calls rather than a second copy of it.
+// It stops the sound: every delay line, filter state and reverb tail is built
+// for the old rate and means nothing at the new one.
+void PhoenixEngine::setSampleRate(float sample_rate) {
+  sample_rate_ = sample_rate > 1.0f ? sample_rate : 22050.0f;
+  model_.sample_rate = sample_rate_;
+  {
   for (int i = 0; i < 2; ++i) {
     chaos_[i].init(sample_rate_, 0x1234u + static_cast<uint32_t>(i) * 7919u);
     osc_[i].init(sample_rate_);
@@ -46,6 +58,7 @@ PhoenixEngine::PhoenixEngine(PhoenixModel& model, float sample_rate)
   // IRON holds its gate open for a beat after each pulse. A gate source is an
   // instant; a tail needs a window.
   gate_hold_samples_ = static_cast<int>(sample_rate_ * 0.06f);
+  }
 }
 
 uint32_t PhoenixEngine::rng() {

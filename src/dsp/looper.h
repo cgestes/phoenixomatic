@@ -53,7 +53,8 @@ class Looper {
  private:
   // A second. Long enough for a slow repeat and for grains to reach back into
   // something that has changed, short enough to sit beside DELAY and SPACE.
-  static constexpr int kLen = kSampleRate;
+  // One second, at whatever rate this build is sized for.
+  static constexpr int kLen = kMaxSampleRate;
   static constexpr int kGrains = 8;
 
   float read(float pos) const;

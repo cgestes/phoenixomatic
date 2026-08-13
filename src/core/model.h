@@ -4,6 +4,8 @@
 // is written back into here. The UI never talks to the DSP directly.
 #pragma once
 
+#include "../dsp/audio_config.h"
+
 #include <cmath>
 #include <cstdint>
 
@@ -935,6 +937,10 @@ class PhoenixModel {
 
   // Global pitch offset in octaves, applied to both oscillators. Down here the
   // comparator ticks like a sequencer; up there it screams.
+  // What the engine is actually running at. The UI needs it -- the oscillator
+  // page warns when a note has gone past Nyquist, and on desktop Nyquist is no
+  // longer a constant. Published by the engine, never edited from a page.
+  float sample_rate = static_cast<float>(kSampleRate);
   uint8_t machine_mode = MODE_BENJOLIN;
   float rate_offset = -4.0f;
   float master = 0.74f;

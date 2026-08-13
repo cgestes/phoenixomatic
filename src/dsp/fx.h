@@ -13,6 +13,8 @@
 // small — 40 ms is the longest anything here asks for.
 #pragma once
 
+#include "audio_config.h"
+
 #include <cstdint>
 
 enum FxMode : uint8_t {
@@ -33,7 +35,7 @@ class Fx {
   void process(float in, float* left, float* right);
 
  private:
-  static constexpr int kMaxDelay = 900;   // ~40 ms at 22050
+  static constexpr int kMaxDelay = atMaxRate(900);   // ~40 ms
   static constexpr int kStages = 6;       // phaser allpasses
   static constexpr int kVoices = 3;       // ensemble
 

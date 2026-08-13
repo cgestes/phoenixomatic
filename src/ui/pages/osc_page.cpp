@@ -62,7 +62,7 @@ class OscPage : public IPage {
     NoteRead n = noteFor(hz);
     // Past Nyquist the oscillator clamps and you hear the ceiling, not this
     // note. Saying so beats printing a pitch the machine cannot produce.
-    bool over = hz > static_cast<float>(kSampleRate) * 0.48f;
+    bool over = hz > model_.sample_rate * 0.48f;
     scr.textf(11, 2, over ? PEN_FAINT : PEN_COOL, "%s%d", n.name, n.octave);
     if (over) {
       scr.text(17, 2, "over nyquist", PEN_ALERT);

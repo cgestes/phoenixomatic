@@ -48,7 +48,8 @@ class MultiDelay {
  private:
   // As much as the Cardputer's SRAM will spare next to SPACE; longer wants
   // PSRAM. Derived from kDelayMaxMs so the two cannot drift.
-  static constexpr int kMaxDelay = kSampleRate * kDelayMaxMs / 1000;
+  // A capacity, so it is sized for the fastest rate this build allows.
+  static constexpr int kMaxDelay = kMaxSampleRate * kDelayMaxMs / 1000;
 
   float readAt(float samples_back) const;
 
