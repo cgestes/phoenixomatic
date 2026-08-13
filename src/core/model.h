@@ -47,6 +47,16 @@ enum SourceId : uint8_t {
 };
 extern const char* const kSourceLabel[SRC_COUNT];   // "CHA", "CHB", ...
 
+// A time control that can stop being a time. Every module with one keeps the
+// free value it had, plus a flag and a ratio -- and the page shows one field
+// either way, because SYNC lives one step below the shortest free setting.
+// GLITCH proved the pattern and it costs no column.
+struct SyncTime {
+  bool sync = false;
+  uint8_t ratio = 4;    // kClockRatioUnity, spelled out to avoid the ordering
+};
+
+
 // Gates can only come from one place, so gate destinations pick from this list
 // rather than carrying an attenuverter bank.
 enum GateSource : uint8_t {
@@ -248,6 +258,7 @@ inline int clampRunglerDiv(int div) {
 }
 
 struct Chaos {
+  SyncTime sync;           // how fast it wanders, against the pulse
   uint8_t mode = CHAOS_SLOTH;
   float rate = 0.04f;      // Hz
   // No depth: how much of this reaches anything is the attenuverter's job on
@@ -633,8 +644,12 @@ struct ClockState {
 // DIRT — drive, bit crushing, decimation and three shapes borrowed from
 // Liquidateur. DRIVE and CRUSH used to sit loose in the output stage with no
 // page; that is how CRUSH stayed unimplemented without anyone noticing.
-inline constexpr int kDirtModRows = 4;
-enum DirtDest : uint8_t { DIDEST_DRIVE = 0, DIDEST_CRUSH, DIDEST_DOWN, DIDEST_MIX, DIDEST_COUNT };
+inline constexpr int kDirtModRows = 6;
+// WIDTH joined the page and not this list, which made it the one DIRT
+// control you could not modulate -- and a stereo spread that moves is worth
+// more than one that sits still.
+enum DirtDest : uint8_t { DIDEST_DRIVE = 0, DIDEST_CRUSH, DIDEST_DOWN,
+                          DIDEST_MIX, DIDEST_WIDTH, DIDEST_COUNT };
 extern const char* const kDirtDestLabel[DIDEST_COUNT];
 extern const char* const kDirtModeLabel[4];
 
@@ -656,7 +671,7 @@ struct DirtState {
 };
 
 // GLITCH — grab the last slice and loop it.
-inline constexpr int kGlitchModRows = 4;
+inline constexpr int kGlitchModRows = 6;
 enum GlitchDest : uint8_t { GDEST_LEN = 0, GDEST_CHANCE, GDEST_PITCH, GDEST_MIX, GDEST_COUNT };
 extern const char* const kGlitchDestLabel[GDEST_COUNT];
 
@@ -695,11 +710,16 @@ struct GlitchState {
 };
 
 // GRAIN — overlapping windowed reads of the same buffer GLITCH uses.
-inline constexpr int kGrainModRows = 4;
-enum GrainDest : uint8_t { GRDEST_SIZE = 0, GRDEST_DENSITY, GRDEST_SPREAD, GRDEST_MIX, GRDEST_COUNT };
+inline constexpr int kGrainModRows = 6;
+// PITCH is a list on the page and a continuous shift here: the bank bends
+// it between the entries rather than stepping through them, which is what
+// makes a grain cloud drift.
+enum GrainDest : uint8_t { GRDEST_SIZE = 0, GRDEST_DENSITY, GRDEST_SPREAD,
+                          GRDEST_MIX, GRDEST_PITCH, GRDEST_COUNT };
 extern const char* const kGrainDestLabel[GRDEST_COUNT];
 
 struct GrainState {
+  SyncTime sync;    // grain size against the pulse
   // Half wet by default. GRAIN is a texture rather than an insert -- at zero
   // the page looks like it does nothing, which is how it read.
   float mix = 0.5f;
@@ -749,12 +769,13 @@ extern const char* const kFxEntryLabel[ENTRY_COUNT];
 extern const char* const kFxEntryWhat[ENTRY_COUNT];
 
 // FX — phaser, flanger, chorus, ensemble: one swept delay at four lengths.
-inline constexpr int kFxModRows = 4;
+inline constexpr int kFxModRows = 6;
 enum FxDest : uint8_t { FDEST_RATE = 0, FDEST_DEPTH, FDEST_FEED, FDEST_MIX, FXDEST_COUNT };
 extern const char* const kFxDestLabel[FXDEST_COUNT];
 extern const char* const kFxModeLabel[4];
 
 struct FxState {
+  SyncTime sync;    // the sweep, against the pulse
   uint8_t mode = 0;
   float rate = 0.25f;
   float depth = 0.6f;
@@ -765,7 +786,7 @@ struct FxState {
 
 // DELAY — one line, four taps, each with a time, a level and a place in the
 // stereo field. See src/dsp/delay.h for why it is one buffer and not four.
-inline constexpr int kDelayModRows = 5;
+inline constexpr int kDelayModRows = 6;
 
 enum DelayDest : uint8_t { DDEST_TIME = 0, DDEST_FEED, DDEST_DAMP, DDEST_MIX, DDEST_COUNT };
 extern const char* const kDelayDestLabel[DDEST_COUNT];
@@ -777,6 +798,10 @@ struct DelayTap {
 };
 
 struct DelayState {
+  // Locks the whole pattern to the pulse rather than each tap separately: the
+  // taps keep their relative spacing and the first one lands on the ratio,
+  // which is what a delay pattern is -- a shape, at a tempo.
+  SyncTime sync;
   float mix = 0.0f;         // dry at boot, like SPACE
   float feedback = 0.35f;
   float damp = 0.4f;

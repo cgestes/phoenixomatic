@@ -56,8 +56,16 @@ class DelayPage : public IPage {
       bool off = t.level <= 0.0f;
 
       scr.textf(2, row, off ? PEN_FAINT : PEN_EMBER, "T%d", i + 1);
-      drawFieldF(scr, 6, row, nav_row, 0, off ? PEN_FAINT : PEN_BRIGHT,
-                 nav_.at(nav_row, 0), bg, "%dms", static_cast<int>(t.time_ms));
+      // The first tap is the one that can lock to the pulse; the rest keep
+      // their spacing relative to it, so the pattern is a shape at a tempo
+      // rather than four separate times to line up by hand.
+      if (i == 0 && d.sync.sync) {
+        drawField(scr, 6, row, nav_row, 0, kClockRatioLabel[d.sync.ratio],
+                  off ? PEN_FAINT : PEN_HOT, nav_.at(nav_row, 0), bg);
+      } else {
+        drawFieldF(scr, 6, row, nav_row, 0, off ? PEN_FAINT : PEN_BRIGHT,
+                   nav_.at(nav_row, 0), bg, "%dms", static_cast<int>(t.time_ms));
+      }
       drawFieldF(scr, 16, row, nav_row, 1, off ? PEN_FAINT : PEN_BRIGHT,
                  nav_.at(nav_row, 1), bg, "%d", static_cast<int>(t.level * 100.0f));
       char pan_buf[8];
@@ -149,9 +157,14 @@ class DelayPage : public IPage {
     if (nav_.field() == 0) {
       // Milliseconds, and SHIFT is the *fine* one here: the coarse step has to
       // cross a second in a sane number of presses.
-      t.time_ms += static_cast<float>(dir) * 10.0f * stepScale(ev.step);
-      if (t.time_ms < 1.0f) t.time_ms = 1.0f;
-      if (t.time_ms > kMaxTimeMs) t.time_ms = kMaxTimeMs;
+      if (nav_.row() == 0) {
+        adjustSyncTime(&model_.delay.sync, &t.time_ms, dir, ev.step, 1.0f,
+                       kMaxTimeMs, 10.0f);
+      } else {
+        t.time_ms += static_cast<float>(dir) * 10.0f * stepScale(ev.step);
+        if (t.time_ms < 1.0f) t.time_ms = 1.0f;
+        if (t.time_ms > kMaxTimeMs) t.time_ms = kMaxTimeMs;
+      }
     } else if (nav_.field() == 1) {
       adjustUnit(&t.level, dir, ev.step);
     } else {

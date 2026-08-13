@@ -50,6 +50,12 @@ class PhoenixEngine {
   void publishBus();
   // True if `gate_src` has a rising edge this sample.
   bool gateEdge(uint8_t gate_src) const;
+  // That source's period in milliseconds, or 0 if it has not pulsed twice yet.
+  float gatePeriodMs(uint8_t gate_src) const;
+  // The pulse to lock to when a module has no gate of its own: the clock where
+  // there is one, the comparator where there is not.
+  float mainPeriodMs() const;
+  void measureGates();
   // Where a voice joins the chain, clamped: the field is a uint8_t and an
   // out-of-range one would index past the accumulators.
   int route(int inst) const {
@@ -92,6 +98,9 @@ class PhoenixEngine {
   // How long the gate stays open after an edge. Every gate source on this
   // machine is an instant, and an envelope needs a duration.
   int func_hold_[kFuncGens] = {0, 0};
+  // Pulses counted, so a shape longer than one pulse is only restarted on
+  // the pulse where a new one is actually due.
+  int func_pulse_[kFuncGens] = {0, 0};
   float func_trace_phase_[kFuncGens] = {0.0f, 0.0f};
   Dirt dirt_;
   // One per channel. DIRT is a transfer function rather than a send, so it has
@@ -140,6 +149,17 @@ class PhoenixEngine {
   int clk_div_hold_[kClockDividers] = {0};
   // GLITCH measures the gap between its own gate pulses, so SYNC can make a
   // slice exactly one gate long without being told a tempo.
+  // How far apart every gate source's pulses are, measured rather than worked
+  // out from the tempo. One counter and one answer per source, updated once a
+  // sample, so anything that wants to lock to something can ask what that
+  // something's period actually is -- including in modes that have no clock at
+  // all, where the comparator is the only pulse there is.
+  //
+  // GLITCH already worked this way and it was the better of the two
+  // mechanisms: FUNC computed its length from BPM and the divider, which is
+  // only correct for real clocks and only in ADVANCED.
+  int gate_gap_[GATE_COUNT] = {};
+  int gate_period_[GATE_COUNT] = {};
   int glitch_gap_ = 0;
   int glitch_period_ = 0;
   int drum_count_[kDrumVoices] = {0};

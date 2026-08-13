@@ -55,10 +55,10 @@ const char* const kCompShapeLabel[CSHAPE_COUNT] = {
     "PWM", "LIM", "CLIP", "FOLD", "RECT", "MIN", "MAX" };
 const char* const kCompDestLabel[CDEST_COUNT] = { "OFFSET", "DRIVE" };
 
-const char* const kDirtDestLabel[DIDEST_COUNT] = { "DRIVE", "CRUSH", "DOWN", "MIX" };
+const char* const kDirtDestLabel[DIDEST_COUNT] = { "DRIVE", "CRUSH", "DOWN", "MIX", "WIDTH" };
 const char* const kDirtModeLabel[4] = { "SOFT", "SAVAGE", "BRUTAL", "ANNIHIL" };
 const char* const kGlitchDestLabel[GDEST_COUNT] = { "LEN", "CHANCE", "PITCH", "MIX" };
-const char* const kGrainDestLabel[GRDEST_COUNT] = { "SIZE", "DENSITY", "SPREAD", "MIX" };
+const char* const kGrainDestLabel[GRDEST_COUNT] = { "SIZE", "DENSITY", "SPREAD", "MIX", "PITCH" };
 const char* const kFxDestLabel[FXDEST_COUNT] = { "RATE", "DEPTH", "FEED", "MIX" };
 const char* const kFxModeLabel[4] = { "PHASER", "FLANGER", "CHORUS", "ENSEMBL" };
 
@@ -255,9 +255,9 @@ PhoenixModel::PhoenixModel() {
     // line of its own, and the line is worth more than a second copy of
     // something the filter and the reverb both list.
     const char* dly_names[kDelayModRows] = { "CHAOS-A", "CHAOS-B", "SEQ-1", "CMP",
-                                            "FUNC-1" };
+                                            "FUNC-1", "FUNC-2" };
     const SourceId dly_srcs[kDelayModRows] = { SRC_CHA, SRC_CHB, SRC_SQ1, SRC_CMP,
-                                              SRC_FN1 };
+                                              SRC_FN1, SRC_FN2 };
     for (int i = 0; i < kDelayModRows; ++i) {
       delay.mod[i].name = dly_names[i];
       delay.mod[i].src = dly_srcs[i];
@@ -355,13 +355,24 @@ PhoenixModel::PhoenixModel() {
   // Each gets a different destination as well as a different source, so the
   // bank arrives saying what it is for rather than as four copies of one row.
   {
-    const char* names[4] = { "CHAOS-A", "CHAOS-B", "SEQ-1", "CMP" };
-    const SourceId srcs[4] = { SRC_CHA, SRC_CHB, SRC_SQ1, SRC_CMP };
-    const uint8_t dirt_dest[4] = { DIDEST_DRIVE, DIDEST_CRUSH, DIDEST_DOWN, DIDEST_MIX };
-    const uint8_t fx_dest[4]   = { FDEST_RATE, FDEST_DEPTH, FDEST_FEED, FDEST_MIX };
-    const uint8_t gl_dest[4]   = { GDEST_LEN, GDEST_CHANCE, GDEST_PITCH, GDEST_MIX };
-    const uint8_t gr_dest[4]   = { GRDEST_SIZE, GRDEST_DENSITY, GRDEST_SPREAD, GRDEST_MIX };
-    for (int i = 0; i < 4; ++i) {
+    // Six rows, not four, and the two new ones are the envelopes. The four
+    // effect banks were the only place in the machine a function generator
+    // could not reach, which made envelopes useless for exactly the job they
+    // are best at -- opening a filter is one thing, but ducking a delay or
+    // swelling a reverb is what an envelope on an effect is for.
+    const char* names[6] = { "CHAOS-A", "CHAOS-B", "SEQ-1", "CMP",
+                             "FUNC-1", "FUNC-2" };
+    const SourceId srcs[6] = { SRC_CHA, SRC_CHB, SRC_SQ1, SRC_CMP,
+                               SRC_FN1, SRC_FN2 };
+    const uint8_t dirt_dest[6] = { DIDEST_DRIVE, DIDEST_CRUSH, DIDEST_DOWN,
+                                   DIDEST_MIX, DIDEST_DRIVE, DIDEST_WIDTH };
+    const uint8_t fx_dest[6]   = { FDEST_RATE, FDEST_DEPTH, FDEST_FEED,
+                                   FDEST_MIX, FDEST_DEPTH, FDEST_MIX };
+    const uint8_t gl_dest[6]   = { GDEST_LEN, GDEST_CHANCE, GDEST_PITCH,
+                                   GDEST_MIX, GDEST_CHANCE, GDEST_MIX };
+    const uint8_t gr_dest[6]   = { GRDEST_SIZE, GRDEST_DENSITY, GRDEST_SPREAD,
+                                   GRDEST_MIX, GRDEST_PITCH, GRDEST_MIX };
+    for (int i = 0; i < 6; ++i) {
       dirt.mod[i].name = names[i];   dirt.mod[i].src = srcs[i];   dirt.mod[i].mode = dirt_dest[i];
       fx.mod[i].name = names[i];     fx.mod[i].src = srcs[i];     fx.mod[i].mode = fx_dest[i];
       glitch.mod[i].name = names[i]; glitch.mod[i].src = srcs[i]; glitch.mod[i].mode = gl_dest[i];

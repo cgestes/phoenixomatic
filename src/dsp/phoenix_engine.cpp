@@ -110,10 +110,14 @@ void PhoenixEngine::applyParams() {
   for (int i = 0; i < 2; ++i) {
     const Chaos& c = model_.chaos[i];
     chaos_[i].setMode(c.mode);
-    chaos_[i].setRate(c.rate);
     chaos_[i].setSkew(c.skew);
     chaos_[i].setRunglerSteps(c.steps);
     chaos_[i].setRunglerDiv(c.clk_div);
+    // Locked to the pulse, or free. One shape's worth of wander per ratio, so
+    // "1:1" means the chaos core comes round once per pulse.
+    float cp = c.sync.sync ? mainPeriodMs() : 0.0f;
+    chaos_[i].setRate(cp > 0.0f ? 1000.0f / (cp * clockRatioValue(c.sync.ratio))
+                                : c.rate);
     chaos_[i].setRunglerChance(c.chance);
 
     const Osc& o = model_.osc[i];
@@ -172,6 +176,34 @@ bool PhoenixEngine::gateEdge(uint8_t gate_src) const {
     case GATE_RUNG_B: return rung_edge_[1];
     default: return false;
   }
+}
+
+// One pass a sample, after the edges for this sample are known.
+void PhoenixEngine::measureGates() {
+  for (int g = 0; g < GATE_COUNT; ++g) {
+    ++gate_gap_[g];
+    if (!gateEdge(static_cast<uint8_t>(g))) continue;
+    // Two pulses make a period; the first one only starts the clock.
+    if (gate_gap_[g] > 1 && gate_gap_[g] < static_cast<int>(sample_rate_) * 30) {
+      gate_period_[g] = gate_gap_[g];
+    }
+    gate_gap_[g] = 0;
+  }
+}
+
+float PhoenixEngine::gatePeriodMs(uint8_t gate_src) const {
+  if (gate_src >= GATE_COUNT) return 0.0f;
+  int n = gate_period_[gate_src];
+  return n > 0 ? static_cast<float>(n) * 1000.0f / sample_rate_ : 0.0f;
+}
+
+float PhoenixEngine::mainPeriodMs() const {
+  // The clock if the mode has one, the comparator otherwise. A Benjolin has no
+  // tempo, but it does have a pulse, and locking a delay to it is the same
+  // idea -- which is the whole reason this is measured rather than computed.
+  float p = model_.machine_mode == MODE_ADVANCED ? gatePeriodMs(GATE_CLK) : 0.0f;
+  if (p <= 0.0f) p = gatePeriodMs(GATE_CMP_GT);
+  return p;
 }
 
 void PhoenixEngine::tickClock() {
@@ -282,6 +314,7 @@ void PhoenixEngine::tickDrums() {
 void PhoenixEngine::stageDirt(float* l, float* r) {
   const DirtState& dt = model_.dirt;
   float drv = dt.drive, cru = dt.crush, dwn = dt.down, dmix = dt.mix;
+  float wid = dt.width;
   for (int i = 0; i < kDirtModRows; ++i) {
     const ModRow& m = dt.mod[i];
     if (!m.active()) continue;
@@ -290,6 +323,7 @@ void PhoenixEngine::stageDirt(float* l, float* r) {
       case DIDEST_CRUSH: cru += v; break;
       case DIDEST_DOWN:  dwn += v; break;
       case DIDEST_MIX:   dmix += v; break;
+      case DIDEST_WIDTH: wid += v; break;
       default:           drv += v; break;
     }
   }
@@ -300,7 +334,7 @@ void PhoenixEngine::stageDirt(float* l, float* r) {
   // WIDTH drives the two channels by different amounts. Symmetric about what
   // the dial says, so turning it up spreads the sound rather than tilting it,
   // and at zero the two are the same number and the output is mono-safe.
-  float w = clamp01(model_.dirt.width);
+  float w = clamp01(wid);
   float dl = drv * (1.0f + w * 0.55f);
   float dr = drv * (1.0f - w * 0.55f);
   dirt_.setDrive(dl);    dirt_.setCrush(cru);
@@ -331,7 +365,10 @@ void PhoenixEngine::stageFx(float* l, float* r) {
   // should be cold when you turn it up, not full of whatever went past while
   // it was down.
   if (m01 <= 0.0f) return;
-  fx_.setRate(rate);
+  // The sweep, locked or free. Same rule as everywhere else: a ratio to the
+  // pulse the machine already has, measured rather than assumed.
+  float fp = fx.sync.sync ? mainPeriodMs() : 0.0f;
+  fx_.setRate(fp > 0.0f ? 1000.0f / (fp * clockRatioValue(fx.sync.ratio)) : rate);
   fx_.setDepth(depth);
   fx_.setFeedback(feed);
   // Its own mix is bypassed and done here instead, against the incoming
@@ -407,6 +444,7 @@ void PhoenixEngine::stageLoop(float* l, float* r, bool* written) {
   {
     const GrainState& gr = model_.grain;
     float size = gr.size_ms, den = gr.density, spr = gr.spread, gmix = gr.mix;
+    float pitch_oct = 0.0f;
     for (int i = 0; i < kGrainModRows; ++i) {
       const ModRow& m = gr.mod[i];
       if (!m.active()) continue;
@@ -415,9 +453,15 @@ void PhoenixEngine::stageLoop(float* l, float* r, bool* written) {
         case GRDEST_DENSITY: den += v; break;
         case GRDEST_SPREAD:  spr += v; break;
         case GRDEST_MIX:     gmix += v; break;
+        // An interval and a half either way, continuously -- the page's PITCH
+        // is a list of named intervals, and this bends between them.
+        case GRDEST_PITCH:   pitch_oct += v * 1.5f; break;
         default:             size += v * 100.0f; break;
       }
     }
+    looper_.setGrainPitch(shimmerRatio(gr.pitch) * std::exp2(pitch_oct));
+    float grp = gr.sync.sync ? mainPeriodMs() : 0.0f;
+    if (grp > 0.0f) size = grp * clockRatioValue(gr.sync.ratio);
     looper_.setGrainSize(size);
     looper_.setGrainDensity(den);
     looper_.setGrainSpread(spr);
@@ -447,7 +491,15 @@ void PhoenixEngine::stageDelay(float* l, float* r) {
       default:         octaves += v; break;
     }
   }
-  delay_.setTimeScale(octaves == 0.0f ? 1.0f : std::exp2(octaves));
+  // Sync scales the whole pattern rather than moving each tap: the taps keep
+  // the spacing you gave them and the first one lands on the ratio, which is
+  // what a delay pattern is -- a shape, at a tempo.
+  float scale = octaves == 0.0f ? 1.0f : std::exp2(octaves);
+  float dp = dl.sync.sync ? mainPeriodMs() : 0.0f;
+  if (dp > 0.0f && dl.tap[0].time_ms > 1.0f) {
+    scale *= (dp * clockRatioValue(dl.sync.ratio)) / dl.tap[0].time_ms;
+  }
+  delay_.setTimeScale(scale);
   delay_.setFeedback(feed);
   delay_.setDamp(damp);
   float wl = 0.0f, wr = 0.0f;
@@ -514,6 +566,9 @@ void PhoenixEngine::render(int16_t* out, size_t frames) {
       }
     }
 
+    // Every gate's period, before anything asks for one.
+    measureGates();
+
     // --- function generators -----------------------------------------------
     // Before the bus is published, because everything downstream reads them
     // from it this sample rather than the last one.
@@ -543,7 +598,20 @@ void PhoenixEngine::render(int16_t* out, size_t frames) {
       } else {
         func_hold_[i] = 0;
       }
-      func_[i].setGate(func_hold_[i] > 0);
+      // In CYCLE the gate only restarts the shape -- but a shape asked to last
+      // three pulses cannot be restarted every pulse and still be three long.
+      // Measured before this: at x3 the generator never once reached its peak.
+      // So the restart lands on every ceil(ratio)th pulse, and the shape gets
+      // the length it was asked for. Below 1:1 it runs several times per pulse
+      // and every pulse realigns it, which is what you want there.
+      bool pass = func_hold_[i] > 0;
+      if (f.mode == FUNC_CYCLE && f.gate_src != kGateNone) {
+        int every = static_cast<int>(clockRatioValue(f.ratio) + 0.999f);
+        if (every < 1) every = 1;
+        if (func_hold_[i] == gate_hold_samples_) ++func_pulse_[i];   // the edge
+        pass = pass && (func_pulse_[i] % every == 0);
+      }
+      func_[i].setGate(pass);
       func_[i].process(1);
       model_.func[i].out = func_[i].value();
       model_.func[i].gate = func_hold_[i] > 0;

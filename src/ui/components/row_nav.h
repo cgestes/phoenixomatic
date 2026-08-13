@@ -176,6 +176,38 @@ inline float stepScale(StepSize s) {
   return s == STEP_FINE ? 0.2f : (s == STEP_SUPER ? 5.0f : 1.0f);
 }
 
+// A time field that can drop off the bottom of its own range into SYNC, and
+// then walk the ratios. One field, two meanings, and the step off the end is
+// what moves between them -- GLITCH has worked this way since it was written
+// and it costs no column on pages that have none to give.
+//
+// Returns true if it consumed the press.
+inline bool adjustSyncTime(SyncTime* sync, float* free_value, int dir,
+                           StepSize step, float lo, float hi, float per_press) {
+  if (sync->sync) {
+    int r = static_cast<int>(sync->ratio) + dir;
+    if (r >= kClockRatioCount) {          // off the top of the ratios: go free
+      sync->sync = false;
+      *free_value = lo;
+    } else if (r < 0) {
+      sync->ratio = 0;
+    } else {
+      sync->ratio = static_cast<uint8_t>(r);
+    }
+    return true;
+  }
+  if (dir < 0 && *free_value <= lo) {     // off the bottom of free: go synced
+    sync->sync = true;
+    sync->ratio = static_cast<uint8_t>(kClockRatioCount - 1);
+    return true;
+  }
+  *free_value += static_cast<float>(dir) * per_press * stepScale(step);
+  if (*free_value < lo) *free_value = lo;
+  if (*free_value > hi) *free_value = hi;
+  return true;
+}
+
+
 // The same three sizes for a field counted in whole numbers. `coarse` is the
 // page's own natural step; fine is always one, because below one there is
 // nothing, and super is five of them.

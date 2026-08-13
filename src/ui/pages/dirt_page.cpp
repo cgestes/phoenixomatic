@@ -47,8 +47,12 @@ class DirtPage : public IPage {
     bool tr = nav_.atRow(kTopRow);
     uint8_t tbg = rowBg(tr);
     if (tr) scr.highlight(1, 1, kScreenCols - 2, PEN_PANEL);
-    scr.text(1, 1, "SHAPE", PEN_DIM, tbg);
-    drawField(scr, 7, 1, kTopRow, 0, kDirtModeLabel[d.mode], PEN_HOT,
+    // MODE, like CHAOS, FX and SPACE. It was SHAPE here and nowhere else,
+    // which made the same idea wear two names on adjacent pages. FILTER
+    // keeps both words because it genuinely has two questions -- which
+    // filter, and which of its responses.
+    scr.text(1, 1, "MODE", PEN_DIM, tbg);
+    drawField(scr, 6, 1, kTopRow, 0, kDirtModeLabel[d.mode], PEN_HOT,
               nav_.at(kTopRow, 0), tbg);
     scr.text(18, 1, "MIX", PEN_DIM, tbg);
     drawFieldF(scr, 22, 1, kTopRow, 1, PEN_BRIGHT, nav_.at(kTopRow, 1), tbg,

@@ -86,6 +86,8 @@ class ChaosPage : public IPage {
           if (c.clk_div == kRunglerDoubleSpeed) snprintf(buf, sizeof(buf), "x2");
           else snprintf(buf, sizeof(buf), "/%d", c.clk_div);
         }
+        else if (c.sync.sync) snprintf(buf, sizeof(buf), "%s",
+                                       kClockRatioLabel[c.sync.ratio]);
         else formatRate(buf, sizeof(buf), c.rate);
       } else if (i == 1) {
         if (rung) snprintf(buf, sizeof(buf), "%d", c.steps);
@@ -533,9 +535,10 @@ class ChaosPage : public IPage {
           c.clk_div = clampRunglerDiv(c.clk_div + dir);
           break;
         }
-        c.rate += d;
-        if (c.rate < 0.005f) c.rate = 0.005f;
-        if (c.rate > 2.0f) c.rate = 2.0f;
+        // Off the bottom of the free range is SYNC, and then the ratios --
+        // the same gesture as GLITCH's LEN and GRAIN's SIZE. A chaos core
+        // locked to the pulse is a wander that arrives on the beat.
+        adjustSyncTime(&c.sync, &c.rate, dir, step, 0.005f, 2.0f, 0.05f);
         break;
       case 1:
         if (c.mode == CHAOS_RUNGLER) {

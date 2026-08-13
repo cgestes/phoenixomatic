@@ -44,8 +44,14 @@ class GrainPage : public IPage {
     uint8_t tbg = rowBg(tr);
     if (tr) scr.highlight(1, 1, kScreenCols - 2, PEN_PANEL);
     scr.text(1, 1, "SIZE", PEN_DIM, tbg);
-    drawFieldF(scr, 6, 1, kTopRow, 0, PEN_EMBER, nav_.at(kTopRow, 0), tbg,
-               "%dms", static_cast<int>(d.size_ms));
+    // SYNC sits one step below the shortest grain, the way GLITCH's LEN does.
+    if (d.sync.sync) {
+      drawField(scr, 6, 1, kTopRow, 0, kClockRatioLabel[d.sync.ratio], PEN_HOT,
+                nav_.at(kTopRow, 0), tbg);
+    } else {
+      drawFieldF(scr, 6, 1, kTopRow, 0, PEN_EMBER, nav_.at(kTopRow, 0), tbg,
+                 "%dms", static_cast<int>(d.size_ms));
+    }
     scr.text(15, 1, "DENS", PEN_DIM, tbg);
     drawFieldF(scr, 20, 1, kTopRow, 1, PEN_VIOLET, nav_.at(kTopRow, 1), tbg,
                "%d", static_cast<int>(d.density * 100.0f));
@@ -85,9 +91,7 @@ class GrainPage : public IPage {
     int dir = ev.code == KEY_RIGHT ? 1 : -1;
     if (nav_.row() == kTopRow) {
       if (nav_.field() == 0) {
-        d.size_ms += static_cast<float>(dir) * 5.0f * stepScale(ev.step);
-        if (d.size_ms < 5.0f) d.size_ms = 5.0f;
-        if (d.size_ms > 200.0f) d.size_ms = 200.0f;
+        adjustSyncTime(&d.sync, &d.size_ms, dir, ev.step, 5.0f, 200.0f, 5.0f);
       } else if (nav_.field() == 1) {
         adjustUnit(&d.density, dir, ev.step);
       } else {

@@ -31,19 +31,21 @@ class HelpPage : public IPage {
     // you look up somewhere else.
     struct Row { const char* key; const char* what; };
     static const Row kRows[] = {
-      {"UP DOWN",    "move between rows"},
-      {"LEFT RIGHT", "move between fields"},
-      {"A / Z",      "raise / lower, fine"},
-      {"S / X",      "the same, coarse"},
-      {"D / C",      "the same, big jumps"},
-      {"I  O  P",    "bottom / middle / top"},
-      {"SHIFT+I/P",  "whole page; SH+O zeroes it"},
-      {"R  T  SH+R", "random field / row / page"},
-      {"SPACE",      "toggle (play on HOME)"},
-      {"[  ]",       "previous / next screen"},
-      {"CTRL+UP/DN", "sub-page"},
-      {"1 - 8",      "mute an instrument"},
-      {"-  =  ESC",  "mute all / none / invert"},
+      // Thirteen rows between the header and the tabs, and the key column is
+      // thirteen cells wide -- so pairs that mean one idea share a line.
+      {"ARROWS",      "move rows / fields"},
+      {"A/Z S/X D/C", "fine / coarse / big"},
+      {"I O P +SHIFT","ends / middle, page"},
+      {"R  T  SH+R",  "random field/row/page"},
+      {"E   SHIFT+E", "random MOD on / off"},
+      {"SPACE",       "switch focused on/off"},
+      {"G",           "go / stop"},
+      {"[  ]",        "previous / next screen"},
+      {"CMD+1 - 9",   "jump to a screen"},
+      {"CMD+A S D F", "pick a machine"},
+      {"CTRL+UP/DN",  "sub-page"},
+      {"1 - 8",       "mute an instrument"},
+      {"-  =  ESC",   "all / none / invert"},
     };
     constexpr int kCount = static_cast<int>(sizeof(kRows) / sizeof(kRows[0]));
 

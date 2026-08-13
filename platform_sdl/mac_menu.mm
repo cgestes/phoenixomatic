@@ -6,10 +6,16 @@
 
 #include "sdl_audio.h"
 #include "../src/dsp/audio_config.h"
+#include "../src/core/model.h"
 
 // The menu items need an Objective-C object to send their action to, and it
 // has to outlive the call that builds them, so it is a file-scope singleton
 // rather than something owned by the menu.
+// Set before the menu is built, so the transport item knows what to start.
+static PhoenixModel* g_model = nullptr;
+
+void installTransportMenu(PhoenixModel* model) { g_model = model; }
+
 @interface PhxAudioMenuTarget : NSObject {
  @public
   SdlAudio* audio;
@@ -17,6 +23,7 @@
   NSMenu* rates;
 }
 - (void)pick:(id)sender;
+- (void)toggleTransport:(id)sender;
 - (void)pickRate:(id)sender;
 - (void)refreshTicks;
 @end
@@ -33,6 +40,12 @@
 
 // The tag is the rate in hertz, which is also what the label says, so there is
 // nothing to keep in step between them.
+// Transport, for the times your hands are on the mouse. The keyboard has G.
+- (void)toggleTransport:(id)sender {
+  (void)sender;
+  if (g_model) g_model->togglePlay();
+}
+
 - (void)pickRate:(id)sender {
   NSMenuItem* item = (NSMenuItem*)sender;
   if (audio) audio->setRate(static_cast<int>(item.tag));
@@ -115,6 +128,21 @@ void installAudioMenu(SdlAudio* audio) {
                                               keyEquivalent:@""];
     [rate_top setSubmenu:rate_menu];
     [main addItem:rate_top];
+
+    // Play/stop where a mouse can reach it, alongside the two device menus.
+    if (g_model) {
+      NSMenu* tm = [[NSMenu alloc] initWithTitle:@"Transport"];
+      NSMenuItem* go = [[NSMenuItem alloc] initWithTitle:@"Go / Stop"
+                                                  action:@selector(toggleTransport:)
+                                           keyEquivalent:@"g"];
+      go.target = g_target;
+      [tm addItem:go];
+      NSMenuItem* top2 = [[NSMenuItem alloc] initWithTitle:@"Transport"
+                                                    action:nil
+                                             keyEquivalent:@""];
+      [top2 setSubmenu:tm];
+      [main addItem:top2];
+    }
 
     [g_target refreshTicks];
   }

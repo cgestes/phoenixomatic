@@ -144,12 +144,12 @@ class ClockPage : public IPage {
     return true;
   }
 
-  // A clock has no off, so the toggle stops the transport instead — the same
-  // thing the space bar does, from the page that is about time.
-  bool toggleField() override {
-    model_.togglePlay();
-    return true;
-  }
+  // Nothing on this page has two states -- a tempo and two divisions are all
+  // numbers -- so SPACE has nothing to toggle here. It used to stop the
+  // transport instead, which was reasonable while SPACE *was* the transport
+  // and is the one remaining exception now that G is. Transport is G, from
+  // anywhere, including here.
+  bool toggleField() override { return false; }
 
   void zeroField() override {
     if (nav_.row() == kBpmRow) model_.clock.bpm = 120.0f;

@@ -58,8 +58,13 @@ class FxPage : public IPage {
     bool no_feed = d.mode == FX_CHORUS || d.mode == FX_ENSEMBLE;
     if (ar) scr.highlight(1, 2, kScreenCols - 2, PEN_PANEL);
     scr.text(1, 2, "RATE", PEN_DIM, abg);
-    drawFieldF(scr, 6, 2, kAmtRow, 0, PEN_COOL, nav_.at(kAmtRow, 0), abg, "%d",
-               static_cast<int>(d.rate * 100.0f));
+    if (d.sync.sync) {
+      drawField(scr, 6, 2, kAmtRow, 0, kClockRatioLabel[d.sync.ratio], PEN_HOT,
+                nav_.at(kAmtRow, 0), abg);
+    } else {
+      drawFieldF(scr, 6, 2, kAmtRow, 0, PEN_COOL, nav_.at(kAmtRow, 0), abg, "%d",
+                 static_cast<int>(d.rate * 100.0f));
+    }
     scr.text(12, 2, "DEPTH", PEN_DIM, abg);
     drawFieldF(scr, 18, 2, kAmtRow, 1, PEN_COOL, nav_.at(kAmtRow, 1), abg, "%d",
                static_cast<int>(d.depth * 100.0f));
@@ -98,8 +103,13 @@ class FxPage : public IPage {
       }
       return true;
     }
-    float* v = nav_.field() == 0 ? &d.rate
-             : (nav_.field() == 1 ? &d.depth : &d.feedback);
+    if (nav_.field() == 0) {
+      // The sweep can lock to the pulse, and does so by stepping off the
+      // bottom of its own range -- the same gesture as GLITCH's LEN.
+      adjustSyncTime(&d.sync, &d.rate, dir, ev.step, 0.0f, 1.0f, 0.05f);
+      return true;
+    }
+    float* v = nav_.field() == 1 ? &d.depth : &d.feedback;
     adjustUnit(v, dir, ev.step);
     return true;
   }

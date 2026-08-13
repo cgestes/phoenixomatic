@@ -41,6 +41,11 @@ class PhoenixDisplay {
   int screenCount() const;
 
  private:
+  bool jumpTo(const char* title);
+
+ public:
+
+ private:
   // Width of the white name plate, sized to the longest page title.
   static constexpr int kTitleWidth = 18;
 

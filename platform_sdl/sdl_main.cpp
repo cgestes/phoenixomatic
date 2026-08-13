@@ -295,6 +295,7 @@ int main(int argc, char** argv) {
     // properties of this machine, not of the instrument, and the Cardputer has
     // no choice to offer on either. Installed even with one device, because
     // the rate is always worth choosing.
+    installTransportMenu(&model);
     installAudioMenu(&audio);
     if (device_index >= 0 && !audio.select(device_index)) {
       fprintf(stderr, "phoenixomatic: device %d not available\n", device_index);

@@ -110,6 +110,21 @@ void PhoenixDisplay::dismissSplash() {
   screen_.invalidate();
 }
 
+// Move to the page with this title, if the current mode has one. Titles
+// rather than indices, because the page list changes shape with the mode and
+// an index would land somewhere different in each.
+bool PhoenixDisplay::jumpTo(const char* title) {
+  for (size_t i = 0; i < pages_.size(); ++i) {
+    if (!available(static_cast<int>(i))) continue;
+    if (std::strcmp(pages_[i]->title(), title) != 0) continue;
+    page_index_ = static_cast<int>(i);
+    pages_[page_index_]->setSubPage(0);
+    screen_.invalidate();
+    return true;
+  }
+  return false;
+}
+
 void PhoenixDisplay::drawHeader() {
   IPage* page = pages_[page_index_].get();
   screen_.fillRow(kHeaderRow, PEN_TEXT, PEN_BG);
@@ -385,7 +400,9 @@ bool PhoenixDisplay::handleGlobalKey(const UIEvent& ev) {
   // were not, back when eight column pairs claimed the whole home row. Rate
   // lives on HOME and freeze on CHAOS, as fields, which is where they were
   // reachable anyway.
-  if (ev.key >= '1' && ev.key <= '8') {
+  // Not when a modifier is down: CMD+digit is a page jump, and this ran first
+  // and swallowed eight of the nine.
+  if (!ev.ctrl && ev.key >= '1' && ev.key <= '8') {
     model_.toggleMute(ev.key - '1');
     return true;
   }
@@ -395,16 +412,19 @@ bool PhoenixDisplay::handleGlobalKey(const UIEvent& ev) {
 
   IPage* page = pages_[page_index_].get();
 
-  if (ev.key == ' ') {
-    // Play/stop belongs to the front page. Everywhere else SPACE is the
-    // toggle for whatever is focused, which is the more useful key to have
-    // under your thumb while editing.
-    if (page_index_ == 0) {
-      model_.togglePlay();
-      return true;
-    }
-    return page->toggleField();
+  // G for go. Transport used to be SPACE on "the front page", which meant the
+  // page at index zero -- and that page only exists in CLASSIC. Measured, the
+  // machine could not be started or stopped from the keyboard at all in
+  // BENJOLIN or ADVANCED; the only transport was the arrow in the header, with
+  // the mouse. A key that works on one page in one mode is not a binding.
+  //
+  // Its own letter rather than a page's SPACE, so SPACE now means exactly one
+  // thing everywhere: toggle whatever is focused.
+  if (ev.key == 'g') {
+    model_.togglePlay();
+    return true;
   }
+  if (ev.key == ' ') return page->toggleField();
 
   // I O P, left to right under the fingers, for bottom / origin / top of the
   // range. I used to be the top, which put the two ends of a field on keys
@@ -444,6 +464,20 @@ bool PhoenixDisplay::handleGlobalKey(const UIEvent& ev) {
     }
     return true;
   }
+  // CMD (or CTRL) + a digit jumps straight to a page. Twenty-five screens and
+  // only [ and ] to walk them meant fourteen presses from HOME to SPACE, which
+  // is not a thing you do while playing. Nine destinations rather than
+  // twenty-five: the ones you actually reach for.
+  if (ev.ctrl && ev.key >= '1' && ev.key <= '9') {
+    static const char* kJump[9] = {
+        "PHOENIXOMATIC", "CHAOS-A", "OSC-1", "FILTER", "SEQ-1",
+        "DIRT",          "GLITCH",  "DELAY", "SPACE",
+    };
+    if (jumpTo(kJump[ev.key - '1'])) return true;
+    return true;   // a mode without that page swallows the key rather than
+                   // walking somewhere unexpected
+  }
+
   // CMD (or CTRL) + a/s/d/f picks a machine mode, from any page. It is the
   // biggest single decision on the machine and it used to be a field that sat
   // in a different place on every page that showed it -- row 1 on HOME, row 13
