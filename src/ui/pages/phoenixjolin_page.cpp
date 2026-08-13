@@ -117,11 +117,16 @@ class PhoenixjolinPage : public IPage {
     scr.put(34, 12, model_.comp.a_gt_b ? phx_glyphs::kLedOn : phx_glyphs::kLedOff,
             model_.comp.a_gt_b ? PEN_HOT : PEN_FAINT);
 
-    // The header says PHOENIXJOLIN, so a MODE field saying PHOENIXJOLIN was
-    // repeating it -- and it was the field whose position could not be made
-    // to agree with HOME's, since neither page has a free row where the other
-    // one does.
-    scr.text(2, 13, "SPACE plays   CMD+A S D F picks a mode", PEN_FAINT);
+    // The transport row. It was the MODE row; the mode moved to a key, but
+    // the row stays because on a one-page mode it is the only play/stop there
+    // is, and a navigable row that draws nothing is worse than either.
+    bool mr = nav_.atRow(kModeRow);
+    uint8_t mbg = rowBg(mr);
+    if (mr) scr.highlight(1, 13, kScreenCols - 2, PEN_PANEL);
+    scr.text(2, 13, model_.playing ? "PLAYING" : "STOPPED",
+             model_.playing ? PEN_EMBER : PEN_DIM, mbg);
+    scr.text(11, 13, "SPACE", PEN_FAINT, mbg);
+    scr.text(19, 13, "CMD+A S D F mode", PEN_FAINT, mbg);
   }
 
   void setCursor(int row, int field) override { nav_.setCursor(row, field); }

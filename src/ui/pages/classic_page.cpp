@@ -168,11 +168,18 @@ class ClassicPage : public IPage {
             model_.comp.a_gt_b ? phx_glyphs::kLedOn : phx_glyphs::kLedOff,
             model_.comp.a_gt_b ? PEN_HOT : PEN_FAINT);
 
-    // No MODE field here any more. The page is called CLASSIC, so a line
-    // underneath saying the mode is CLASSIC was telling you what the header
-    // already had -- and it was the only page where that field sat on row 13,
-    // which is what made its position inconsistent everywhere else.
-    scr.text(2, 13, "SPACE plays   CMD+A S D F picks a mode", PEN_FAINT);
+    // The row that used to say MODE. It is still here and still navigable,
+    // because on a one-page mode it is the only transport there is -- and
+    // leaving it undrawn, as removing the MODE field first did, gave the page
+    // a row you could arrow into and not see. So it says what it actually
+    // does now.
+    bool mr = nav_.atRow(kModeRow);
+    uint8_t mbg = rowBg(mr);
+    if (mr) scr.highlight(1, 13, kScreenCols - 2, PEN_PANEL);
+    scr.text(2, 13, model_.playing ? "PLAYING" : "STOPPED",
+             model_.playing ? PEN_EMBER : PEN_DIM, mbg);
+    scr.text(11, 13, "SPACE", PEN_FAINT, mbg);
+    scr.text(19, 13, "CMD+A S D F mode", PEN_FAINT, mbg);
   }
 
   void drawOverlay(IGfx& gfx) override {
