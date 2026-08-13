@@ -6,10 +6,11 @@
 
 namespace {
 
-// The shortest a segment is allowed to be. Below about a millisecond an
-// envelope stops being an envelope and becomes a click, and a click is what
-// DIRT is for.
-constexpr float kMinSegmentSeconds = 0.001f;
+// The shortest a segment is allowed to be. A fifth of a millisecond is four
+// samples at this rate -- short enough to be a click, which for a percussive
+// attack is exactly the point, and it was a millisecond before, which was the
+// floor stopping the snap.
+constexpr float kMinSegmentSeconds = 0.0002f;
 
 }  // namespace
 
@@ -53,16 +54,23 @@ void FuncGen::setMode(uint8_t mode) {
 
 void FuncGen::setGate(bool high) { gate_ = high; }
 
-// How a segment gets from one end to the other. The middle of the dial is a
-// straight line; either side of it is a power curve, which is the cheapest
-// thing that is genuinely logarithmic on one side and exponential on the
-// other and continuous through the middle.
-float FuncGen::contour(float x) const {
+// How a segment gets from one end to the other, and which end it is matters.
+//
+// One power curve for both was wrong, and measurably so: with the same x^k
+// applied to a rise and a fall, the exponential end of the dial gave a decay
+// that starts fast -- which is what you want -- and an attack that leaves
+// slowly and arrives all at once, which is the opposite of snappy. SHAPE moved
+// the attack from 22 ms to 33 ms, in the wrong direction.
+//
+// Mirrored on the way up, so one dial runs from soft at the bottom, through a
+// straight line in the middle, to percussive at the top: fast off the mark
+// *and* fast off the peak. Still continuous, since both forms are x at k = 1.
+float FuncGen::contour(float x, bool rising) const {
   if (x <= 0.0f) return 0.0f;
   if (x >= 1.0f) return 1.0f;
   // 0.25 .. 1 .. 4 across the dial.
   float k = std::exp2((shape_ - 0.5f) * 4.0f);
-  float y = std::pow(x, k);
+  float y = rising ? 1.0f - std::pow(1.0f - x, k) : std::pow(x, k);
 
   if (smooth_ < 0.5f) {
     // Below the middle the segment folds. Tides does this by running the
@@ -87,7 +95,10 @@ void FuncGen::process(int dt_samples) {
   // moving SLOPE changes the shape without changing how long it lasts -- which
   // is the point of having a rate at all.
   float total = 1.0f / rate_;
-  float rise_frac = 0.02f + slope_ * 0.96f;
+  // Two parts in a thousand at the bottom, not two in a hundred. The old floor
+  // meant the shortest attack available alongside a useful decay was nine
+  // milliseconds, and a percussive envelope wants one or two.
+  float rise_frac = 0.002f + slope_ * 0.996f;
   float rise = total * rise_frac;
   float fall = total * (1.0f - rise_frac);
   if (rise < kMinSegmentSeconds) rise = kMinSegmentSeconds;
@@ -143,7 +154,8 @@ void FuncGen::process(int dt_samples) {
       break;
   }
 
-  float shaped = contour(level_);
+  // Which segment we are in decides which way the curve bends.
+  float shaped = contour(level_, stage_ == ATTACK || stage_ == HOLD);
 
   if (smooth_ > 0.5f) {
     // Above the middle the corners are rounded off, up to a filter slow enough

@@ -12,9 +12,10 @@
 //
 //   SLOPE       where the top of the shape sits. All the way down is an
 //               instant attack and a long fall; all the way up is the reverse.
-//   SHAPE       how each segment gets there. Below the middle it leaves fast
-//               and arrives slowly (logarithmic); above it, the other way
-//               round (exponential). In the middle, a straight line.
+//   SHAPE       how each segment gets there, and it bends the two the same
+//               way round rather than the same way. At the top it is fast off
+//               the mark and fast off the peak -- percussive; at the bottom it
+//               swells in and fades out; in the middle, straight lines.
 //   SMOOTHNESS  what happens to the corners. Above the middle they are rounded
 //               off, until the shape is barely a shape. Below it, the segments
 //               break into ripples -- the same fold Tides does, which turns an
@@ -63,7 +64,7 @@ class FuncGen {
  private:
   enum Stage : uint8_t { IDLE = 0, ATTACK, HOLD, RELEASE };
 
-  float contour(float x) const;
+  float contour(float x, bool rising) const;
 
   float sample_rate_ = 22050.0f;
   float rate_ = 1.0f;

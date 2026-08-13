@@ -315,7 +315,7 @@ void filterCurve(IGfx& g, const Box& b, float cutoff, float res, int mode,
 void envelope(IGfx& g, const Box& b, float shape, float slope, float smooth,
               IGfxColor c) {
   baseline(g, b);
-  float rise = 0.02f + slope * 0.96f;
+  float rise = 0.002f + slope * 0.996f;
   float k = std::exp2((shape - 0.5f) * 4.0f);
   int prev = -1;
   float lp = 0.0f;
@@ -323,9 +323,11 @@ void envelope(IGfx& g, const Box& b, float shape, float slope, float smooth,
     float u = static_cast<float>(i) / static_cast<float>(b.w - 1);
     // Up to the peak, then down: level is the linear position along whichever
     // segment we are in.
-    float level = u < rise ? u / rise : 1.0f - (u - rise) / (1.0f - rise);
+    bool rising = u < rise;
+    float level = rising ? u / rise : 1.0f - (u - rise) / (1.0f - rise);
     if (level < 0.0f) level = 0.0f;
-    float v = std::pow(level, k);
+    // Mirrored on the way up, exactly as dsp/func_gen.cpp does it.
+    float v = rising ? 1.0f - std::pow(1.0f - level, k) : std::pow(level, k);
     if (smooth < 0.5f) {
       float amount = (0.5f - smooth) * 2.0f;
       float bumps = 1.0f + amount * 5.0f;
