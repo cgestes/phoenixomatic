@@ -351,6 +351,8 @@ class SpacePage : public IPage {
     switch (mode) {
       case SPACE_SHIMMER: return "the tail feeds itself, transposed";
       case SPACE_IRON:    return "short, driven, gated by the machine";
+      case SPACE_PLATE:   return "a plate: one loop, folded, and moving";
+      case SPACE_CLOUD:   return "eight diffusions \x88 a wash, not a room";
       default:            return "diffused and damped \x88 a plain room";
     }
   }

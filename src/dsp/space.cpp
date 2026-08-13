@@ -6,14 +6,49 @@
 
 namespace {
 
+// --- the delay network ------------------------------------------------------
 // Mutually prime-ish so the lines do not line up and thin the tail out into a
 // flutter. Scaled by SIZE at run time.
 constexpr float kLineFrac[4] = {1.000f, 0.816f, 0.633f, 0.457f};
+constexpr int kLineCap[4] = {3308, 2700, 2095, 1512};
 constexpr int kDiffuseLen[4] = {113, 173, 241, 317};
 constexpr float kDiffuseGain = 0.62f;
+// Room under every read for the modulation to swing without the read pointer
+// ever passing the write pointer.
+constexpr int kModRoom = 24;
+
+// --- the plate --------------------------------------------------------------
+// Dattorro's numbers, from "Effect Design Part 1: Reverberator and Other
+// Filters" (JAES 1997), scaled from the 29761 Hz he wrote them for. They are
+// chosen so nothing in the tank is a whole multiple of anything else in it;
+// rounding them to this machine's rate keeps that true.
+constexpr float kPlateScale = 22050.0f / 29761.0f;
+constexpr int kPlateIn[4] = {142, 107, 379, 277};
+// Each branch is allpass, delay, allpass, delay.
+constexpr int kPlateA[4] = {672, 4453, 1800, 3720};
+constexpr int kPlateB[4] = {908, 4217, 2656, 3163};
+constexpr float kPlateInDiff1 = 0.75f;
+constexpr float kPlateInDiff2 = 0.625f;
+constexpr float kPlateDecayDiff1 = 0.70f;
+constexpr float kPlateDecayDiff2 = 0.50f;
+// Seven taps a side, read from points inside the tank rather than off the ends
+// of it. This is where a plate's density comes from: you hear the same energy
+// at seven different ages at once. Each side reads mostly from the branch the
+// other side does not, which is where its width comes from.
+constexpr int kTapL[7] = {266, 2974, 1913, 1996, 1990, 187, 1066};
+constexpr int kTapR[7] = {353, 3627, 1228, 2673, 2111, 335, 121};
+
+// --- the cloud --------------------------------------------------------------
+// One loop rather than two, with twice the diffusion. Prime-ish again, and
+// deliberately shorter than the plate's elements: the point here is density
+// rather than size, and short elements come round more often.
+constexpr int kCloudIn[4] = {113, 162, 241, 399};
+constexpr int kCloudLoop[5] = {1051, 1583, 2179, 2749, 3673};
+constexpr float kCloudInDiff = 0.625f;
+constexpr float kCloudLoopDiff = 0.5f;
 
 // Transparent below 0.8 and asymptotic to 0.95 above it: a limiter that only
-// exists for the case where the loop has been asked to sustain forever. One
+// exists for the case where a loop has been asked to sustain forever. One
 // compare on almost every sample, a divide on the few that need it -- a tanh
 // on four lines every sample would cost far more and colour everything.
 //
@@ -34,6 +69,28 @@ float softLimit(float x) {
 constexpr float kShimLowHz = 180.0f;    // below this, a downward shimmer piles up
 constexpr float kShimHighHz = 3400.0f;  // above this, an upward one does
 
+// What each layout actually needs, worked out at compile time so the shared
+// block can be checked against it rather than guessed at.
+constexpr int plateElem(int base) {
+  return static_cast<int>(static_cast<float>(base) * kPlateScale) + kModRoom;
+}
+constexpr int kFdnTotal = 3308 + 2700 + 2095 + 1512 +
+                          (113 + kModRoom) + (173 + kModRoom) +
+                          (241 + kModRoom) + (317 + kModRoom);
+constexpr int kPlateTotal =
+    plateElem(142) + plateElem(107) + plateElem(379) + plateElem(277) +
+    plateElem(672) + plateElem(4453) + plateElem(1800) + plateElem(3720) +
+    plateElem(908) + plateElem(4217) + plateElem(2656) + plateElem(3163);
+constexpr int kCloudTotal =
+    (113 + kModRoom) + (162 + kModRoom) + (241 + kModRoom) + (399 + kModRoom) +
+    (1051 + kModRoom) + (1583 + kModRoom) + (2179 + kModRoom) +
+    (2749 + kModRoom) + (3673 + kModRoom);
+
+float scaled(int base, float scale) {
+  float v = static_cast<float>(base) * scale;
+  return v < 2.0f ? 2.0f : v;
+}
+
 }  // namespace
 
 void Space::init(float sample_rate) {
@@ -43,6 +100,19 @@ void Space::init(float sample_rate) {
   gate_k_ = 1.0f - std::exp(-1.0f / (0.003f * sample_rate_));
   shim_lp_k_ = 1.0f - std::exp(-kTwoPi * kShimHighHz / sample_rate_);
   shim_hp_k_ = 1.0f - std::exp(-kTwoPi * kShimLowHz / sample_rate_);
+
+  // Every modulator gets its own rate, and none of them are related by a whole
+  // number: two allpasses breathing in step is a chorus, not a reverb.
+  setLfo(&pa_lfo_, 0.71f, 0.00f);
+  setLfo(&pb_lfo_, 0.93f, 0.37f);
+  setLfo(&c_lfo_a_, 0.47f, 0.00f);
+  setLfo(&c_lfo_b_, 0.61f, 0.53f);
+  const float fdn_hz[4] = {1.6f, 2.3f, 3.1f, 3.9f};
+  const float diff_hz[4] = {0.13f, 0.19f, 0.23f, 0.29f};
+  for (int i = 0; i < kLines; ++i) setLfo(&fdn_lfo_[i], fdn_hz[i], i * 0.21f);
+  for (int i = 0; i < kDiffusers; ++i) setLfo(&diff_lfo_[i], diff_hz[i], i * 0.31f);
+
+  layout();
   setSize(size_);
   setDecay(decay_);
   setDamp(damp_);
@@ -50,16 +120,69 @@ void Space::init(float sample_rate) {
   reset();
 }
 
+void Space::setLfo(Lfo* l, float hz, float phase) {
+  l->inc = hz / sample_rate_;
+  l->phase = phase;
+}
+
+float Space::lfoStep(Lfo* l) const {
+  l->phase += l->inc;
+  l->phase -= std::floor(l->phase);
+  float t = 2.0f * l->phase - 1.0f;          // -1..1, sawtooth
+  float tri = 1.0f - 2.0f * std::fabs(t);    // -1..1, triangle
+  // Rounded off, so the rate of change of the delay has no step in it. A step
+  // in a delay time is a step in pitch, which is audible even at a fraction of
+  // a hertz.
+  return tri * (2.0f - std::fabs(tri));
+}
+
+// Each mode lays its elements out in the same block, starting again from zero.
+// Only one is ever live, so they are free to overlap; all that matters is that
+// no single layout runs past the end.
+void Space::layout() {
+  static_assert(kFdnTotal <= kTankMax, "the delay network does not fit");
+  static_assert(kPlateTotal <= kTankMax, "the plate does not fit");
+  static_assert(kCloudTotal <= kTankMax, "the cloud does not fit");
+  int at = 0;
+  auto take = [&](Line* l, int n) {
+    l->off = at;
+    l->len = n;
+    l->w = 0;
+    at += n;
+  };
+
+  at = 0;
+  for (int i = 0; i < kLines; ++i) take(&fdn_[i], kLineCap[i]);
+  for (int i = 0; i < kDiffusers; ++i) take(&diff_[i], kDiffuseLen[i] + kModRoom);
+
+  at = 0;
+  for (int i = 0; i < 4; ++i) {
+    take(&pin_[i], static_cast<int>(kPlateIn[i] * kPlateScale) + kModRoom);
+  }
+  for (int i = 0; i < 4; ++i) {
+    take(&pa_[i], static_cast<int>(kPlateA[i] * kPlateScale) + kModRoom);
+  }
+  for (int i = 0; i < 4; ++i) {
+    take(&pb_[i], static_cast<int>(kPlateB[i] * kPlateScale) + kModRoom);
+  }
+
+  at = 0;
+  for (int i = 0; i < 4; ++i) take(&cin_[i], kCloudIn[i] + kModRoom);
+  for (int i = 0; i < 5; ++i) take(&cloop_[i], kCloudLoop[i] + kModRoom);
+}
+
 void Space::reset() {
-  for (int i = 0; i < kLineTotal; ++i) line_[i] = 0.0f;
-  for (int i = 0; i < kLines; ++i) {
-    write_[i] = 0;
-    lp_[i] = 0.0f;
-  }
-  for (int i = 0; i < kDiffusers; ++i) {
-    for (int j = 0; j < kMaxDiffuse; ++j) diff_[i][j] = 0.0f;
-    diff_write_[i] = 0;
-  }
+  for (int i = 0; i < kTankMax; ++i) tank_[i] = 0.0f;
+  for (int i = 0; i < kLines; ++i) { fdn_[i].w = 0; lp_[i] = 0.0f; }
+  for (int i = 0; i < kDiffusers; ++i) diff_[i].w = 0;
+  for (int i = 0; i < 4; ++i) { pin_[i].w = 0; pa_[i].w = 0; pb_[i].w = 0; }
+  for (int i = 0; i < 4; ++i) cin_[i].w = 0;
+  for (int i = 0; i < 5; ++i) cloop_[i].w = 0;
+  plate_a_ = plate_b_ = 0.0f;
+  plate_damp_a_ = plate_damp_b_ = 0.0f;
+  plate_bw_ = 0.0f;
+  cloud_fb_ = 0.0f;
+  cloud_damp_ = 0.0f;
   for (int i = 0; i < kShiftLen; ++i) shift_[i] = 0.0f;
   shift_write_ = 0;
   shift_phase_ = 0.0f;
@@ -72,7 +195,11 @@ void Space::setMode(uint8_t mode) {
   uint8_t m = mode < SPACE_MODE_COUNT ? mode : 0;
   if (m == mode_) return;
   mode_ = m;
-  setSize(size_);   // IRON wants much shorter lines than the other two
+  setSize(size_);   // IRON wants much shorter lines than the others
+  // The three machines share one block, so whatever is in it belongs to the
+  // one that just stopped. Left alone it comes back as a burst of somebody
+  // else's tail read at the wrong lengths.
+  reset();
 }
 
 void Space::setSize(float v) {
@@ -84,11 +211,48 @@ void Space::setSize(float v) {
   float shortest = mode_ == SPACE_IRON ? 0.004f : 0.030f;
   float seconds = shortest + (longest - shortest) * size_;
   for (int i = 0; i < kLines; ++i) {
-    int n = static_cast<int>(seconds * kLineFrac[i] * sample_rate_);
-    if (n < 8) n = 8;
-    if (n > kLineCap[i]) n = kLineCap[i];
-    len_[i] = n;
-    if (write_[i] >= n) write_[i] = 0;
+    float n = seconds * kLineFrac[i] * sample_rate_;
+    float cap = static_cast<float>(fdn_[i].len - kModRoom - 2);
+    if (n < 8.0f) n = 8.0f;
+    if (n > cap) n = cap;
+    fdn_delay_[i] = n;
+  }
+
+  // The tanks are tuned by reading short of their full length. Dattorro's
+  // numbers are a room of a particular size; a third of them is a small bright
+  // box, all of them a hall. The input diffusers do not scale -- they are
+  // smearing the attack, and that job does not get bigger with the room.
+  float scale = 0.35f + 0.65f * size_;
+  for (int i = 0; i < 4; ++i) {
+    plate_in_len_[i] = scaled(kPlateIn[i], kPlateScale);
+    plate_a_len_[i] = scaled(kPlateA[i], kPlateScale * scale);
+    plate_b_len_[i] = scaled(kPlateB[i], kPlateScale * scale);
+    cloud_in_len_[i] = static_cast<float>(kCloudIn[i]);
+  }
+  for (int i = 0; i < 5; ++i) cloud_len_[i] = scaled(kCloudLoop[i], scale);
+
+  // The output taps have to stay inside the elements they read from, which
+  // shrank with SIZE. Clamped rather than scaled, so the near taps keep their
+  // spacing in a small room instead of all collapsing onto the same instant.
+  const Line* srcL[7] = {&pb_[1], &pb_[1], &pb_[2], &pb_[3],
+                         &pa_[1], &pa_[2], &pa_[3]};
+  const Line* srcR[7] = {&pa_[1], &pa_[1], &pa_[2], &pa_[3],
+                         &pb_[1], &pb_[2], &pb_[3]};
+  const float lenL[7] = {plate_b_len_[1], plate_b_len_[1], plate_b_len_[2],
+                         plate_b_len_[3], plate_a_len_[1], plate_a_len_[2],
+                         plate_a_len_[3]};
+  const float lenR[7] = {plate_a_len_[1], plate_a_len_[1], plate_a_len_[2],
+                         plate_a_len_[3], plate_b_len_[1], plate_b_len_[2],
+                         plate_b_len_[3]};
+  for (int i = 0; i < 7; ++i) {
+    (void)srcL;
+    (void)srcR;
+    float l = static_cast<float>(kTapL[i]) * kPlateScale;
+    float r = static_cast<float>(kTapR[i]) * kPlateScale;
+    tap_l_[i] = l > lenL[i] - 2.0f ? lenL[i] - 2.0f : l;
+    tap_r_[i] = r > lenR[i] - 2.0f ? lenR[i] - 2.0f : r;
+    if (tap_l_[i] < 1.0f) tap_l_[i] = 1.0f;
+    if (tap_r_[i] < 1.0f) tap_r_[i] = 1.0f;
   }
 }
 
@@ -101,6 +265,10 @@ void Space::setDecay(float v) {
   // this dial were the difference between a tail gone in three seconds and one
   // that ran away, with nothing usable in between.
   fb_gain_ = 0.2f + 0.8f * decay_;
+  // The single-loop reverb has four allpasses in its path and each of them
+  // returns some energy of its own, so unity there arrives sooner. Measured to
+  // give roughly the same range of tail lengths as the other two.
+  cloud_fb_ = 0.25f + 0.735f * decay_;
 }
 
 void Space::setDamp(float v) {
@@ -119,9 +287,36 @@ void Space::setDrive(float v) {
   drive_post_ = 1.0f / (1.0f + drive_ * 2.0f);
 }
 
-// Reading a whole line back is just the write cursor: idx = write - len lands
-// in [-len, 0), one wrap puts it exactly on write_, and write_ is already
-// inside the line. The helper the loop used to call collapses to this.
+float Space::readLine(const Line& l, float delay) const {
+  float p = static_cast<float>(l.w) - delay;
+  while (p < 0.0f) p += static_cast<float>(l.len);
+  int i0 = static_cast<int>(p);
+  if (i0 >= l.len) i0 -= l.len;
+  float fr = p - std::floor(p);
+  int i1 = i0 + 1 >= l.len ? 0 : i0 + 1;
+  return tank_[l.off + i0] + (tank_[l.off + i1] - tank_[l.off + i0]) * fr;
+}
+
+void Space::writeLine(Line* l, float v) {
+  tank_[l->off + l->w] = v;
+  if (++l->w >= l->len) l->w = 0;
+}
+
+// v = x - g*delayed, out = delayed + g*v. Unity magnitude at every frequency,
+// which is what lets a chain of these smear a transient without colouring it.
+float Space::allpass(Line* l, float x, float g, float delay) {
+  float d = readLine(*l, delay);
+  float v = x - g * d;
+  writeLine(l, v);
+  return d + g * v;
+}
+
+float Space::delayThrough(Line* l, float x, float delay) {
+  float y = readLine(*l, delay);
+  writeLine(l, x);
+  return y;
+}
+
 // The shifter's buffer, read a fractional number of samples behind the write
 // cursor. Interpolated: the read position moves by a fraction of a sample per
 // sample, and truncating it threw away that fraction as noise.
@@ -135,14 +330,15 @@ float Space::readShift(float delay) const {
   return shift_[i0] + (shift_[i1] - shift_[i0]) * fr;
 }
 
-float Space::delayRead(int line, int offset) const {
-  int n = len_[line];
-  int idx = write_[line] - offset;
-  if (idx < 0) idx += n;
-  return line_[line_off_[line] + (idx >= n ? idx - n : idx)];
+void Space::process(float in, bool gate_open, float* left, float* right) {
+  switch (mode_) {
+    case SPACE_PLATE: processPlate(in, left, right); return;
+    case SPACE_CLOUD: processCloud(in, left, right); return;
+    default: processFdn(in, gate_open, left, right); return;
+  }
 }
 
-void Space::process(float in, bool gate_open, float* left, float* right) {
+void Space::processFdn(float in, bool gate_open, float* left, float* right) {
   // --- input diffusion ------------------------------------------------------
   // A chain of allpasses smears the transient before it reaches the network.
   // IRON skips it: the discrete slaps *are* the sound there, and diffusing
@@ -150,17 +346,36 @@ void Space::process(float in, bool gate_open, float* left, float* right) {
   float x = in;
   if (mode_ != SPACE_IRON) {
     for (int i = 0; i < kDiffusers; ++i) {
-      float d = diff_[i][diff_write_[i]];
-      float v = x + d * -kDiffuseGain;
-      diff_[i][diff_write_[i]] = v;
-      wrapInc(&diff_write_[i], kDiffuseLen[i]);
-      x = d + v * kDiffuseGain;
+      // Modulated, by a few samples at a fraction of a hertz. A fixed allpass
+      // chain has a fixed comb pattern in it, and a fixed comb pattern under a
+      // sustained sound is a ringing note rather than a room.
+      float d = static_cast<float>(kDiffuseLen[i]) + lfoStep(&diff_lfo_[i]) * 6.0f;
+      x = allpass(&diff_[i], x, kDiffuseGain, d);
     }
   }
 
   // --- read the network -----------------------------------------------------
+  // The line reads are modulated too, and this is the one that matters: a
+  // delay network with fixed lengths has fixed modes, and its tail settles
+  // into them as a metallic ring. Wandering the reads by a handful of samples
+  // keeps the modes moving so the ear never locks onto one.
   float t[kLines];
-  for (int i = 0; i < kLines; ++i) t[i] = delayRead(i, len_[i]);
+  for (int i = 0; i < kLines; ++i) {
+    // Depth as a fraction of the line, not a fixed number of samples: one and
+    // a half percent is the same amount of pitch wobble whatever SIZE is
+    // set to, and at the short end a fixed depth would ask for a negative
+    // delay and read the far end of the buffer instead.
+    //
+    // Depth is what mattered here, and the first attempt did not have enough
+    // of it. Five samples at a third of a hertz measured *worse* than no
+    // modulation at all -- the tail's self-correlation went from 0.394 to
+    // 0.421, because over any one second the delay had barely moved. At this
+    // depth and rate it measures 0.19, which is where the plate sits.
+    float wob = mode_ == SPACE_IRON
+                    ? 0.0f
+                    : lfoStep(&fdn_lfo_[i]) * fdn_delay_[i] * 0.014f;
+    t[i] = readLine(fdn_[i], fdn_delay_[i] + wob);
+  }
 
   // Damping: one pole per line, so each pass round loses more top than the
   // last. That is what makes a tail decay rather than just get quieter.
@@ -243,8 +458,7 @@ void Space::process(float in, bool gate_open, float* left, float* right) {
     gate = gate_env_;
   }
 
-  // Saturation inside the loop, not after it: this is what stops a
-  // high-feedback short network from running away, and what makes the ring
+  // Saturation inside the loop, not after it: this is what makes IRON's ring
   // dirty instead of clean. The test is hoisted out of the loop — it is the
   // same answer four times.
   const bool saturate = mode_ == SPACE_IRON && drive_ > 0.0f;
@@ -254,9 +468,7 @@ void Space::process(float in, bool gate_open, float* left, float* right) {
     if (saturate) v = std::tanh(v * drive_pre_) * drive_post_;
     // Always, in every mode: DECAY reaches unity now, and a unity loop needs
     // something that says no. Transparent until the tail is nearly full scale.
-    v = softLimit(v);
-    line_[line_off_[i] + write_[i]] = v;
-    wrapInc(&write_[i], len_[i]);
+    writeLine(&fdn_[i], softLimit(v));
   }
 
   // --- out ------------------------------------------------------------------
@@ -268,4 +480,104 @@ void Space::process(float in, bool gate_open, float* left, float* right) {
   float r = (t[1] + t[3]) * 0.5f;
   *left = clamp1(l * gate);
   *right = clamp1(r * gate);
+}
+
+void Space::processPlate(float in, float* left, float* right) {
+  // Dattorro's tank. The shape of it is the point: the signal is diffused four
+  // times on the way in, then joins a loop that crosses over itself, so what
+  // arrives at branch A is what left branch B. There are no parallel lines and
+  // no mixing matrix -- the crossover is the mixing.
+  float x = in * 0.5f;
+  // Bandwidth: one pole on the way in, so the tank is never asked to
+  // reverberate something it can only turn into hiss.
+  plate_bw_ += (x - plate_bw_) * 0.75f;
+  x = plate_bw_;
+
+  x = allpass(&pin_[0], x, kPlateInDiff1, plate_in_len_[0]);
+  x = allpass(&pin_[1], x, kPlateInDiff1, plate_in_len_[1]);
+  x = allpass(&pin_[2], x, kPlateInDiff2, plate_in_len_[2]);
+  x = allpass(&pin_[3], x, kPlateInDiff2, plate_in_len_[3]);
+
+  const float decay = fb_gain_;
+  const float damp = damp_coeff_;
+
+  // Branch A takes the input plus whatever branch B produced last sample; the
+  // one-sample delay between them is the crossover, and is Dattorro's.
+  {
+    float v = x + plate_b_ * decay;
+    // The modulated allpass. Dattorro's excursion is about eight samples at
+    // under a hertz, and it is the single thing that separates a plate from a
+    // ringing box: without it the tank has fixed modes and finds them.
+    v = allpass(&pa_[0], v, -kPlateDecayDiff1,
+                plate_a_len_[0] + lfoStep(&pa_lfo_) * 6.0f);
+    v = delayThrough(&pa_[1], v, plate_a_len_[1]);
+    plate_damp_a_ += (v - plate_damp_a_) * (1.0f - damp);
+    v = plate_damp_a_ * decay;
+    v = allpass(&pa_[2], v, kPlateDecayDiff2, plate_a_len_[2]);
+    v = delayThrough(&pa_[3], v, plate_a_len_[3]);
+    plate_a_ = softLimit(v);
+  }
+  {
+    float v = x + plate_a_ * decay;
+    v = allpass(&pb_[0], v, -kPlateDecayDiff1,
+                plate_b_len_[0] + lfoStep(&pb_lfo_) * 6.0f);
+    v = delayThrough(&pb_[1], v, plate_b_len_[1]);
+    plate_damp_b_ += (v - plate_damp_b_) * (1.0f - damp);
+    v = plate_damp_b_ * decay;
+    v = allpass(&pb_[2], v, kPlateDecayDiff2, plate_b_len_[2]);
+    v = delayThrough(&pb_[3], v, plate_b_len_[3]);
+    plate_b_ = softLimit(v);
+  }
+
+  const Line* srcL[7] = {&pb_[1], &pb_[1], &pb_[2], &pb_[3],
+                         &pa_[1], &pa_[2], &pa_[3]};
+  const Line* srcR[7] = {&pa_[1], &pa_[1], &pa_[2], &pa_[3],
+                         &pb_[1], &pb_[2], &pb_[3]};
+  // Three of the seven come back inverted. They are reads from inside allpass
+  // elements, whose stored signal is the *inside* of the allpass rather than
+  // its output, and the sign is what stops the seven summing into a comb.
+  const float sign[7] = {1.0f, 1.0f, -1.0f, 1.0f, -1.0f, -1.0f, -1.0f};
+  float l = 0.0f, r = 0.0f;
+  for (int i = 0; i < 7; ++i) {
+    l += sign[i] * readLine(*srcL[i], tap_l_[i]);
+    r += sign[i] * readLine(*srcR[i], tap_r_[i]);
+  }
+  *left = clamp1(l * 0.35f);
+  *right = clamp1(r * 0.35f);
+}
+
+void Space::processCloud(float in, float* left, float* right) {
+  // One loop, diffused eight times in all. Where the plate has two branches
+  // trading with each other, this has a single path that keeps going round,
+  // and every element on it is an allpass except the last. What comes out has
+  // almost no identifiable early reflections: it is a wash from the first
+  // instant, which is what you want under a chord and not at all what you want
+  // under a drum.
+  float x = in * 0.5f;
+  for (int i = 0; i < 4; ++i) {
+    float wob = i == 1 ? lfoStep(&c_lfo_a_) * 4.0f : 0.0f;
+    x = allpass(&cin_[i], x, kCloudInDiff, cloud_in_len_[i] + wob);
+  }
+
+  float v = x + cloud_damp_ * cloud_fb_;
+  v = allpass(&cloop_[0], v, kCloudLoopDiff,
+              cloud_len_[0] + lfoStep(&c_lfo_a_) * 8.0f);
+  v = allpass(&cloop_[1], v, kCloudLoopDiff, cloud_len_[1]);
+  float mid = v;
+  v = allpass(&cloop_[2], v, kCloudLoopDiff,
+              cloud_len_[2] + lfoStep(&c_lfo_b_) * 8.0f);
+  v = allpass(&cloop_[3], v, kCloudLoopDiff, cloud_len_[3]);
+  v = delayThrough(&cloop_[4], v, cloud_len_[4]);
+  cloud_damp_ += (v - cloud_damp_) * (1.0f - damp_coeff_);
+  cloud_damp_ = softLimit(cloud_damp_);
+
+  // Two places to listen from, as far apart as one loop has. Reading the loop
+  // at two points a few samples apart is a mono signal with extra steps -- it
+  // measured 0.78 correlation between the sides, which is barely stereo at
+  // all -- so each side also takes a tap from a different depth inside the
+  // final delay.
+  float near_tap = readLine(cloop_[4], cloud_len_[4] * 0.17f);
+  float far_tap = readLine(cloop_[4], cloud_len_[4] * 0.63f);
+  *left = clamp1((mid + near_tap) * 0.5f);
+  *right = clamp1((far_tap + cloud_damp_) * 0.5f);
 }

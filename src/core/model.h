@@ -690,7 +690,18 @@ inline float shimmerRatio(int i) {
   return std::exp2(static_cast<float>(semis) / 12.0f);
 }
 extern const char* const kSpaceDestLabel[SPDEST_COUNT];
-extern const char* const kSpaceModeLabel[3];
+
+// The five tails. Declared here beside the filter's modes and for the same
+// reason: the pages have to name them, and the pages include the model rather
+// than the DSP. Three separate machines hide behind these -- see dsp/space.h.
+enum SpaceMode : uint8_t {
+  SPACE_ROOM = 0, SPACE_SHIMMER, SPACE_IRON,
+  SPACE_PLATE,    // Dattorro's figure-of-eight tank
+  SPACE_CLOUD,    // one long allpass loop, diffused eight times
+  SPACE_MODE_COUNT
+};
+
+extern const char* const kSpaceModeLabel[SPACE_MODE_COUNT];
 
 struct SpaceState {
   uint8_t mode = 0;          // SpaceMode

@@ -61,7 +61,8 @@ const char* const kFxModeLabel[4] = { "PHASER", "FLANGER", "CHORUS", "ENSEMBL" }
 const char* const kDelayDestLabel[DDEST_COUNT] = { "TIME", "FEED", "DAMP", "MIX" };
 
 const char* const kSpaceDestLabel[SPDEST_COUNT] = { "SIZE", "DECAY", "DAMP", "MIX" };
-const char* const kSpaceModeLabel[3] = { "ROOM", "SHIMMER", "IRON" };
+const char* const kSpaceModeLabel[SPACE_MODE_COUNT] = {
+    "ROOM", "SHIMMER", "IRON", "PLATE", "CLOUD" };
 // Spelled out rather than named as intervals. "+12TH" is a twelfth — an
 // octave and a fifth — but it reads as "+12 semitones", which is an octave,
 // so the label said the one thing it did not mean.
