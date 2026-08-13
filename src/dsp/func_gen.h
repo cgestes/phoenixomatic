@@ -10,8 +10,11 @@
 // Three controls decide the contour, and they are Tides' three because they
 // divide the problem the right way:
 //
-//   SLOPE       where the top of the shape sits. All the way down is an
-//               instant attack and a long fall; all the way up is the reverse.
+//   SLOPE       where the top of the shape sits. All the way down is an attack
+//               two samples long -- as straight up as a signal goes -- and all
+//               the way up is a tail just as thin. The dial is an S rather
+//               than a line, because both of those ends are where the useful
+//               settings are and the middle is where they are not.
 //   SHAPE       how each segment gets there, and it bends the two the same
 //               way round rather than the same way. At the top it is fast off
 //               the mark and fast off the peak -- percussive; at the bottom it

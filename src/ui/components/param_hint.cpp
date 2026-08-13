@@ -315,8 +315,9 @@ void filterCurve(IGfx& g, const Box& b, float cutoff, float res, int mode,
 void envelope(IGfx& g, const Box& b, float shape, float slope, float smooth,
               IGfxColor c) {
   baseline(g, b);
-  float rise = 0.002f + slope * 0.996f;
-  float k = std::exp2((shape - 0.5f) * 4.0f);
+  // The same curve and the same exponent as dsp/func_gen.cpp.
+  float rise = 0.001f + slope * slope * (3.0f - 2.0f * slope) * 0.998f;
+  float k = std::exp2((shape - 0.5f) * 6.0f);
   int prev = -1;
   float lp = 0.0f;
   for (int i = 0; i < b.w; ++i) {

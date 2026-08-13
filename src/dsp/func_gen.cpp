@@ -6,11 +6,20 @@
 
 namespace {
 
-// The shortest a segment is allowed to be. A fifth of a millisecond is four
-// samples at this rate -- short enough to be a click, which for a percussive
-// attack is exactly the point, and it was a millisecond before, which was the
-// floor stopping the snap.
-constexpr float kMinSegmentSeconds = 0.0002f;
+// The shortest a segment is allowed to be: two samples, whatever the rate.
+// Not a time -- a time would mean the machine got snappier when you raised the
+// sample rate, and this is as fast as a signal can go at any of them. Two and
+// not one, because a single-sample step has no slope at all and the linear
+// interpolation on the way to whatever it drives would invent one anyway.
+constexpr float kMinSegmentSamples = 2.0f;
+
+// SLOPE's shape, not its range. Linear, the useful ends were three clicks of a
+// hundred: at 20 Hz, slope 0 gave a 0.18 ms attack and slope 5 already gave
+// 2.36 -- everything percussive squeezed into the bottom of the dial, and
+// every thin tail into the top. Smoothstep is flat at both ends and steep in
+// the middle, which spends the resolution where the interesting settings are
+// and takes it from around "equal halves", where nobody needs a hundredth.
+float slopeCurve(float s) { return s * s * (3.0f - 2.0f * s); }
 
 }  // namespace
 
@@ -68,8 +77,11 @@ void FuncGen::setGate(bool high) { gate_ = high; }
 float FuncGen::contour(float x, bool rising) const {
   if (x <= 0.0f) return 0.0f;
   if (x >= 1.0f) return 1.0f;
-  // 0.25 .. 1 .. 4 across the dial.
-  float k = std::exp2((shape_ - 0.5f) * 4.0f);
+  // An eighth to eight across the dial. It was a quarter to four, which ran
+  // out before the shape did: at eight the fall drops most of the way in the
+  // first tenth of its time and then trails, which is the tail a cymbal has
+  // and a power of four cannot make.
+  float k = std::exp2((shape_ - 0.5f) * 6.0f);
   float y = rising ? 1.0f - std::pow(1.0f - x, k) : std::pow(x, k);
 
   if (smooth_ < 0.5f) {
@@ -95,14 +107,12 @@ void FuncGen::process(int dt_samples) {
   // moving SLOPE changes the shape without changing how long it lasts -- which
   // is the point of having a rate at all.
   float total = 1.0f / rate_;
-  // Two parts in a thousand at the bottom, not two in a hundred. The old floor
-  // meant the shortest attack available alongside a useful decay was nine
-  // milliseconds, and a percussive envelope wants one or two.
-  float rise_frac = 0.002f + slope_ * 0.996f;
+  float rise_frac = 0.001f + slopeCurve(slope_) * 0.998f;
   float rise = total * rise_frac;
   float fall = total * (1.0f - rise_frac);
-  if (rise < kMinSegmentSeconds) rise = kMinSegmentSeconds;
-  if (fall < kMinSegmentSeconds) fall = kMinSegmentSeconds;
+  float floor_s = kMinSegmentSamples / sample_rate_;
+  if (rise < floor_s) rise = floor_s;
+  if (fall < floor_s) fall = floor_s;
   float up = dt / (rise * sample_rate_);
   float down = dt / (fall * sample_rate_);
 
