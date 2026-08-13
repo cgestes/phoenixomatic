@@ -374,9 +374,20 @@ void PhoenixEngine::stageLoop(float* l, float* r, bool* written) {
     float wl, wr;
     looper_.glitch(edge, take, &wl, &wr);
     model_.glitch.live = looper_.glitchArmed() && clamp01(gmix) > 0.0f;
-    float m01 = clamp01(gmix);
-    *l = *l * (1.0f - m01) + wl * m01;
-    *r = *r * (1.0f - m01) + wr * m01;
+    // Only while something is actually being repeated. The looper records a
+    // mono sum, and when it is not repeating it hands back that sum -- so
+    // crossfading to it at any mix quietly collapsed the stereo and delayed
+    // everything by a sample, for an effect that was doing nothing. At CHANCE
+    // zero, where the answer is always "no repeat", GLITCH is now bit for bit
+    // the signal that went in.
+    //
+    // It also makes MIX mean the right thing: how much of the *repeat* you
+    // hear, not how much of a looper that is mostly echoing its own input.
+    if (looper_.glitchArmed()) {
+      float m01 = clamp01(gmix);
+      *l = *l * (1.0f - m01) + wl * m01;
+      *r = *r * (1.0f - m01) + wr * m01;
+    }
   }
   {
     const GrainState& gr = model_.grain;
