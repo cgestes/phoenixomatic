@@ -756,7 +756,10 @@ struct SpaceState {
   // longer and keeps a held note's body. See dsp/daisy_bits.h.
   uint8_t shimmer_algo = 0;  // 0 = built in, 1 = the DaisySP one
   float drive = 0.4f;        // IRON only
-  uint8_t gate_src = GATE_CMP_GT;   // IRON only
+  // No gate unless one is asked for. Every mode honours it now, so a default
+  // of "the comparator" would have chopped six reverbs that never used to be
+  // chopped.
+  uint8_t gate_src = kGateNone;
   ModRow mod[kSpaceModRows];
 };
 

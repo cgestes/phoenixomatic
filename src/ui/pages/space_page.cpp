@@ -73,9 +73,15 @@ class SpacePage : public IPage {
         scr.text(1, 3, "GATE", PEN_DIM, ebg);
         drawField(scr, 6, 3, kExtraRow, 0, gateLabel(sp.gate_src), PEN_HOT,
                   nav_.at(kExtraRow, 0), ebg);
-        scr.text(16, 3, "DRIVE", PEN_DIM, ebg);
-        drawFieldF(scr, 22, 3, kExtraRow, 1, PEN_EMBER, nav_.at(kExtraRow, 1), ebg,
-                   "%d", static_cast<int>(sp.drive * 100.0f));
+        // DRIVE is saturation inside the delay network's loop, and only IRON
+        // runs that loop with it switched on -- the tank reverbs have their
+        // own structures and the imported pair are not ours to reach into. It
+        // is drawn where it does something and left off where it does not.
+        if (hasDrive()) {
+          scr.text(16, 3, "DRIVE", PEN_DIM, ebg);
+          drawFieldF(scr, 22, 3, kExtraRow, 1, PEN_EMBER, nav_.at(kExtraRow, 1),
+                     ebg, "%d", static_cast<int>(sp.drive * 100.0f));
+        }
       }
     }
 
@@ -346,7 +352,10 @@ class SpacePage : public IPage {
   }
 
  private:
-  bool hasExtra() const { return model_.space.mode != SPACE_ROOM; }
+  // Every mode but ROOM carries a third row: SHIMMER's pitch controls, or
+  // the gate that all the others now answer to.
+  bool hasExtra() const { return true; }
+  bool hasDrive() const { return model_.space.mode == SPACE_IRON; }
   int bankRow0() const { return hasExtra() ? kExtraRow + 1 : kExtraRow; }
 
   ModRow& bankRow() {
@@ -379,7 +388,7 @@ class SpacePage : public IPage {
     fields_[r++] = 3;                                   // SIZE, DECAY, DAMP
     // SHIMMER carries a third: which shifter is doing the work.
     if (hasExtra()) {
-      fields_[r++] = model_.space.mode == SPACE_SHIMMER ? 3 : 2;
+      fields_[r++] = model_.space.mode == SPACE_SHIMMER ? 3 : (hasDrive() ? 2 : 1);
     }
     for (int i = 0; i < bank_count_; ++i) fields_[r++] = 2;
     nav_.configure(fields_, r);

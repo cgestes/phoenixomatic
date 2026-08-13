@@ -385,16 +385,29 @@ float Space::readShift(float delay) const {
 }
 
 void Space::process(float in, bool gate_open, float* left, float* right) {
+  // The gate belongs to every tail, not to IRON's.
+  //
+  // It was IRON's because a gated reverb is IRON's whole idea, but the control
+  // was on the page for all of them and did nothing on six of the seven --
+  // which is worse than not offering it. A plate cut off by the comparator is
+  // a real sound, and so is a cloud that only exists while a drum is hitting.
+  // An envelope, not a switch: a hard cut would click.
+  float target = gate_open ? 1.0f : 0.0f;
+  gate_env_ += (target - gate_env_) * gate_k_;
+
   switch (mode_) {
-    case SPACE_PLATE: processPlate(in, left, right); return;
-    case SPACE_CLOUD: processCloud(in, left, right); return;
+    case SPACE_PLATE: processPlate(in, left, right); break;
+    case SPACE_CLOUD: processCloud(in, left, right); break;
     case SPACE_MI_CLOUD:
-    case SPACE_MI_RINGS: mi_.process(in, left, right); return;
-    default: processFdn(in, gate_open, left, right); return;
+    case SPACE_MI_RINGS: mi_.process(in, left, right); break;
+    default: processFdn(in, gate_open, left, right); break;
   }
+  *left *= gate_env_;
+  *right *= gate_env_;
 }
 
 void Space::processFdn(float in, bool gate_open, float* left, float* right) {
+  (void)gate_open;   // the gate is applied for every mode, in process()
   // --- input diffusion ------------------------------------------------------
   // A chain of allpasses smears the transient before it reaches the network.
   // IRON skips it: the discrete slaps *are* the sound there, and diffusing
@@ -513,14 +526,6 @@ void Space::processFdn(float in, bool gate_open, float* left, float* right) {
     shimmer_amt = shimmer_ * 0.8f;
   }
 
-  // --- IRON's gate ----------------------------------------------------------
-  float gate = 1.0f;
-  if (mode_ == SPACE_IRON) {
-    float target = gate_open ? 1.0f : 0.0f;
-    gate_env_ += (target - gate_env_) * gate_k_;
-    gate = gate_env_;
-  }
-
   // Saturation inside the loop, not after it: this is what makes IRON's ring
   // dirty instead of clean. The test is hoisted out of the loop — it is the
   // same answer four times.
@@ -541,8 +546,8 @@ void Space::processFdn(float in, bool gate_open, float* left, float* right) {
   // the same jack's other half.
   float l = (t[0] + t[2]) * 0.5f;
   float r = (t[1] + t[3]) * 0.5f;
-  *left = clamp1(l * gate);
-  *right = clamp1(r * gate);
+  *left = clamp1(l);
+  *right = clamp1(r);
 }
 
 void Space::processPlate(float in, float* left, float* right) {
