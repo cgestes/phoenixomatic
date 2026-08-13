@@ -348,6 +348,10 @@ struct FuncState {
   // a generator waiting for something that never comes -- which is why the
   // default is a real source rather than none.
   uint8_t gate_src = GATE_CMP_GT;
+  // Published by the engine every block, for the page to plot. Live, not a
+  // setting: nothing writes it from a page.
+  float out = 0.0f;
+  bool gate = false;
 };
 
 // Both chaos oscillators reach both audio oscillators, so a single chaos

@@ -509,6 +509,8 @@ void PhoenixEngine::render(int16_t* out, size_t frames) {
       }
       func_[i].setGate(func_hold_[i] > 0);
       func_[i].process(1);
+      model_.func[i].out = func_[i].value();
+      model_.func[i].gate = func_hold_[i] > 0;
     }
 
     publishBus();

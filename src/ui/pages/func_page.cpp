@@ -14,8 +14,15 @@
 
 namespace {
 
-// Three rows per generator, one after the other.
+// Three rows per generator, one after the other, and a trace under each.
 constexpr int kRowsPer = 3;
+
+// The plot under each generator. Wide, because an envelope is a shape in time
+// and a narrow window shows a slope rather than a contour.
+constexpr int kTraceCol = 3;
+constexpr int kTraceCols = 34;
+constexpr int kTraceRows = 2;
+constexpr int kHistory = kTraceCols * kCellW;
 
 class FuncPage : public IPage {
  public:
@@ -30,7 +37,7 @@ class FuncPage : public IPage {
     for (int g = 0; g < kFuncGens; ++g) {
       const FuncState& f = model_.func[g];
       int r0 = g * kRowsPer;
-      int y = 1 + g * 4;
+      int y = 1 + g * 6;
 
       bool a = nav_.atRow(r0);
       uint8_t abg = rowBg(a);
@@ -72,9 +79,14 @@ class FuncPage : public IPage {
         drawFieldF(scr, 27, y + 2, r0 + 2, 1, PEN_BRIGHT, nav_.at(r0 + 2, 1),
                    cbg, "%.1fs", static_cast<double>(1.0f / f.rate));
       }
+      // The shape as it actually came out, which is the one thing the six
+      // numbers above cannot tell you -- a gate that never arrives and a
+      // gate that arrives constantly look identical from the settings.
+      scr.reserve(kTraceCol, y + 3, kTraceCols, kTraceRows);
+      pushHistory(g);
     }
 
-    scr.text(2, 13, "envelopes, 0-10V \x88 FN1 FN2 on the banks", PEN_FAINT);
+    scr.text(1, 13, "envelopes, 0-10V \x88 FN1 FN2 on the banks", PEN_FAINT);
   }
 
   ParamHint focusedHint() const override {
@@ -94,6 +106,45 @@ class FuncPage : public IPage {
                        "rise and fall together"};
     }
     return ParamHint{};
+  }
+
+  void drawOverlay(IGfx& gfx) override {
+    for (int g = 0; g < kFuncGens; ++g) {
+      int y0 = TextScreen::pixelY(1 + g * 6 + 3);
+      int x0 = TextScreen::pixelX(kTraceCol);
+      int w = kTraceCols * kCellW;
+      int h = kTraceRows * kCellH;
+      // Unipolar, so the floor is the floor rather than the middle. Drawn as
+      // two rails and no centre line, because zero volts here is the bottom
+      // of the picture and there is nothing below it.
+      int base = y0 + h - 1;
+      int span = h - 2;
+      gfx.fillRect(x0, y0, w, 1, COLOR_RULE);
+      gfx.fillRect(x0, base, w, 1, COLOR_RULE);
+
+      int prev = base;
+      for (int x = 0; x < w && x < kHistory; ++x) {
+        float v = hist_[g][(hist_pos_[g] + x) % kHistory];
+        int yy = base - static_cast<int>(v * static_cast<float>(span));
+        if (yy < y0) yy = y0;
+        if (yy > base) yy = base;
+        if (x > 0 && yy != prev) {
+          int lo = yy < prev ? yy : prev;
+          int hi = yy < prev ? prev : yy;
+          gfx.fillRect(x0 + x, lo, 1, hi - lo + 1, COLOR_HOT);
+        } else {
+          gfx.drawPixel(x0 + x, yy, COLOR_HOT);
+        }
+        prev = yy;
+      }
+      // A tick along the bottom wherever the gate was open, so a shape that
+      // did not happen can be told from a gate that never came.
+      for (int x = 0; x < w && x < kHistory; ++x) {
+        if (gate_hist_[g][(hist_pos_[g] + x) % kHistory]) {
+          gfx.drawPixel(x0 + x, base, COLOR_EMBER);
+        }
+      }
+    }
   }
 
   void setCursor(int row, int field) override { nav_.setCursor(row, field); }
@@ -215,9 +266,29 @@ class FuncPage : public IPage {
     f.rate = u <= 0.0f ? 0.05f : (u >= 1.0f ? 200.0f : std::sqrt(0.05f * 200.0f));
   }
 
+  // Sampled on an interval of its own rather than once a frame, and the
+  // interval follows the generator's rate so that about four shapes fill the
+  // window whether one takes twenty seconds or five milliseconds. A fixed
+  // window cannot do both, and this page spans a four-thousand-to-one range.
+  void pushHistory(int g) {
+    const FuncState& f = model_.func[g];
+    double every = static_cast<double>(4.0f / f.rate) / kHistory;
+    if (every < 0.0005) every = 0.0005;
+    if (every > 0.5) every = 0.5;
+    if (model_.time - last_sample_[g] < every) return;
+    last_sample_[g] = model_.time;
+    hist_[g][hist_pos_[g]] = f.out;
+    gate_hist_[g][hist_pos_[g]] = f.gate;
+    hist_pos_[g] = (hist_pos_[g] + 1) % kHistory;
+  }
+
   PhoenixModel& model_;
   RowNav nav_;
   uint8_t fields_[kFuncGens * kRowsPer] = {};
+  float hist_[kFuncGens][kHistory] = {};
+  bool gate_hist_[kFuncGens][kHistory] = {};
+  int hist_pos_[kFuncGens] = {0, 0};
+  double last_sample_[kFuncGens] = {0.0, 0.0};
 };
 
 }  // namespace
